@@ -188,11 +188,17 @@ frequencies, psd = welch(rr_fft, fs = interp_fs, nperseg = 256)
 #Band Power
 lf_band = (frequencies >= 0.04) & (frequencies < 0.15)
 hf_band = (frequencies >= 0.15) & (frequencies < 0.4)
+vlf_band = (frequencies >= 0.003) & (frequencies < 0.04)
 
+vlf_power = np.trapezoid(psd[vlf_band], frequencies[vlf_band]) * 1e6 
 lf_power = np.trapezoid(psd[lf_band], frequencies[lf_band]) * 1e6 #convert to ms for reporting
 hf_power = np.trapezoid(psd[hf_band], frequencies[hf_band]) * 1e6 #convert to ms for reporting
 lf_hf_ratio = lf_power / hf_power
 total_power = lf_power + hf_power
+
+#nu
+lf_nu = (lf_power/total_power)
+hf_nu = (hf_power/total_power)
 
 plt.figure(figsize=(10, 6))
 plt.plot(frequencies, psd * 1e6)  # Convert to ms² for plotting
@@ -211,4 +217,6 @@ print(f"HF Power: {hf_power:.2f} ms²")
 print(f"Total Power: {total_power:.2f} ms²")
 print(f"LF/HF Ratio: {lf_hf_ratio:.2f}")
 
-plt.show()
+print(f"LF Power: {lf_nu:.2f} n.u.")
+print(f"HF Power: {hf_nu:.2f} n.u.")
+# plt.show()
