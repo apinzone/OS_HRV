@@ -6,6 +6,7 @@ from enum import Enum
 from scipy import signal
 from scipy import spatial #imports abridged
 from scipy.stats import entropy
+import scipy
 
 #Root mean squared calculation
 def rms(input):
@@ -214,31 +215,6 @@ def resample_tachogram(tachogram, original_sampling_rate, target_sampling_rate):
     resampled_tachogram = signal.resample(tachogram, target_length)
     return resampled_tachogram, target_sampling_rate
 
-#Shannon Entropy Calculation (Basic Entropy independent of ApEn or SampEn)
-#Formula is H(x) = -Σ P(Xi) * log P(Xi) for every element in the array 
-def compute_shannon_entropy(Data_Sequence):
-    entropy = 0 
-    for element in Data_Sequence: 
-        rel_freq = Data_Sequence.count(element)/len(Data_Sequence)
-        if rel_freq > 0:
-            entropy = entropy - (rel_freq * math.log(rel_freq,2))
-    return entropy 
-
-# def approximate_entropy(rr_intervals, m, r):
-#         n = len(rr_intervals)
-#         Array2 = np.delete(rr_intervals,0)
-#         n2 = len(Array2)
-#         DiffArray1 = []
-#         DiffArray2 = []
-#         #Get differences for both m and m+1 (shifted up)
-#         for i in range(n-1):
-#             diff = spatial.distance.pdist(rr_intervals[i], rr_intervals[i+1])
-#             DiffArray1.append(diff)
-#         for i in range(n2-1):
-#             diff2 = np.abs(Array2[i] - Array2[i+1])
-#             DiffArray2.append(diff2)
-#         return DiffArray1, DiffArray2
-#         #Create distance matrix 
 def ApEn(U, m, r) -> float:
     """Approximate_entropy."""
     def _maxdist(x_i, x_j):
@@ -251,22 +227,18 @@ def ApEn(U, m, r) -> float:
     N = len(U)
     return abs(_phi(m + 1) - _phi(m))   
 
-def SampEn(L, m, r):
-    """Sample entropy."""
-    N = len(L)
-    B = 0.0
-    A = 0.0
-    # Split time series and save all templates of length m
-    xmi = np.array([L[i : i + m] for i in range(N - m)])
-    xmj = np.array([L[i : i + m] for i in range(N - m + 1)])
-    # Save all matches minus the self-match, compute B
-    B = np.sum([np.sum(np.abs(xmii - xmj).max(axis=1) <= r) - 1 for xmii in xmi])
-    # Similar for computing A
-    m += 1
-    xm = np.array([L[i : i + m] for i in range(N - m + 1)])
-    A = np.sum([np.sum(np.abs(xmi - xm).max(axis=1) <= r) - 1 for xmi in xm])
-    # Return SampEn
-    return -np.log(A / B)
+def SampEn(U, m, r):
+    """Sample Entropy of time series U with embedding dimension m and tolerance r."""
+    U = np.array(U)
+    N = len(U)
+
+    def _phi(m):
+        x = np.array([U[i:i + m] for i in range(N - m + 1)])
+        C = np.sum([np.sum(np.max(np.abs(x - xi), axis=1) <= r) - 1 for xi in x])
+        return C / (N - m + 1) / (N - m)
+
+    return -np.log(_phi(m + 1) / _phi(m))
+
 
 def OutlierRemove(xinput, yinput):
     thresh1 = np.average(yinput) + 2.5 * np.std(yinput) 
@@ -278,26 +250,12 @@ def OutlierRemove(xinput, yinput):
             new_x = np.delete(xinput,index)
     return(new_x,new_y)
             
-   
+def bandpower(x, fs, fmin, fmax):
+    f, Pxx = scipy.signal.periodogram(x, fs=fs)
+    ind_min = scipy.argmax(f > fmin) - 1
+    ind_max = scipy.argmax(f > fmax) - 1
+    return scipy.trapz(Pxx[ind_min: ind_max], f[ind_min: ind_max])  
 
-
-#Different FFT Approach, keeping just in case
-# def perform_fft(Time_array, RRI_array, sampling_rate):
-#     # Preprocess the RRI tachogram if necessary
-
-#     # Perform FFT
-#     fft_result = np.fft.fft(RRI_array)
-#     frequency_bins = np.fft.fftfreq(len(RRI_array), d=1/sampling_rate)
-
-#     # Calculate power spectral density (PSD)
-#     power_spectrum = np.abs(fft_result) ** 2 / (len(RRI_array) * sampling_rate)
-#     psd = power_spectrum[:len(frequency_bins)//2] * 2  # Take positive frequency components and double the amplitude
-
-#     return frequency_bins[:len(frequency_bins)//2], psd
-
-    # differene in time between peaks is RRDistance
-    # RRDistance[i-1] * fs = num samples
- 
 def going_up(array, thresh):
     for i in range(0,len(array) - 1):
         if array[i] > array[i + 1] + thresh:
@@ -310,8 +268,7 @@ def going_down(array, thresh):
             return False
     return True
 
-
-def walkin_the_dog(PI, BP):
+def sequencing(PI, BP):
     window = 3 # indexes
     PI_thresh = 4 # ms
     BP_thresh = 1 # mmHg
@@ -340,27 +297,5 @@ def walkin_the_dog(PI, BP):
             PI_view_window.append(PI[i])
             BP_view_window.pop(0)
             BP_view_window.append(BP[i])
-
     return output
 
-def anthonys_request(input):
-    # Combine like up / down intervals.
-    # input should be an array consisting of 0, 1, -1 where:
-    # 1 = up interval measured
-    # -1 = down interval measured
-    # 0 = neither up nor down
-    working = input.copy()
-    i = 0 
-    while i < (len(working) - 1):
-        if working[i] == working[i + 1] and (working[i] == 1 or working[i] == -1):
-            working[i + 1] = 0
-            i += 1
-        i += 1
-
-    return working
-def count(input, parameter):
-    c = 0 
-    for elem in input:
-        if elem == parameter:
-            c += 1
-    return c

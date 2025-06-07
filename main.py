@@ -2,9 +2,7 @@
 import numpy as np
 import scipy 
 # import pandas as pd
-from scipy.misc import electrocardiogram
 from scipy.signal import find_peaks, resample, ZoomFFT
-from scipy.fft import fft, fftfreq, rfft
 from functions import *
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches 
@@ -15,26 +13,29 @@ from matplotlib.patches import Ellipse
 from math import pi
 import bioread
 from scipy.signal import periodogram
+from scipy.signal import welch
+from scipy.interpolate import interp1d
 import seaborn as sns
-from scipy.integrate import simps
-# import EntropyHub
+from scipy.integrate import simpson
+
+# import EntropyHubs
 
 
 
 #Open ACQ File
-ECG_source = "data/NH07 POST ECG.acq"
+ECG_source = "data/IHG.acq"
 file = bioread.read_file(ECG_source)
 Channel_List=file.channels
 
 
 
 #Pull BP Data 
-# BP_Data = file.channels[0].raw_data
-# BP_Time = file.channels[0].time_index
-# BP_fs = len(BP_Data)/max(BP_Time)
-# BP = BP_Data
-# BP_peaks, _ = find_peaks(BP, height = 50, threshold = None, distance = 100, prominence=(40,None), width=None, wlen=None, rel_height=None, plateau_size=None)
-# td_BP_peaks = (BP_peaks/BP_fs)
+BP_Data = file.channels[0].raw_data
+BP_Time = file.channels[0].time_index
+BP_fs = len(BP_Data)/max(BP_Time)
+BP = BP_Data
+BP_peaks, _ = find_peaks(BP, height = 50, threshold = None, distance = 100, prominence=(5,None), width=None, wlen=None, rel_height=None, plateau_size=None)
+td_BP_peaks = (BP_peaks/BP_fs)
 
 #Pull ECG Data  and all Variables
 ECG_Data = file.channels[0].raw_data
@@ -49,22 +50,24 @@ x = ECG_Data
 # TrimmedBP_time = TimeTrimmer(BP_Time, 60)
 
 #Tag R Intervals and create Array of RR Interval Distances
-peaks, _ = find_peaks(x, height = 0.8, threshold = None, distance = 100, prominence=(0.7,None), width=None, wlen=None, rel_height=None, plateau_size=None)
+peaks, _ = find_peaks(x, height = 40, threshold = None, distance = 100, prominence=(0.7,None), width=None, wlen=None, rel_height=None, plateau_size=None)
 td_peaks = (peaks / ECG_fs)
 RRDistance = distancefinder(td_peaks)
 #convert to ms
 RRDistance_ms = [element * 1000 for element in RRDistance]
 
 # #Tag Systolic BP Peaks Untrimmed and trimmed
-# BP_peaks, _ = find_peaks(BP, height = 50, threshold = None, distance = 100, prominence=(40,None), width=None, wlen=None, rel_height=None, plateau_size=None)
-# td_BP_peaks = (BP_peaks/BP_fs)
-# # Trimmed_BP_peaks, _ = find_peaks(TrimmedBP, height = 50, threshold = None, distance = 100, prominence=(40,None), width=None, wlen=None, rel_height=None, plateau_size=None)
-# # Trimmed_td_BP_peaks = (Trimmed_BP_peaks/BP_fs)
-# # Trimmed_Systolic_Array = TrimmedBP[Trimmed_BP_peaks]
-# #Obtain pulse interval (time difference between BP peaks)
-# PulseIntervalDistance = distancefinder(td_BP_peaks)
-# #Convert to ms
-# PI_ms = [element * 1000 for element in PulseIntervalDistance]
+BP_peaks, _ = find_peaks(BP, height = 50, threshold = None, distance = 100, prominence=(40,None), width=None, wlen=None, rel_height=None, plateau_size=None)
+td_BP_peaks = (BP_peaks/BP_fs)
+# Trimmed_BP_peaks, _ = find_peaks(TrimmedBP, height = 50, threshold = None, distance = 100, prominence=(40,None), width=None, wlen=None, rel_height=None, plateau_size=None)
+# Trimmed_td_BP_peaks = (Trimmed_BP_peaks/BP_fs)
+# Trimmed_Systolic_Array = TrimmedBP[Trimmed_BP_peaks]
+#Obtain pulse interval (time difference between BP peaks)
+PulseIntervalDistance = distancefinder(td_BP_peaks)
+#Convert to ms
+PI_ms = [element * 1000 for element in PulseIntervalDistance]
+m = 2
+r = 0.2 * np.std(RRDistance_ms)
 
 #Time domain HRV Variables
 Successive_time_diff=SuccessiveDiff(RRDistance_ms)
@@ -80,12 +83,9 @@ S = math.pi * SD1 * SD2
 Sampling_Time = max(td_peaks)
 Num_Beats = len(RRDistance_ms)
 HR = np.round(Num_Beats/(Sampling_Time/60),2)
-
+sampen = SampEn(RRDistance_ms, m, r)
 #Create axes for Poincare Plot
 RRIplusOne = Poincare(RRDistance_ms)
-
-
-
 
 #Print Time Domain HRV Variables
 print("n = " + str(Num_Beats) + " beats are included for analysis")
@@ -97,6 +97,7 @@ print("pNN50 = " + str(np.round(pNN50,3)) + " %" )
 print("RMSSD = " + str(np.round(RMSSD,3)) + " ms")
 print("SDNN = " + str(np.round(SDNN,3)) + " ms")
 print("SDSD = " + str(np.round(SDSD,3)) + " ms")
+print("Sample Entropy = " + str(sampen))
 #Leave log transformations in in case we want them
 # print("Ln RMSSD = " + str(np.log((RMSSD))))
 # print("Ln SDNN = " + str(np.log(SDNN)))
@@ -106,13 +107,13 @@ print("SD1/SD2 = " + str(np.round((SD1/SD2),3)))
 print("The area of the ellipse fitted over the Poincaré Plot (S) is " + str(np.round(S,3)) + " ms^2")
 
 #Blood Pressure Information
-# Systolic_Array = BP[BP_peaks]
-# Avg_BP = np.round((np.average(Systolic_Array)),3)
-# SD_BP = np.round((np.std(Systolic_Array)),3)
+Systolic_Array = BP[BP_peaks]
+Avg_BP = np.round((np.average(Systolic_Array)),3)
+SD_BP = np.round((np.std(Systolic_Array)),3)
 
 #Print Blood Pressure Information
-# print("The average systolic blood pressure during the sampling time is " + str(Avg_BP) + " + - " + str(SD_BP) + " mmHg")
-# print(str(len(Systolic_Array)) + " pressure waves are included in the analysis")
+print("The average systolic blood pressure during the sampling time is " + str(Avg_BP) + " + - " + str(SD_BP) + " mmHg")
+print(str(len(Systolic_Array)) + " pressure waves are included in the analysis")
 
 #Start of All ECG Plots 
 #Raw ECG
@@ -140,211 +141,74 @@ plt.text(0, 500, 'Mean = ' + str (np.round(np.average(RRDistance_ms),1)) + ' ms'
 plt.text(200, 500, 'σ2 = ' + str (np.round(np.var(RRDistance_ms),1)) + 'ms\u00b2', fontsize=10)  
 # plt.show()
 
-# #Poincare Plot (RRI, RRI + 1)
-# EllipseCenterX = np.average(np.delete(RRDistance_ms,-1))
-# EllipseCenterY = np.average(RRIplusOne)
-# Center_coords=EllipseCenterX,EllipseCenterY
-# fig = plt.figure()
-# ax=plt.axes()
-# #need to remove last element of array of RR Distances to make arrays we are plotting match
-# z = np.polyfit(np.delete(RRDistance_ms,-1), RRIplusOne, 1)
-# p = np.poly1d(z)
-# slope = z[0]
-# theta=np.degrees(np.arctan(slope))
-# plt.title("Poincaré Plot")
-# plt.scatter(np.delete(RRDistance_ms,-1), RRIplusOne)
-# #create ellipse parameters, xy coordinates for center, width of ellipse, height of ellipse, angle of ellipse, colors of outline and inside
-# # e=Ellipse((Center_coords),SD2*2,SD1*2,theta, edgecolor='black',facecolor='none')
-# matplotlib.axes.Axes.add_patch(ax,e)
-# plt.plot(np.delete(RRDistance_ms,-1), p(np.delete(RRDistance_ms,-1)), color="red")
-# plt.ylabel("RRI + 1 (ms)")
-# plt.xlabel("RRI (ms)")
-# plt.text(950, 750, 'SD1 = ' + str(np.round((SD1),1)) + " ms", fontsize=10)
-# plt.text(950, 700, 'SD2 = ' + str(np.round((SD2),1)) + "ms", fontsize=10)
+#Poincare Plot (RRI, RRI + 1)
+EllipseCenterX = np.average(np.delete(RRDistance_ms,-1))
+EllipseCenterY = np.average(RRIplusOne)
+Center_coords = EllipseCenterX,EllipseCenterY
+fig = plt.figure()
+ax=plt.axes()
+#need to remove last element of array of RR Distances to make arrays we are plotting match
+z = np.polyfit(np.delete(RRDistance_ms,-1), RRIplusOne, 1)
+p = np.poly1d(z)
+slope = z[0]
+theta=np.degrees(np.arctan(slope))
+plt.title("Poincaré Plot")
+plt.scatter(np.delete(RRDistance_ms,-1), RRIplusOne)
+#create ellipse parameters, xy coordinates for center, width of ellipse, height of ellipse, angle of ellipse, colors of outline and inside
+e=Ellipse(xy=(Center_coords),width = SD2*2,height = SD1*2,angle = theta, edgecolor='black',facecolor='none')
+matplotlib.axes.Axes.add_patch(ax,e)
+plt.plot(np.delete(RRDistance_ms,-1), p(np.delete(RRDistance_ms,-1)), color="red")
+plt.ylabel("RRI + 1 (ms)")
+plt.xlabel("RRI (ms)")
+plt.text(950, 750, 'SD1 = ' + str(np.round((SD1),1)) + " ms", fontsize=10)
+plt.text(950, 700, 'SD2 = ' + str(np.round((SD2),1)) + "ms", fontsize=10)
 
 #Start of BP Plots 
 # #Raw BP Data 
-# plt.figure()
-# plt.plot(BP_Time, BP_Data)
-# plt.xlabel("time (s)")
-# plt.ylabel("Finger Pressure (mmHg) ")
-
-# # #Systolic Tagged
-# plt.figure()
-# plt.plot(BP)
-# plt.plot(BP_peaks, BP[BP_peaks], "x")
-# plt.ylabel("Blood Pressure (mmHg)")
-# plt.title("Raw BP with Systolic Detected")
-
-#Any type of preprocessing for FFT: Resampling, windowing, filtering, etc.
-
-#Tachogram Resampling
-sampling_rate = 250
-resampled_tachogram, resampled_sampling_rate = resample_tachogram(RRDistance_ms, ECG_fs, 100000)
-original_time = np.arange(0, len(RRDistance_ms)/ECG_fs, 1/ECG_fs)
-resampled_time = np.arange(0, len(resampled_tachogram)/resampled_sampling_rate, 1/resampled_sampling_rate)
-
-#Windowing
-# window = np.hanning(len(RRDistance_ms))
-# windowed_RRI = RRDistance_ms * window 
-
-#Plot original + Windowed RRI 
-# plt.figure(figsize=(10, 6))
-# plt.plot(RRDistance_ms, label='Original Signal')
-# plt.plot(windowed_RRI, label='Windowed Signal')
-# plt.xlabel('Sample')
-# plt.ylabel('Amplitude')
-# plt.title('ECG Signal with Hann Windowing')
-# plt.legend()
-# # plt.show()
-
-#Low Pass Filtering (eliminate noise from high frequency bands)
-# cutoff_freq = 0.5
-# filter_order = 4 
-# nyquist_freq = 0.5 * len(windowed_RRI)
-# cutoff = cutoff_freq/nyquist_freq
-# #Apply filter
-# b, a = signal.butter(filter_order, cutoff, btype = 'low')
-# filtered_windowed_RRI = signal.lfilter(b,a, windowed_RRI)
-
-# #Plot original + filtered RRI 
-# plt.figure(figsize=(10, 6))
-# plt.plot(windowed_RRI, label='Original Signal')
-# plt.plot(filtered_windowed_RRI, label='Filtered Signal')
-# plt.xlabel('Sample')
-# plt.ylabel('Amplitude')
-# plt.title('ECG Signal with Low-Pass Filtering')
-# plt.legend()
-
-
-
-# #FFT 
-# fft_result = np.fft.fft(windowed_RRI)
-# frequencies = np.fft.fftfreq(len(windowed_RRI))
-
-# #Calculate Power Spectral Density
-# psd = np.abs(fft_result)**2
-
-# #Plot FFT Result
-# plt.figure()
-# plt.plot(frequencies[:len(filtered_windowed_RRI)//2], np.abs(fft_result[:len(filtered_windowed_RRI)//2]))
-# plt.title('FFT Result')
-# plt.xlabel('Frequency')
-# plt.ylabel('Magnitude')
-
-
-#     # Plot Power Spectral Density
-
-# #Try Discrete Wavelet Transform Instead
-# wavelet = 'db4'
-# level = 5
-# coeffs = pywt.wavedec(filtered_windowed_RRI, wavelet, level = level)
-
-#Plot DWT 
-# plt.figure()
-# for i in range (level + 1): 
-#     plt.subplot(level+1, 1, i+1)
-#     plt.plot(coeffs[i])
-#     plt.title(f'DWT Coefficients - Level {i}')
-#     plt.xlabel('Index')
-#     plt.ylabel('Coefficient')
-# plt.show()
-
-#plot resampled tachogram
-# plt.figure()
-# plt.plot(original_time, RRDistance_ms, label='Original Tachogram')
-# plt.plot(resampled_time, resampled_tachogram, label='Resampled Tachogram')
-# plt.xlabel('Time (s)')
-# plt.ylabel('RR Interval')
-# plt.title('Resampled Tachogram')
-# plt.legend()
-
-
-#Count BP Ramps
-# BpUpRamps,BpDownRamps = bpCount(Systolic_Array,1)
-# TotalRamps = BpUpRamps + BpDownRamps
-# print(str(BpUpRamps) + " SBP Up Ramps were observed during the Recording Period")
-# print(str(BpDownRamps) + " SBP Down Ramps were observed during the Recording Period")
-# print(str(TotalRamps) + " Total SBP Ramps were observed during the Recording Period")
-
-test_PI = [850, 848, 852, 845, 840, 831, 831, 840, 851, 860]  #Up event: PI goes down by at least 4 ms while BP goes up by at least 1 mmHg, #Down event: PI goes up by at least 4 ms while BP goes down by at least 1 mmHg
-test_BP = [120, 120.5, 120.5, 122, 124, 126, 126, 120, 115, 110]
-#Count PI + BP Ramps
-# UpEvents, DownEvents = count(PI_ms, np.delete(Systolic_Array,-1), 4, 1)
-# print(UpEvents) #+ " PI/SBP up-up events were observed during the Recording Period"
-# print(DownEvents) #+ " PI/SBP down-down events were observed during the Recording Period"
-
-#Approximate Entropy
-print(ApEn(RRDistance_ms,2,0.2 * np.std(RRDistance_ms)))
-print(SampEn(RRDistance_ms,2,0.2 * np.std(RRDistance_ms)))
-
-
-
-#Deleting outliers for when R intervals are not tagged 
-RRDistanceFiltered = OutlierRemove(np.delete(td_peaks,-1),RRDistance_ms)[1]
-TimeSeriesFiltered = OutlierRemove(np.delete(td_peaks,-1),RRDistance_ms)[0]
-#Convert to avg. distances 
-FilteredSuccessiveDiff = SuccessiveDiff(RRDistanceFiltered)
-RMSSD_2 = np.sqrt(np.average(rms(FilteredSuccessiveDiff)))
-print(RMSSD_2)
-
 plt.figure()
-plt.plot(RRDistanceFiltered, TimeSeriesFiltered)
-plt.title("RRI")
+plt.plot(BP_Time, BP_Data)
 plt.xlabel("time (s)")
-plt.ylabel("RRI (ms)")
-# plt.show()
+plt.ylabel("Finger Pressure (mmHg) ")
 
-#Start of FFT part 2 code 
-#Apply Hamming Window to signal
-Hamming = np.hamming(len(RRDistanceFiltered))
-Windowed_RRI = RRDistanceFiltered * Hamming
+#Systolic Tagged
+plt.figure()
+plt.plot(BP)
+plt.plot(BP_peaks, BP[BP_peaks], "x")
+plt.ylabel("Blood Pressure (mmHg)")
+plt.title("Raw BP with Systolic Detected")
 
-#FFT
-fft_result = np.fft.fft(Windowed_RRI)
-fft_freqs = np.fft.fftfreq(len(RRDistanceFiltered))
+#plt.show()
+interp_fs = 4
+uniform_time = np.arange(0, max(td_peaks), 1/interp_fs)
+rr_interp_func = interp1d(td_peaks[:-1], RRDistance, kind='cubic', fill_value="extrapolate")
+rr_fft = rr_interp_func(uniform_time)
 
-#calculate PSD 
-frequencies, psd = periodogram(Windowed_RRI)
+frequencies, psd = welch(rr_fft, fs = interp_fs, nperseg = 256)
 
-# Plot the power spectral density
-plt.figure(figsize=(12, 6))
+#Band Power
+lf_band = (frequencies >= 0.04) & (frequencies < 0.15)
+hf_band = (frequencies >= 0.15) & (frequencies < 0.4)
 
+lf_power = np.trapezoid(psd[lf_band], frequencies[lf_band]) * 1e6 #convert to ms for reporting
+hf_power = np.trapezoid(psd[hf_band], frequencies[hf_band]) * 1e6 #convert to ms for reporting
+lf_hf_ratio = lf_power / hf_power
+total_power = lf_power + hf_power
 
-plt.subplot(3, 1, 3)
-plt.semilogy(frequencies, psd, label='Power Spectral Density')
-plt.title('Power Spectral Density')
+plt.figure(figsize=(10, 6))
+plt.plot(frequencies, psd * 1e6)  # Convert to ms² for plotting
+plt.fill_between(frequencies[lf_band], psd[lf_band] * 1e6, color='skyblue', alpha=0.5, label='LF Band')
+plt.fill_between(frequencies[hf_band], psd[hf_band] * 1e6, color='salmon', alpha=0.5, label='HF Band')
 plt.xlabel('Frequency (Hz)')
-plt.ylabel('PSD (dB/Hz)')
+plt.ylabel('Power Spectral Density (ms²/Hz)')
+plt.title('HRV Frequency Domain Analysis')
 plt.legend()
-
+plt.grid(True)
 plt.tight_layout()
 
-#Try another function
-# Calculate the power spectral density
-freqs, psd = signal.welch(RRDistanceFiltered, ECG_fs)
-#LF Band 0.04 - 0.15 
-# LF = 
-#HF band 0.15 - 0.4
-# HF =  
+# Print the results
+print(f"LF Power: {lf_power:.2f} ms²")
+print(f"HF Power: {hf_power:.2f} ms²")
+print(f"Total Power: {total_power:.2f} ms²")
+print(f"LF/HF Ratio: {lf_hf_ratio:.2f}")
 
-#VLF band 0.003 - 0.04 HZ
-
-#ULF band <= 0.003 Hz 
-
-# = 
-#TP approximately all vari
-# TP = 
-
-# Plot the power spectrum
-sns.set(font_scale=1.2, style='white')
-plt.figure(figsize=(8, 4))
-plt.plot(freqs, psd, color='k', lw=2)
-plt.xlabel('Frequency (Hz)')
-plt.ylabel('Power spectral density (V^2 / Hz)')
-plt.title("Welch's periodogram")
-sns.despine()
-
-
-
-                           
+plt.show()

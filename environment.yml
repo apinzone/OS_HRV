@@ -1,0 +1,12 @@
+name: peak_env
+channels:
+  - defaults
+  - https://repo.anaconda.com/pkgs/main
+  - https://repo.anaconda.com/pkgs/r
+  - https://repo.anaconda.com/pkgs/msys2
+dependencies:
+  - matplotlib
+  - python=3.11
+  - scipy
+  - seaborn
+prefix: C:\Users\Anthony\anaconda3\envs\peak_env
