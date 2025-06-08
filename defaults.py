@@ -1,4 +1,3 @@
-ecg_file_path = 'data/TEST.acq'
 
 BP_height = 50
 BP_distance = 100
