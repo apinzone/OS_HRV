@@ -88,7 +88,7 @@ plt.plot(...)
 ## Author
 
 Developed by Anthony G. Pinzone, Ph.D., CSCS\*D
-[GitHub](https://github.com/apinzone/OS_HRV/) | [Website](https://apinzone.github.io/)
+[GitHub](https://github.com/apinzone) | [Website](https://apinzone.github.io/) | [Google Scholar](https://scholar.google.com/citations?user=GMi1gHsAAAAJ&hl=en)
 
 ## License
 
