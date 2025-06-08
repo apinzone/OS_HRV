@@ -23,7 +23,7 @@ from scipy.integrate import simpson
 
 
 #Open ACQ File
-ECG_source = "SAMPLE.acq"
+ECG_source = "data/SAMPLE.acq"
 file = bioread.read_file(ECG_source)
 Channel_List=file.channels
 
@@ -253,8 +253,7 @@ print(f"LF Power: {lf_nu:.2f} n.u.")
 print(f"HF Power: {hf_nu:.2f} n.u.")
 # plt.show()
 
-
-# === HRV VISUALIZATION: UNLABELED + ANNOTATED ECG SEGMENTS ===
+#Small Snippet of ECG Data for visualization purposes
 # Define window around R-peaks
 start_idx = 2
 end_idx = start_idx + 7
@@ -272,7 +271,7 @@ segment_peaks_rel = [p - start_sample for p in segment_peaks]
 # Normalize time to start at 0
 Time_segment_normalized = Time_segment - Time_segment[0]
 
-# --- 1. UNLABELED ECG SEGMENT ---
+#UNLABELED ECG SEGMENT ---
 plt.figure(figsize=(10, 4))
 plt.plot(Time_segment_normalized, ECG_segment, label="ECG")
 plt.title("Example ECG Segment (Unlabeled)")
@@ -282,7 +281,7 @@ plt.xlim(0, 7.36)  # force clean x-axis
 plt.tight_layout()
 plt.savefig("figures/ecg_segment_unlabeled.tif", dpi=600, format='tiff')
 
-# --- 2. ANNOTATED ECG SEGMENT ---
+#ANNOTATED ECG SEGMENT ---
 plt.figure(figsize=(10, 4))
 plt.plot(Time_segment_normalized, ECG_segment, label="ECG")
 plt.plot(Time_segment_normalized[segment_peaks_rel], ECG_segment[segment_peaks_rel], "rx", label="R-peaks")
@@ -300,7 +299,7 @@ plt.tight_layout()
 plt.savefig("figures/ecg_segment_annotated.tif", dpi=600, format='tiff')
 
 
-# === 3. RRI TACHOGRAM FROM ECG SEGMENT ===
+#RRI TACHOGRAM FROM ECG SEGMENT ===
 # Get RR intervals from the segment
 segment_td_peaks = [Time[p] for p in segment_peaks]
 segment_RR_intervals = np.diff(segment_td_peaks)  # in seconds
