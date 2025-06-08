@@ -23,7 +23,7 @@ from scipy.integrate import simpson
 
 
 #Open ACQ File
-ECG_source = "data/IHG.acq"
+ECG_source = "SAMPLE.acq"
 file = bioread.read_file(ECG_source)
 Channel_List=file.channels
 
@@ -50,15 +50,15 @@ x = ECG_Data
 # TrimmedBP_time = TimeTrimmer(BP_Time, 60)
 
 #Tag R Intervals and create Array of RR Interval Distances
-peaks, _ = find_peaks(x, height = 40, threshold = None, distance = 100, prominence=(0.7,None), width=None, wlen=None, rel_height=None, plateau_size=None)
+peaks, _ = find_peaks(x, height = 1.4, threshold = None, distance = 100, prominence=(0.7,None), width=None, wlen=None, rel_height=None, plateau_size=None)
 td_peaks = (peaks / ECG_fs)
 RRDistance = distancefinder(td_peaks)
 #convert to ms
 RRDistance_ms = [element * 1000 for element in RRDistance]
 
 # #Tag Systolic BP Peaks Untrimmed and trimmed
-BP_peaks, _ = find_peaks(BP, height = 50, threshold = None, distance = 100, prominence=(40,None), width=None, wlen=None, rel_height=None, plateau_size=None)
-td_BP_peaks = (BP_peaks/BP_fs)
+# BP_peaks, _ = find_peaks(BP, height = 50, threshold = None, distance = 100, prominence=(40,None), width=None, wlen=None, rel_height=None, plateau_size=None)
+# td_BP_peaks = (BP_peaks/BP_fs)
 # Trimmed_BP_peaks, _ = find_peaks(TrimmedBP, height = 50, threshold = None, distance = 100, prominence=(40,None), width=None, wlen=None, rel_height=None, plateau_size=None)
 # Trimmed_td_BP_peaks = (Trimmed_BP_peaks/BP_fs)
 # Trimmed_Systolic_Array = TrimmedBP[Trimmed_BP_peaks]
@@ -68,6 +68,20 @@ PulseIntervalDistance = distancefinder(td_BP_peaks)
 PI_ms = [element * 1000 for element in PulseIntervalDistance]
 m = 2
 r = 0.2 * np.std(RRDistance_ms)
+
+#Start of All ECG Plots 
+#Raw ECG
+plt.figure()
+plt.plot(Time,ECG_Data)
+plt.xlabel("time (s)")
+plt.ylabel("ECG (mV)")
+
+#ECG with R intervals tagged
+plt.figure()
+plt.title("Raw ECG Signal with R-R Detected")
+plt.plot(x)
+plt.plot(peaks, x[peaks], "x")
+
 
 #Time domain HRV Variables
 Successive_time_diff=SuccessiveDiff(RRDistance_ms)
@@ -115,18 +129,7 @@ SD_BP = np.round((np.std(Systolic_Array)),3)
 print("The average systolic blood pressure during the sampling time is " + str(Avg_BP) + " + - " + str(SD_BP) + " mmHg")
 print(str(len(Systolic_Array)) + " pressure waves are included in the analysis")
 
-#Start of All ECG Plots 
-#Raw ECG
-plt.figure()
-plt.plot(Time,ECG_Data)
-plt.xlabel("time (s)")
-plt.ylabel("ECG (mV)")
 
-#ECG with R intervals tagged
-plt.figure()
-plt.title("Raw ECG Signal with R-R Detected")
-plt.plot(x)
-plt.plot(peaks, x[peaks], "x")
 
 #RRI / Tachogram
 plt.figure()
@@ -135,47 +138,75 @@ plt.plot(np.delete(td_peaks,-1), RRDistance_ms)
 plt.title("RRI")
 plt.xlabel("time (s)")
 plt.ylabel("RRI (ms)")
-plt.ylim(400,1100)
+plt.ylim(800,1150)
 plt.text(0, 600, 'n = ' + str (len(RRDistance_ms)), fontsize=10)
 plt.text(0, 500, 'Mean = ' + str (np.round(np.average(RRDistance_ms),1)) + ' ms', fontsize=10)
 plt.text(200, 500, 'σ2 = ' + str (np.round(np.var(RRDistance_ms),1)) + 'ms\u00b2', fontsize=10)  
-# plt.show()
+plt.savefig("figures/ecg_tachogram_REAL.tif", dpi=600, format = 'tiff')
 
-#Poincare Plot (RRI, RRI + 1)
+# Poincaré Plot (RRI, RRI + 1)
 EllipseCenterX = np.average(np.delete(RRDistance_ms,-1))
 EllipseCenterY = np.average(RRIplusOne)
-Center_coords = EllipseCenterX,EllipseCenterY
-fig = plt.figure()
-ax=plt.axes()
-#need to remove last element of array of RR Distances to make arrays we are plotting match
+Center_coords = EllipseCenterX, EllipseCenterY
+fig, ax = plt.subplots()
 z = np.polyfit(np.delete(RRDistance_ms,-1), RRIplusOne, 1)
 p = np.poly1d(z)
 slope = z[0]
-theta=np.degrees(np.arctan(slope))
-plt.title("Poincaré Plot")
-plt.scatter(np.delete(RRDistance_ms,-1), RRIplusOne)
-#create ellipse parameters, xy coordinates for center, width of ellipse, height of ellipse, angle of ellipse, colors of outline and inside
-e=Ellipse(xy=(Center_coords),width = SD2*2,height = SD1*2,angle = theta, edgecolor='black',facecolor='none')
-matplotlib.axes.Axes.add_patch(ax,e)
-plt.plot(np.delete(RRDistance_ms,-1), p(np.delete(RRDistance_ms,-1)), color="red")
-plt.ylabel("RRI + 1 (ms)")
-plt.xlabel("RRI (ms)")
-plt.text(950, 750, 'SD1 = ' + str(np.round((SD1),1)) + " ms", fontsize=10)
-plt.text(950, 700, 'SD2 = ' + str(np.round((SD2),1)) + "ms", fontsize=10)
+theta = np.degrees(np.arctan(slope))
+theta_rad = np.radians(theta)
+# Scatter + regression
+ax.set_title("Poincaré Plot")
+ax.scatter(np.delete(RRDistance_ms,-1), RRIplusOne)
+ax.plot(np.delete(RRDistance_ms,-1), p(np.delete(RRDistance_ms,-1)), color="red")
+# Ellipse
+e = Ellipse(xy=Center_coords, width=SD2*2, height=SD1*2, angle=theta,
+            edgecolor='black', facecolor='none')
+ax.add_patch(e)
+# === Axis lines ===
+# SD2 (major axis)
+x_sd2 = [EllipseCenterX, EllipseCenterX + SD2 * np.cos(theta_rad)]
+y_sd2 = [EllipseCenterY, EllipseCenterY + SD2 * np.sin(theta_rad)]
+ax.plot(x_sd2, y_sd2, 'b-', linewidth=2)
+ax.text(x_sd2[1], y_sd2[1], 'SD2', color='blue', fontsize=9, weight = 'bold', ha='left', va='bottom')
+
+# SD1 (minor axis)
+x_sd1 = [EllipseCenterX, EllipseCenterX - SD1 * np.sin(theta_rad)]
+y_sd1 = [EllipseCenterY, EllipseCenterY + SD1 * np.cos(theta_rad)]
+ax.plot(x_sd1, y_sd1, 'g-', linewidth=2)
+ax.text(x_sd1[1], y_sd1[1], 'SD1', color='green', fontsize=9, weight = 'bold', ha='left', va='bottom')
+
+# === Clean SD1/SD2 value box in bottom-left ===
+
+# Use axes limits to position dynamically
+text_x = ax.get_xlim()[0] + 20
+text_y = ax.get_ylim()[0] + 20
+
+# Add black text in a white rounded box
+ax.text(
+    text_x, text_y,
+    f'SD1 = {SD1:.1f} ms\nSD2 = {SD2:.1f} ms',
+    fontsize=10, color='black', ha='left', va='bottom',
+    bbox=dict(boxstyle="round,pad=0.4", facecolor='white', edgecolor='black', alpha=0.9)
+)
+# Labels and legend
+ax.set_xlabel("RRI (ms)")
+ax.set_ylabel("RRI + 1 (ms)")
+plt.tight_layout()
+plt.savefig("figures/poincare.tif", dpi=600, format = 'tiff')
 
 #Start of BP Plots 
 # #Raw BP Data 
-plt.figure()
-plt.plot(BP_Time, BP_Data)
-plt.xlabel("time (s)")
-plt.ylabel("Finger Pressure (mmHg) ")
+# plt.figure()
+# plt.plot(BP_Time, BP_Data)
+# plt.xlabel("time (s)")
+# plt.ylabel("Finger Pressure (mmHg) ")
 
-#Systolic Tagged
-plt.figure()
-plt.plot(BP)
-plt.plot(BP_peaks, BP[BP_peaks], "x")
-plt.ylabel("Blood Pressure (mmHg)")
-plt.title("Raw BP with Systolic Detected")
+# #Systolic Tagged
+# plt.figure()
+# plt.plot(BP)
+# plt.plot(BP_peaks, BP[BP_peaks], "x")
+# plt.ylabel("Blood Pressure (mmHg)")
+# plt.title("Raw BP with Systolic Detected")
 
 #plt.show()
 interp_fs = 4
@@ -207,9 +238,10 @@ plt.fill_between(frequencies[hf_band], psd[hf_band] * 1e6, color='salmon', alpha
 plt.xlabel('Frequency (Hz)')
 plt.ylabel('Power Spectral Density (ms²/Hz)')
 plt.title('HRV Frequency Domain Analysis')
+plt.xlim(0,1.5)
 plt.legend()
-plt.grid(True)
 plt.tight_layout()
+plt.savefig("figures/PSD.tif", dpi=600, format = 'tiff')
 
 # Print the results
 print(f"LF Power: {lf_power:.2f} ms²")
@@ -220,3 +252,72 @@ print(f"LF/HF Ratio: {lf_hf_ratio:.2f}")
 print(f"LF Power: {lf_nu:.2f} n.u.")
 print(f"HF Power: {hf_nu:.2f} n.u.")
 # plt.show()
+
+
+# === HRV VISUALIZATION: UNLABELED + ANNOTATED ECG SEGMENTS ===
+# Define window around R-peaks
+start_idx = 2
+end_idx = start_idx + 7
+start_sample = int(peaks[start_idx] - 0.5 * ECG_fs)
+end_sample = int(peaks[end_idx] + 0.5 * ECG_fs)
+
+# Slice signal
+ECG_segment = x[start_sample:end_sample]
+Time_segment = Time[start_sample:end_sample]
+
+# Get relevant R-peaks
+segment_peaks = [p for p in peaks if start_sample <= p <= end_sample]
+segment_peaks_rel = [p - start_sample for p in segment_peaks]
+
+# Normalize time to start at 0
+Time_segment_normalized = Time_segment - Time_segment[0]
+
+# --- 1. UNLABELED ECG SEGMENT ---
+plt.figure(figsize=(10, 4))
+plt.plot(Time_segment_normalized, ECG_segment, label="ECG")
+plt.title("Example ECG Segment (Unlabeled)")
+plt.xlabel("Time (s)")
+plt.ylabel("ECG (mV)")
+plt.xlim(0, 7.36)  # force clean x-axis
+plt.tight_layout()
+plt.savefig("figures/ecg_segment_unlabeled.tif", dpi=600, format='tiff')
+
+# --- 2. ANNOTATED ECG SEGMENT ---
+plt.figure(figsize=(10, 4))
+plt.plot(Time_segment_normalized, ECG_segment, label="ECG")
+plt.plot(Time_segment_normalized[segment_peaks_rel], ECG_segment[segment_peaks_rel], "rx", label="R-peaks")
+
+for i in range(len(segment_peaks_rel) - 1):
+    rr = (segment_peaks_rel[i+1] - segment_peaks_rel[i]) / ECG_fs * 1000  # ms
+    mid_time = (Time_segment_normalized[segment_peaks_rel[i]] + Time_segment_normalized[segment_peaks_rel[i+1]]) / 2
+    plt.text(mid_time, max(ECG_segment)*0.8, f"{rr:.0f} ms", ha="center", fontsize=9)
+
+plt.title("ECG Segment with Annotated R-R Intervals")
+plt.xlabel("Time (s)")
+plt.ylabel("ECG (mV)")
+plt.xlim(0, 7.36)
+plt.tight_layout()
+plt.savefig("figures/ecg_segment_annotated.tif", dpi=600, format='tiff')
+
+
+# === 3. RRI TACHOGRAM FROM ECG SEGMENT ===
+# Get RR intervals from the segment
+segment_td_peaks = [Time[p] for p in segment_peaks]
+segment_RR_intervals = np.diff(segment_td_peaks)  # in seconds
+segment_RR_ms = segment_RR_intervals * 1000       # convert to ms
+
+# Midpoints of each RR interval (for plotting against time)
+segment_mid_times = [(segment_td_peaks[i] + segment_td_peaks[i+1]) / 2 for i in range(len(segment_RR_ms))]
+
+# Plot RRI
+# Plot RRI (cleaned version)
+plt.figure(figsize=(8, 3))
+plt.plot(range(1, len(segment_RR_ms) + 1), segment_RR_ms, marker='o')
+plt.title("R-R Interval (RRI) Tachogram")
+plt.xlabel("Beat Number")
+plt.ylabel("RRI (ms)")
+plt.ylim(800, 1000)
+plt.tight_layout()
+plt.savefig("figures/rri_tachogram_simple.tif", dpi=600, format='tiff')
+plt.show()
+
