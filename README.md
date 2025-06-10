@@ -30,6 +30,7 @@ pip install numpy scipy matplotlib seaborn bioread
 
 * `main.py`: The core script to run ECG/BP signal analysis and generate figures
 * `functions.py`: Utility functions for peak detection, RR interval analysis, entropy, and plotting
+* `sample_script.py`: A small snippet of ECG waves (8 beats total) plotted with R-R intervals annotated for visualization purposes
 
 ## Key Outputs
 
@@ -82,8 +83,8 @@ plt.plot(...)
 * Frequency domain HRV metrics use Welch's method and cubic interpolation of RR intervals.
 * All frequency bands follow standard guidelines (LF = 0.04–0.15 Hz, HF = 0.15–0.4 Hz).
 * Sample entropy is computed with configurable parameters `m` and `r`.
-* A future goal of the project is to incorporate sequencing methods calculate measurements of baroreflex sensitvity. We have extended the peak detector to SBP waves. 
-  Feel free to comment back in this code if you'd like to run it 
+* A future goal of the project is to incorporate sequencing methods calculate measurements of baroreflex sensitvity. We have extended the peak detector to SBP waves and have included
+  comparison of LF bands for R-R intervals and systolic BP to measure BRS. Feel free to comment out any BP lines if only interested in HRV.
 
 ## Author
 
