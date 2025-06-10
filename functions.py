@@ -164,37 +164,25 @@ def find_sap_ramps(
     thresh: float = 0
 ) -> List[Tuple[int, int, str]]:
     ramps = []
-    i = 0
     n = len(sbp)
 
+    i = 0
     while i <= n - min_len:
-        direction = None
-        length = 1
-        for j in range(i + 1, n):
-            diff = sbp[j] - sbp[j - 1]
+        for j in range(i + min_len, n + 1):
+            segment = sbp[i:j]
+            diffs = np.diff(segment)
 
-            if direction is None:
-                if diff >= thresh:
-                    direction = 'up'
-                    length += 1
-                elif diff <= -thresh:
-                    direction = 'down'
-                    length += 1
-                else:
-                    break
-            else:
-                if direction == 'up' and diff >= thresh:
-                    length += 1
-                elif direction == 'down' and diff <= -thresh:
-                    length += 1
-                else:
-                    break
-
-            if length >= min_len:
-                ramps.append((i, j, direction))
+            if np.all(diffs >= thresh):
+                ramps.append((i, j - 1, 'up'))
                 break
+            elif np.all(diffs <= -thresh):
+                ramps.append((i, j - 1, 'down'))
+                break
+            else:
+                continue
         i += 1
     return ramps
+
 
 def full_sequence_brs(
     sbp: np.ndarray,
@@ -202,8 +190,8 @@ def full_sequence_brs(
     min_len: int = 3,
     delay_range: Tuple[int, int] = (0, 4),
     r_threshold: float = 0.8,
-    thresh_sbp: float = 0,
-    thresh_pi: float = 0
+    thresh_sbp: float = 1,
+    thresh_pi: float = 4
 ) -> Dict[str, float]:
     best_results = {
         'BRS_mean': np.nan,
@@ -260,17 +248,105 @@ def full_sequence_brs(
 
     return best_results
 
-def plot_brs_sequences(
-    sbp: np.ndarray,
-    pi: np.ndarray,
-    ramps: List[Tuple[int, int, str]],
-    delay: int = 1,
-    r_threshold: float = 0.8,
-    thresh_pi: float = 0,
-    max_plots: int = 10  # Limit to avoid clutter
+#OPTIONAL CODE TO PLOT BRS SEQUENCES INDIVIDUALLY
+# def plot_brs_sequences( 
+#     sbp: np.ndarray,
+#     pi: np.ndarray,
+#     ramps: List[Tuple[int, int, str]],
+#     delay: int = 1,
+#     r_threshold: float = 0.8,
+#     thresh_pi: float = 0,
+#     max_plots: int = 10
+# ):
+#     count = 0
+#     for start, end, direction in ramps:
+#         if end + delay >= len(pi):
+#             continue
+
+#         sbp_ramp = sbp[start:end + 1]
+#         pi_ramp = pi[start + delay:end + 1 + delay]
+
+#         if len(sbp_ramp) != len(pi_ramp):
+#             continue
+
+#         if np.any(np.abs(np.diff(pi_ramp)) < thresh_pi):
+#             continue
+
+#         slope, intercept, r_value, _, _ = linregress(sbp_ramp, pi_ramp)
+#         if abs(r_value) >= r_threshold:
+#             plt.figure(figsize=(5, 4))
+#             plt.plot(sbp_ramp, pi_ramp, 'o-', label=f'r = {r_value:.2f}, slope = {slope:.2f}')
+#             plt.plot(sbp_ramp, intercept + slope * np.array(sbp_ramp), 'r--')
+#             plt.xlabel('Systolic BP (mmHg)')
+#             plt.ylabel('Pulse Interval (ms)')
+#             plt.title(f'Sequence {count + 1} ({direction.upper()})')
+#             plt.legend()
+#             plt.tight_layout()
+#             plt.show()
+
+#             count += 1
+#             if count >= max_plots:
+#                 break
+
+def plot_sap_pi_with_sequences(
+    sbp,
+    pi,
+    sap_times,
+    pi_times,
+    ramps,
+    delay,
+    r_threshold=1,
+    thresh_pi=4
 ):
-    count = 0
-    for start, end, direction in ramps:
+    sbp = np.array(sbp)
+    pi = np.array(pi)
+    sap_times = np.array(sap_times)
+    pi_times = np.array(pi_times)
+
+    fig, ax1 = plt.subplots(figsize=(12, 6))
+
+    # Plot full SBP with markers
+    ax1.plot(sap_times, sbp, color='red', marker='o', linewidth=1, label='Systolic BP (mmHg)')
+    ax1.set_xlabel('Time (s)')
+    ax1.set_ylabel('Systolic BP (mmHg)', color='red')
+    ax1.tick_params(axis='y', labelcolor='red')
+
+    # Plot full PI with markers
+    ax2 = ax1.twinx()
+    ax2.plot(pi_times, pi, color='blue', marker='o', linewidth=1, label='Pulse Interval (ms)')
+    ax2.set_ylabel('Pulse Interval (ms)', color='blue')
+    ax2.tick_params(axis='y', labelcolor='blue')
+
+def plot_sap_pi_with_sequences(
+    sbp,
+    pi,
+    sap_times,
+    pi_times,
+    ramps,
+    delay,
+    r_threshold=0.8,
+    thresh_pi=0
+):
+    sbp = np.array(sbp)
+    pi = np.array(pi)
+    sap_times = np.array(sap_times)
+    pi_times = np.array(pi_times)
+
+    fig, ax1 = plt.subplots(figsize=(12, 6))
+
+    # Plot full SBP and PI first (thin lines)
+    ax1.plot(sap_times, sbp, color='red', marker='o', linewidth=1, alpha=0.6)
+    ax1.set_xlabel('Time (s)')
+    ax1.set_ylabel('Systolic BP (mmHg)', color='red')
+    ax1.tick_params(axis='y', labelcolor='red')
+
+    ax2 = ax1.twinx()
+    ax2.plot(pi_times, pi, color='blue', marker='o', linewidth=1, alpha=0.6)
+    ax2.set_ylabel('Pulse Interval (ms)', color='blue')
+    ax2.tick_params(axis='y', labelcolor='blue')
+
+    # Overlay valid sequences with thick colored segments
+    for i, (start, end, direction) in enumerate(ramps):
         if end + delay >= len(pi):
             continue
 
@@ -279,22 +355,24 @@ def plot_brs_sequences(
 
         if len(sbp_ramp) != len(pi_ramp):
             continue
-
         if np.any(np.abs(np.diff(pi_ramp)) < thresh_pi):
             continue
 
         slope, intercept, r_value, _, _ = linregress(sbp_ramp, pi_ramp)
-        if abs(r_value) >= r_threshold:
-            # Plot the valid sequence
-            plt.figure(figsize=(5, 4))
-            plt.plot(sbp_ramp, pi_ramp, 'o-', label=f'r = {r_value:.2f}, slope = {slope:.2f}')
-            plt.plot(sbp_ramp, intercept + slope * np.array(sbp_ramp), 'r--')
-            plt.xlabel('Systolic BP (mmHg)')
-            plt.ylabel('Pulse Interval (ms)')
-            plt.title(f'Sequence {count + 1} ({direction})')
-            plt.legend()
-            plt.tight_layout()
-            plt.show()
-            count += 1
-        if count >= max_plots:
-            break
+        if abs(r_value) < r_threshold or slope <= 0:
+            continue  # not a valid BRS sequence
+
+        color = 'green' if direction == 'up' else 'orange'
+
+        # Highlight SAP
+        ax1.plot(sap_times[start:end + 1], sbp[start:end + 1],
+                 color=color, linewidth=3, alpha=0.9)
+
+        # Highlight PI
+        ax2.plot(pi_times[start + delay:end + 1 + delay], pi[start + delay:end + 1 + delay],
+                 color=color, linewidth=3, alpha=0.9)
+
+    plt.title('SAP and PI with Highlighted Valid BRS Sequences')
+    fig.tight_layout()
+    plt.show()
+

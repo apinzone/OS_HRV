@@ -183,7 +183,6 @@ plt.plot(BP_peaks, BP[BP_peaks], "x")
 plt.ylabel("Blood Pressure (mmHg)")
 plt.title("Raw BP with Systolic Detected")
 
-#plt.show()
 interp_fs = 4
 uniform_time = np.arange(0, max(td_peaks), 1/interp_fs)
 rr_interp_func = interp1d(td_peaks[:-1], RRDistance_ms, kind='cubic', fill_value="extrapolate")
@@ -227,13 +226,7 @@ print(f"LF/HF Ratio: {lf_hf_ratio:.2f}")
 print(f"LF Power: {lf_nu:.2f} n.u.")
 print(f"HF Power: {hf_nu:.2f} n.u.")
 
-#plt.show()
-
-# result = sequencing_brs_with_counts(RRDistance_ms, Systolic_Array)
-# print(f"Sequence BRS (mean): {result['BRS_mean']:.2f} ms/mmHg")
-# print(f"Up sequences: {result['n_up']} | Mean up BRS: {result['BRS_up_mean']:.2f}")
-# print(f"Down sequences: {result['n_down']} | Mean down BRS: {result['BRS_down_mean']:.2f}")
-# print(f"Total BRS events: {result['n_total']}")
+#SEQUENCING METHOD FOR BRS (time domain)
 results = full_sequence_brs(
     sbp=Systolic_Array,
     pi=RRDistance_ms,
@@ -246,22 +239,13 @@ results = full_sequence_brs(
 
 print(f"BRS (mean): {results['BRS_mean']:.2f} ms/mmHg")
 print(f"BEI: {results['BEI']:.2f}")
-print(f"Valid sequences: {results['num_sequences']}")
+print(f"Valid BRS sequences: {results['num_sequences']}")
 print(f"Total SAP ramps: {results['num_sbp_ramps']}")
 print(f"Up BRS sequences: {results['n_up']}")
 print(f"Down BRS sequences: {results['n_down']}")
 print(f"Best delay: {results['best_delay']} beats")
 
-ramps = find_sap_ramps(Systolic_Array, min_len=3, thresh=1)  # 1 mmHg SBP threshold
-plot_brs_sequences(
-    sbp=Systolic_Array,
-    pi=RRDistance_ms,
-    ramps=ramps,
-    delay=results['best_delay'],
-    r_threshold=0.8,
-    thresh_pi=4  # 4 ms PI threshold
-)
-
+#CROSS-SPECTRAL BRS
 uniform_time_bp = np.arange(0, max(td_BP_peaks), 1/interp_fs)
 bp_interp_func = interp1d(td_BP_peaks, Systolic_Array, kind='cubic', fill_value="extrapolate")
 bp_fft = bp_interp_func(uniform_time_bp)
@@ -274,17 +258,36 @@ frequencies_coh, coherence_values = coherence(rr_fft, bp_fft, fs=interp_fs, nper
 
 # Calculate coherence in LF band
 lf_coherence = np.mean(coherence_values[(frequencies_coh >= 0.04) & (frequencies_coh < 0.15)])
+hf_coherence = np.mean(coherence_values[(frequencies_coh >= 0.15) & (frequencies_coh < 0.4)])
 
 #cross-spectrum between sBP and RRI
 frequencies_csd,csd_bp_rr = csd(bp_fft, rr_fft, fs = interp_fs, nperseg = 256)
 _, psd_bp_auto = welch(bp_fft, fs = interp_fs, nperseg = 256)
 transfer_gain = np.abs(csd_bp_rr)/psd_bp_auto
 lf_band_tf = (frequencies_csd >= 0.04) & (frequencies_csd < 0.15)
+hf_band_tf = hf_band_tf = (frequencies_csd >= 0.15) & (frequencies_csd < 0.4)
 brs_lf_tf = np.mean(transfer_gain[lf_band_tf])
+brs_hf_tf = np.mean(transfer_gain[hf_band_tf])
 
 if lf_coherence > 0.5:
-    print(f"Spectral BRS (Transfer Function, LF): {brs_lf_tf:.3f} ms/mmHg (coherence OK)")
+    print(f"Spectral BRS (Transfer Function, LF): {brs_lf_tf:.3f} ms/mmHg (LF coherence OK)")
 else:
     print(f"Low coherence ({lf_coherence:.3f}) – Spectral BRS not reliable")
 
+if hf_coherence > 0.5:
+    print(f"Spectral BRS (Transfer Function, HF): {brs_hf_tf:.3f} ms/mmHg (HF coherence OK)")
+else:
+    print(f"Low HF coherence ({hf_coherence:.3f}) – HF BRS not reliable")
 
+plot_sap_pi_with_sequences(
+    sbp=Systolic_Array,
+    pi=RRDistance_ms,
+    sap_times=td_BP_peaks,
+    pi_times=td_peaks[:-1],
+    ramps=find_sap_ramps(Systolic_Array, min_len=3, thresh=1),
+    delay=1,
+    r_threshold=1,
+    thresh_pi=4
+)
+
+plt.show()
