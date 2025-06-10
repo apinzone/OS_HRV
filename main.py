@@ -292,7 +292,7 @@ for i in range(len(segment_peaks_rel) - 1):
     plt.text(mid_time, max(ECG_segment)*0.8, f"{rr:.0f} ms", ha="center", fontsize=9)
 
 plt.title("ECG Segment with Annotated R-R Intervals")
-plt.xlabel("Time (s)")
+plt.xlabel("Beat Number")
 plt.ylabel("ECG (mV)")
 plt.xlim(0, 7.36)
 plt.tight_layout()
