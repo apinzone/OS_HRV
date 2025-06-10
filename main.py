@@ -18,6 +18,7 @@ from scipy.interpolate import interp1d
 import seaborn as sns
 from scipy.integrate import simpson
 from scipy.signal import coherence
+from scipy.signal import csd 
 
 #Open ACQ File
 ECG_source = "data/REST.acq"
@@ -185,7 +186,7 @@ plt.title("Raw BP with Systolic Detected")
 #plt.show()
 interp_fs = 4
 uniform_time = np.arange(0, max(td_peaks), 1/interp_fs)
-rr_interp_func = interp1d(td_peaks[:-1], RRDistance, kind='cubic', fill_value="extrapolate")
+rr_interp_func = interp1d(td_peaks[:-1], RRDistance_ms, kind='cubic', fill_value="extrapolate")
 rr_fft = rr_interp_func(uniform_time)
 
 frequencies, psd = welch(rr_fft, fs = interp_fs, nperseg = 256)
@@ -195,9 +196,9 @@ lf_band = (frequencies >= 0.04) & (frequencies < 0.15)
 hf_band = (frequencies >= 0.15) & (frequencies < 0.4)
 vlf_band = (frequencies >= 0.003) & (frequencies < 0.04)
 
-vlf_power = np.trapezoid(psd[vlf_band], frequencies[vlf_band]) * 1e6 
-lf_power = np.trapezoid(psd[lf_band], frequencies[lf_band]) * 1e6 #convert to ms for reporting
-hf_power = np.trapezoid(psd[hf_band], frequencies[hf_band]) * 1e6 #convert to ms for reporting
+vlf_power = np.trapezoid(psd[vlf_band], frequencies[vlf_band]) 
+lf_power = np.trapezoid(psd[lf_band], frequencies[lf_band]) 
+hf_power = np.trapezoid(psd[hf_band], frequencies[hf_band]) 
 lf_hf_ratio = lf_power / hf_power
 total_power = lf_power + hf_power
 
@@ -227,6 +228,40 @@ print(f"LF Power: {lf_nu:.2f} n.u.")
 print(f"HF Power: {hf_nu:.2f} n.u.")
 
 #plt.show()
+
+# result = sequencing_brs_with_counts(RRDistance_ms, Systolic_Array)
+# print(f"Sequence BRS (mean): {result['BRS_mean']:.2f} ms/mmHg")
+# print(f"Up sequences: {result['n_up']} | Mean up BRS: {result['BRS_up_mean']:.2f}")
+# print(f"Down sequences: {result['n_down']} | Mean down BRS: {result['BRS_down_mean']:.2f}")
+# print(f"Total BRS events: {result['n_total']}")
+results = full_sequence_brs(
+    sbp=Systolic_Array,
+    pi=RRDistance_ms,
+    min_len=3,
+    delay_range=(0, 4),
+    r_threshold=0.8,
+    thresh_sbp=1,
+    thresh_pi=4
+)
+
+print(f"BRS (mean): {results['BRS_mean']:.2f} ms/mmHg")
+print(f"BEI: {results['BEI']:.2f}")
+print(f"Valid sequences: {results['num_sequences']}")
+print(f"Total SAP ramps: {results['num_sbp_ramps']}")
+print(f"Up BRS sequences: {results['n_up']}")
+print(f"Down BRS sequences: {results['n_down']}")
+print(f"Best delay: {results['best_delay']} beats")
+
+ramps = find_sap_ramps(Systolic_Array, min_len=3, thresh=1)  # 1 mmHg SBP threshold
+plot_brs_sequences(
+    sbp=Systolic_Array,
+    pi=RRDistance_ms,
+    ramps=ramps,
+    delay=results['best_delay'],
+    r_threshold=0.8,
+    thresh_pi=4  # 4 ms PI threshold
+)
+
 uniform_time_bp = np.arange(0, max(td_BP_peaks), 1/interp_fs)
 bp_interp_func = interp1d(td_BP_peaks, Systolic_Array, kind='cubic', fill_value="extrapolate")
 bp_fft = bp_interp_func(uniform_time_bp)
@@ -240,12 +275,16 @@ frequencies_coh, coherence_values = coherence(rr_fft, bp_fft, fs=interp_fs, nper
 # Calculate coherence in LF band
 lf_coherence = np.mean(coherence_values[(frequencies_coh >= 0.04) & (frequencies_coh < 0.15)])
 
-# Only calculate BRS if coherence is good
-if lf_coherence > 0.5:
-    brs_lf = np.sqrt(lf_power) / np.sqrt(lf_power_BP)
-    print(f"BRS LF: {brs_lf:.3f} ms/mmHg (coherence OK)")
-else:
-    print(f"Low coherence ({lf_coherence:.3f}) - BRS may not be reliable")
+#cross-spectrum between sBP and RRI
+frequencies_csd,csd_bp_rr = csd(bp_fft, rr_fft, fs = interp_fs, nperseg = 256)
+_, psd_bp_auto = welch(bp_fft, fs = interp_fs, nperseg = 256)
+transfer_gain = np.abs(csd_bp_rr)/psd_bp_auto
+lf_band_tf = (frequencies_csd >= 0.04) & (frequencies_csd < 0.15)
+brs_lf_tf = np.mean(transfer_gain[lf_band_tf])
 
-plt.show()
+if lf_coherence > 0.5:
+    print(f"Spectral BRS (Transfer Function, LF): {brs_lf_tf:.3f} ms/mmHg (coherence OK)")
+else:
+    print(f"Low coherence ({lf_coherence:.3f}) – Spectral BRS not reliable")
+
 

@@ -7,6 +7,8 @@ from scipy import signal
 from scipy import spatial #imports abridged
 from scipy.stats import entropy
 import scipy
+from scipy.stats import linregress
+from typing import List, Tuple, Dict
 
 #Root mean squared calculation
 def rms(input):
@@ -92,110 +94,6 @@ def FindTimeIndex(time_list, time):
     print("[CutTime]: Could not find index!")
     return 0
 
-#Counting up and down ramps in BP
-def bpCount(BP_input, BP_thresh):
-
-    class direction(Enum):
-        nil = 1
-        up = 2
-        down = 3
-
-    up_count = 0
-    down_count = 0
-    qualifying_count_num = 3
-    temp_count = 0
-    d1 = direction.nil
-    size = len(BP_input)
-
-    for i in range(1, size):
-        if  BP_input[i] >= (BP_input[i-1] + BP_thresh): # up
-            if d1 == direction.down:
-                if temp_count >= qualifying_count_num:
-                    down_count += 1
-                temp_count = 0
-
-            temp_count += 1
-            d1 = direction.up
-        elif BP_input[i] <= (BP_input[i-1] - BP_thresh): # down
-            if d1 == direction.up:
-                if temp_count >= qualifying_count_num:
-                    up_count += 1
-                temp_count = 0
-
-            temp_count += 1
-            d1 = direction.down
-        else:
-            if temp_count >= qualifying_count_num:
-                if d1 == direction.up:
-                    up_count += 1
-                elif d1 == direction.down:
-                    down_count += 1
-                    
-            temp_count = 0
-            d1 = direction.nil
-
-        # if i == size-1:
-        #     if temp_count >= qualifying_count_num:
-        #         if d1 == direction.up:
-        #             up_count += 1
-        #         elif d1 == direction.down:
-        #             down_count += 1
-
-    return up_count, down_count
-
-
-#Counting up-up and down-down events in PI + BP 
-def count(RR_input, BP_input, RR_thresh, BP_thresh):
-
-    class direction(Enum):
-        nil = 1
-        up = 2
-        down = 3
-
-    up_count = 0
-    down_count = 0
-    qualifying_count_num = 3
-    temp_count = 0
-    d1 = direction.nil
-    size = len(RR_input)
-
-    if len(RR_input) != len(BP_input):
-        print('[count]: lengths are not equal')
-
-    for i in range(1, size):
-        if RR_input[i] <= (RR_input[i-1] - RR_thresh) and BP_input[i] >= (BP_input[i-1] + BP_thresh): # up
-            if d1 == direction.down:
-                if temp_count >= qualifying_count_num:
-                    down_count += 1
-                temp_count = 0
-
-            temp_count += 1
-            d1 = direction.up
-        elif RR_input[i] >= (RR_input[i-1] + RR_thresh) and BP_input[i] <= (BP_input[i-1] - BP_thresh): # down
-            if d1 == direction.up:
-                if temp_count >= qualifying_count_num:
-                    up_count += 1
-                temp_count = 0
-
-            temp_count += 1
-            d1 = direction.down
-        else:
-            if temp_count >= qualifying_count_num:
-                if d1 == direction.up:
-                    up_count += 1
-                elif d1 == direction.down:
-                    down_count += 1
-                    
-            temp_count = 0
-            d1 = direction.nil
-
-        # if i == size-1:
-        #     if temp_count >= qualifying_count_num:
-        #         if d1 == direction.up:
-        #             up_count += 1
-        #         elif d1 == direction.down:
-        #             down_count += 1
-
     return up_count, down_count
  
 def find_nearest(array, value):
@@ -256,46 +154,147 @@ def bandpower(x, fs, fmin, fmax):
     ind_max = scipy.argmax(f > fmax) - 1
     return scipy.trapz(Pxx[ind_min: ind_max], f[ind_min: ind_max])  
 
-def going_up(array, thresh):
-    for i in range(0,len(array) - 1):
-        if array[i] > array[i + 1] + thresh:
-            return False
-    return True
+from scipy.stats import linregress
+import numpy as np
 
-def going_down(array, thresh):
-    for i in range(0,len(array) - 1):
-        if array[i] < array[i + 1] + thresh:
-            return False
-    return True
+#SEQUENCING
+def find_sap_ramps(
+    sbp: np.ndarray,
+    min_len: int = 3,
+    thresh: float = 0
+) -> List[Tuple[int, int, str]]:
+    ramps = []
+    i = 0
+    n = len(sbp)
 
-def sequencing(PI, BP):
-    window = 3 # indexes
-    PI_thresh = 4 # ms
-    BP_thresh = 1 # mmHg
-    if len(PI) != len(BP):
-        print('Ay, pass in arrays with the same size')
-        return [0]
-    
-    PI_view_window = []
-    BP_view_window = []
-    output = [] # up event = +1, down event = -1
+    while i <= n - min_len:
+        direction = None
+        length = 1
+        for j in range(i + 1, n):
+            diff = sbp[j] - sbp[j - 1]
 
-    for i in range(0, len(PI)):
-        if len(PI_view_window) < window:
-            PI_view_window.append(PI[i])
-            BP_view_window.append(BP[i])
-        else:
-            if going_down(PI_view_window, PI_thresh) and going_up(BP_view_window, BP_thresh):
-                output.append(1)
-            elif going_up(PI_view_window, PI_thresh) and going_down(BP_view_window, BP_thresh):
-                output.append(-1)
+            if direction is None:
+                if diff >= thresh:
+                    direction = 'up'
+                    length += 1
+                elif diff <= -thresh:
+                    direction = 'down'
+                    length += 1
+                else:
+                    break
             else:
-                # nothing happend (i guess)
-                output.append(0)
+                if direction == 'up' and diff >= thresh:
+                    length += 1
+                elif direction == 'down' and diff <= -thresh:
+                    length += 1
+                else:
+                    break
 
-            PI_view_window.pop(0)
-            PI_view_window.append(PI[i])
-            BP_view_window.pop(0)
-            BP_view_window.append(BP[i])
-    return output
+            if length >= min_len:
+                ramps.append((i, j, direction))
+                break
+        i += 1
+    return ramps
 
+def full_sequence_brs(
+    sbp: np.ndarray,
+    pi: np.ndarray,
+    min_len: int = 3,
+    delay_range: Tuple[int, int] = (0, 4),
+    r_threshold: float = 0.8,
+    thresh_sbp: float = 0,
+    thresh_pi: float = 0
+) -> Dict[str, float]:
+    best_results = {
+        'BRS_mean': np.nan,
+        'BEI': 0.0,
+        'num_sequences': 0,
+        'num_sbp_ramps': 0,
+        'n_up': 0,
+        'n_down': 0,
+        'best_delay': -1
+    }
+
+    for d in range(delay_range[0], delay_range[1] + 1):
+        ramps = find_sap_ramps(sbp, min_len=min_len, thresh=thresh_sbp)
+        slopes = []
+        n_ramps = len(ramps)
+        n_sequences = 0
+        n_up = 0
+        n_down = 0
+
+        for start, end, direction in ramps:
+            if end + d >= len(pi):
+                continue  # avoid indexing past end
+            pi_ramp = pi[start + d:end + 1 + d]
+            sbp_ramp = sbp[start:end + 1]
+
+            if len(pi_ramp) != len(sbp_ramp):
+                continue
+
+            if np.any(np.abs(np.diff(pi_ramp)) < thresh_pi):
+                continue  # fail PI threshold check
+
+
+            slope, intercept, r_value, _, _ = linregress(sbp_ramp, pi_ramp)
+            if abs(r_value) >= r_threshold:
+                # Ensure slope is positive and directionally matched
+                if (direction == 'up' and slope > 0) or (direction == 'down' and slope > 0):
+                    slopes.append(slope)
+                    n_sequences += 1
+                    if direction == 'up':
+                        n_up += 1
+                    elif direction == 'down':
+                        n_down += 1
+
+        if n_sequences > best_results['num_sequences']:
+            best_results.update({
+                'BRS_mean': np.mean(slopes) if slopes else np.nan,
+                'BEI': n_sequences / n_ramps if n_ramps > 0 else 0,
+                'num_sequences': n_sequences,
+                'num_sbp_ramps': n_ramps,
+                'n_up': n_up,
+                'n_down': n_down,
+                'best_delay': d
+            })
+
+    return best_results
+
+def plot_brs_sequences(
+    sbp: np.ndarray,
+    pi: np.ndarray,
+    ramps: List[Tuple[int, int, str]],
+    delay: int = 1,
+    r_threshold: float = 0.8,
+    thresh_pi: float = 0,
+    max_plots: int = 10  # Limit to avoid clutter
+):
+    count = 0
+    for start, end, direction in ramps:
+        if end + delay >= len(pi):
+            continue
+
+        sbp_ramp = sbp[start:end + 1]
+        pi_ramp = pi[start + delay:end + 1 + delay]
+
+        if len(sbp_ramp) != len(pi_ramp):
+            continue
+
+        if np.any(np.abs(np.diff(pi_ramp)) < thresh_pi):
+            continue
+
+        slope, intercept, r_value, _, _ = linregress(sbp_ramp, pi_ramp)
+        if abs(r_value) >= r_threshold:
+            # Plot the valid sequence
+            plt.figure(figsize=(5, 4))
+            plt.plot(sbp_ramp, pi_ramp, 'o-', label=f'r = {r_value:.2f}, slope = {slope:.2f}')
+            plt.plot(sbp_ramp, intercept + slope * np.array(sbp_ramp), 'r--')
+            plt.xlabel('Systolic BP (mmHg)')
+            plt.ylabel('Pulse Interval (ms)')
+            plt.title(f'Sequence {count + 1} ({direction})')
+            plt.legend()
+            plt.tight_layout()
+            plt.show()
+            count += 1
+        if count >= max_plots:
+            break
