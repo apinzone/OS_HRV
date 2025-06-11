@@ -203,9 +203,7 @@ with st.sidebar:
             [
                 "🔍 Interactive ECG (R-peaks)",
                 "🔍 Interactive BP (Systolic peaks)", 
-                "🔍 Interactive Combined Signals",
-                "🔍 Interactive Tachogram",
-                "🔍 Peak Detection Validation"
+                "🔍 Interactive Tachogram"
             ]
         )
         
@@ -216,9 +214,8 @@ with st.sidebar:
             [
                 "📊 Frequency Domain",
                 "🔄 Poincaré Plot", 
-                "🩺 BRS Analysis",
-                "🌊 Cross-Spectral BRS",
-                "📈 Transfer Function & Coherence"
+                "🩺 BRS Sequence Analysis",
+                "🩺 BRS Time Domain Visualization"
             ]
         )
         
@@ -390,62 +387,6 @@ if st.session_state.analyzed:
                     
                     st.plotly_chart(fig, use_container_width=True)
                 
-                # Interactive combined signals
-                elif "Interactive Combined" in plot_type:
-                    st.subheader("🔍 Interactive Combined ECG and BP Signals")
-                    
-                    fig = make_subplots(
-                        rows=2, cols=1,
-                        subplot_titles=('ECG Signal', 'Blood Pressure Signal'),
-                        vertical_spacing=0.1
-                    )
-                    
-                    # ECG subplot
-                    fig.add_trace(go.Scatter(
-                        x=st.session_state.analyzer.ecg_data['time'],
-                        y=st.session_state.analyzer.ecg_data['raw'],
-                        mode='lines',
-                        name='ECG',
-                        line=dict(color='blue', width=1)
-                    ), row=1, col=1)
-                    
-                    # BP subplot
-                    fig.add_trace(go.Scatter(
-                        x=st.session_state.analyzer.bp_data['time'],
-                        y=st.session_state.analyzer.bp_data['raw'],
-                        mode='lines',
-                        name='Blood Pressure',
-                        line=dict(color='red', width=1)
-                    ), row=2, col=1)
-                    
-                    # Highlight analysis window if it exists
-                    if 'time_window' in st.session_state:
-                        tw = st.session_state.time_window
-                        # Add to both subplots
-                        fig.add_vrect(
-                            x0=tw['start_time'], x1=tw['end_time'],
-                            fillcolor="yellow", opacity=0.2,
-                            annotation_text="Analysis Window", annotation_position="top left",
-                            row=1, col=1
-                        )
-                        fig.add_vrect(
-                            x0=tw['start_time'], x1=tw['end_time'],
-                            fillcolor="yellow", opacity=0.2,
-                            row=2, col=1
-                        )
-                    
-                    fig.update_xaxes(title_text="Time (s)", row=2, col=1)
-                    fig.update_yaxes(title_text="ECG (mV)", row=1, col=1)
-                    fig.update_yaxes(title_text="BP (mmHg)", row=2, col=1)
-                    
-                    fig.update_layout(
-                        title='Interactive Combined ECG and Blood Pressure Signals',
-                        height=600,
-                        hovermode='x unified'
-                    )
-                    
-                    st.plotly_chart(fig, use_container_width=True)
-                
                 # Interactive tachogram
                 elif "Interactive Tachogram" in plot_type:
                     st.subheader("🔍 Interactive Heart Rate Variability Tachogram")
@@ -596,6 +537,232 @@ if st.session_state.analyzed:
                     ax.legend()
                     plt.tight_layout()
                     st.pyplot(fig)
+                
+                # BRS Time Domain Visualization
+                elif "BRS Time Domain Visualization" in plot_type:
+                    st.subheader("🩺 Interactive BRS Time Domain Analysis")
+                    
+                    if 'brs_sequence' in st.session_state.analyzer.results:
+                        brs_data = st.session_state.analyzer.results['brs_sequence']
+                        
+                        if 'error' in brs_data:
+                            st.error(f"BRS Analysis Error: {brs_data['error']}")
+                        elif 'plotting_data' in brs_data:
+                            plot_data = brs_data['plotting_data']
+                            
+                            try:
+                                # Create interactive subplot using Plotly
+                                fig = make_subplots(
+                                    rows=2, cols=1,
+                                    subplot_titles=('Systolic Blood Pressure', 'RR Intervals'),
+                                    vertical_spacing=0.1,
+                                    shared_xaxes=True
+                                )
+                                
+                                # Plot full SBP signal
+                                fig.add_trace(go.Scatter(
+                                    x=plot_data['sap_times'],
+                                    y=plot_data['sbp'],
+                                    mode='lines+markers',
+                                    name='Systolic BP',
+                                    line=dict(color='red', width=1),
+                                    marker=dict(size=4),
+                                    opacity=0.7
+                                ), row=1, col=1)
+                                
+                                # Plot full RRI signal
+                                fig.add_trace(go.Scatter(
+                                    x=plot_data['rri_times'],
+                                    y=plot_data['rri'],
+                                    mode='lines+markers',
+                                    name='RR Intervals',
+                                    line=dict(color='blue', width=1),
+                                    marker=dict(size=4),
+                                    opacity=0.7
+                                ), row=2, col=1)
+                                
+                                # Highlight valid BRS sequences
+                                from scipy.stats import linregress
+                                
+                                sbp = plot_data['sbp']
+                                rri = plot_data['rri']
+                                ramps = plot_data['ramps']
+                                delay = plot_data['best_delay']
+                                r_threshold = plot_data['r_threshold']
+                                thresh_pi = plot_data['thresh_pi']
+                                sap_times = plot_data['sap_times']
+                                rri_times = plot_data['rri_times']
+                                
+                                sequence_count = 0
+                                valid_sequences = []
+                                
+                                for i, (start, end, direction) in enumerate(ramps):
+                                    if end + delay >= len(rri):
+                                        continue
+                                    
+                                    sbp_ramp = sbp[start:end + 1]
+                                    rri_ramp = rri[start + delay:end + 1 + delay]
+                                    
+                                    if len(sbp_ramp) != len(rri_ramp):
+                                        continue
+                                    if np.any(np.abs(np.diff(rri_ramp)) < thresh_pi):
+                                        continue
+                                    
+                                    slope, intercept, r_value, _, _ = linregress(sbp_ramp, rri_ramp)
+                                    if abs(r_value) < r_threshold or slope <= 0:
+                                        continue
+                                    
+                                    # This is a valid BRS sequence - highlight it
+                                    sequence_count += 1
+                                    color = 'green' if direction == 'up' else 'orange'
+                                    
+                                    # Highlight SBP portion
+                                    if start < len(sap_times) and end < len(sap_times):
+                                        fig.add_trace(go.Scatter(
+                                            x=sap_times[start:end + 1],
+                                            y=sbp[start:end + 1],
+                                            mode='lines+markers',
+                                            name=f'{direction.upper()} sequence' if sequence_count == 1 else None,
+                                            line=dict(color=color, width=3),
+                                            marker=dict(size=6, color=color),
+                                            showlegend=(sequence_count == 1),  # Only show legend for first sequence of each type
+                                            legendgroup=direction
+                                        ), row=1, col=1)
+                                    
+                                    # Highlight RRI portion
+                                    if start + delay < len(rri_times) and end + 1 + delay <= len(rri_times):
+                                        fig.add_trace(go.Scatter(
+                                            x=rri_times[start + delay:end + 1 + delay],
+                                            y=rri[start + delay:end + 1 + delay],
+                                            mode='lines+markers',
+                                            name=None,
+                                            line=dict(color=color, width=3),
+                                            marker=dict(size=6, color=color),
+                                            showlegend=False,
+                                            legendgroup=direction
+                                        ), row=2, col=1)
+                                    
+                                    valid_sequences.append({
+                                        'sequence': sequence_count,
+                                        'direction': direction,
+                                        'slope': slope,
+                                        'r_value': r_value,
+                                        'start': start,
+                                        'end': end
+                                    })
+                                
+                                # Highlight analysis window if it exists
+                                if 'time_window' in st.session_state:
+                                    tw = st.session_state.time_window
+                                    fig.add_vrect(
+                                        x0=tw['start_time'], x1=tw['end_time'],
+                                        fillcolor="yellow", opacity=0.2,
+                                        annotation_text="Analysis Window", annotation_position="top left",
+                                        row=1, col=1
+                                    )
+                                    fig.add_vrect(
+                                        x0=tw['start_time'], x1=tw['end_time'],
+                                        fillcolor="yellow", opacity=0.2,
+                                        row=2, col=1
+                                    )
+                                
+                                # Update layout
+                                fig.update_xaxes(title_text="Time (s)", row=2, col=1)
+                                fig.update_yaxes(title_text="Systolic BP (mmHg)", row=1, col=1)
+                                fig.update_yaxes(title_text="RR Interval (ms)", row=2, col=1)
+                                
+                                fig.update_layout(
+                                    title=f'Interactive BRS Time Domain Analysis - {sequence_count} Valid Sequences Found',
+                                    height=700,
+                                    hovermode='x unified',
+                                    showlegend=True,
+                                    legend=dict(
+                                        orientation="h",
+                                        yanchor="bottom",
+                                        y=1.02,
+                                        xanchor="right",
+                                        x=1
+                                    )
+                                )
+                                
+                                st.plotly_chart(fig, use_container_width=True)
+                                
+                                # Add BRS summary info
+                                col1, col2, col3, col4 = st.columns(4)
+                                with col1:
+                                    st.metric("BRS Mean", f"{brs_data.get('BRS_mean', 0):.2f} ms/mmHg")
+                                with col2:
+                                    st.metric("BEI", f"{brs_data.get('BEI', 0):.2f}")
+                                with col3:
+                                    st.metric("Valid Sequences", sequence_count)
+                                with col4:
+                                    st.metric("Best Delay", f"{plot_data['best_delay']} beats")
+                                
+                                # Show sequence details
+                                if valid_sequences:
+                                    st.subheader("📋 Valid BRS Sequence Details")
+                                    
+                                    sequence_df = pd.DataFrame(valid_sequences)
+                                    sequence_df['slope'] = sequence_df['slope'].round(3)
+                                    sequence_df['r_value'] = sequence_df['r_value'].round(3)
+                                    
+                                    st.dataframe(
+                                        sequence_df,
+                                        column_config={
+                                            "sequence": "Seq #",
+                                            "direction": "Direction", 
+                                            "slope": "Slope (ms/mmHg)",
+                                            "r_value": "Correlation (r)",
+                                            "start": "Start Index",
+                                            "end": "End Index"
+                                        },
+                                        hide_index=True,
+                                        use_container_width=True
+                                    )
+                                
+                                st.info(f"📊 **Analysis Parameters:** delay={plot_data['best_delay']} beats, r_threshold={plot_data['r_threshold']}, thresh_pi={plot_data['thresh_pi']} ms")
+                                
+                            except Exception as e:
+                                st.error(f"Plotting error: {str(e)}")
+                                st.write("Debug info:")
+                                st.write(f"SBP points: {len(plot_data['sbp'])}")
+                                st.write(f"RRI points: {len(plot_data['rri'])}")
+                                st.write(f"SAP times: {len(plot_data['sap_times'])}")
+                                st.write(f"RRI times: {len(plot_data['rri_times'])}")
+                                
+                        else:
+                            st.warning("No plotting data available in BRS results")
+                    else:
+                        st.warning("No BRS sequence analysis results available")
+                
+                # BRS Sequence Analysis (existing)
+                elif "BRS Sequence Analysis" in plot_type:
+                    st.subheader("🩺 BRS Sequence Analysis Summary")
+                    
+                    if 'brs_sequence' in st.session_state.analyzer.results:
+                        brs_data = st.session_state.analyzer.results['brs_sequence']
+                        
+                        if 'error' in brs_data:
+                            st.error(f"BRS Analysis Error: {brs_data['error']}")
+                        else:
+                            # Display BRS metrics in a nice format
+                            col1, col2 = st.columns(2)
+                            
+                            with col1:
+                                st.metric("BRS Mean", f"{brs_data.get('BRS_mean', 0):.2f} ms/mmHg")
+                                st.metric("BEI (Baroreflex Effectiveness Index)", f"{brs_data.get('BEI', 0):.2f}")
+                                st.metric("Best Delay", f"{brs_data.get('best_delay', 0)} beats")
+                            
+                            with col2:
+                                st.metric("Valid BRS Sequences", brs_data.get('num_sequences', 0))
+                                st.metric("Total SAP Ramps", brs_data.get('num_sbp_ramps', 0))
+                                st.metric("Up Sequences", brs_data.get('n_up', 0))
+                                st.metric("Down Sequences", brs_data.get('n_down', 0))
+                            
+                            # Show analysis parameters
+                            st.info("**Analysis Parameters:** min_len=3, delay_range=(0,4), r_threshold=0.8, thresh_sbp=1, thresh_pi=4")
+                    else:
+                        st.warning("No BRS sequence analysis results available")
 
 # Case 2: File loaded and in preview mode - show peak detection preview with time window
 elif st.session_state.file_loaded and st.session_state.preview_mode:

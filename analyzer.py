@@ -276,7 +276,7 @@ class CardiovascularAnalyzer:
         }
         
     def calculate_frequency_domain(self):
-        """Updated to use windowed data"""
+        """Updated to use windowed data with proper time alignment"""
         windowed_data = self.get_windowed_data()
         td_peaks = windowed_data['ecg_td_peaks']
         RRDistance_ms = windowed_data['ecg_rr_intervals']
@@ -288,21 +288,63 @@ class CardiovascularAnalyzer:
             }
             return
         
-        # Your exact interpolation
+        # IMPORTANT: Reset time to start from 0 for windowed data
+        if len(td_peaks) > 1:
+            # Shift time to start from 0
+            time_offset = td_peaks[0]
+            td_peaks_normalized = td_peaks - time_offset
+            max_time = td_peaks_normalized[-1]
+        else:
+            self.results['frequency_domain'] = {
+                'error': 'Insufficient peak data for frequency analysis',
+                'num_peaks': len(td_peaks)
+            }
+            return
+        
+        # Your exact interpolation with normalized time
         interp_fs = 4
-        uniform_time = np.arange(0, max(td_peaks), 1/interp_fs) if len(td_peaks) > 1 else np.array([])
+        uniform_time = np.arange(0, max_time, 1/interp_fs)
         
         if len(uniform_time) < 10:
             self.results['frequency_domain'] = {
                 'error': 'Time window too short for frequency analysis',
-                'window_duration': max(td_peaks) - min(td_peaks) if len(td_peaks) > 1 else 0
+                'window_duration': max_time
+            }
+            return
+        
+        # Use the normalized time for interpolation (excluding the last peak for RR intervals)
+        if len(td_peaks_normalized) > len(RRDistance_ms):
+            time_for_interp = td_peaks_normalized[:-1]  # Remove last peak to match RR intervals
+        else:
+            time_for_interp = td_peaks_normalized[:len(RRDistance_ms)]
+            
+        if len(time_for_interp) != len(RRDistance_ms):
+            # Ensure arrays match
+            min_len = min(len(time_for_interp), len(RRDistance_ms))
+            time_for_interp = time_for_interp[:min_len]
+            RRDistance_ms = RRDistance_ms[:min_len]
+        
+        if len(time_for_interp) < 3:
+            self.results['frequency_domain'] = {
+                'error': 'Insufficient data points for interpolation',
+                'available_points': len(time_for_interp)
             }
             return
             
-        rr_interp_func = interp1d(td_peaks[:-1], RRDistance_ms, kind='cubic', fill_value="extrapolate")
+        rr_interp_func = interp1d(time_for_interp, RRDistance_ms, kind='cubic', fill_value="extrapolate")
         rr_fft = rr_interp_func(uniform_time)
         
-        frequencies, psd = welch(rr_fft, fs=interp_fs, nperseg=min(256, len(rr_fft)//4))
+        # Use nperseg that's appropriate for the data length
+        nperseg = min(256, len(rr_fft)//4)
+        if nperseg < 8:  # Minimum for meaningful frequency analysis
+            self.results['frequency_domain'] = {
+                'error': 'Window too short for reliable frequency analysis',
+                'data_points': len(rr_fft),
+                'min_required': 32
+            }
+            return
+        
+        frequencies, psd = welch(rr_fft, fs=interp_fs, nperseg=nperseg)
         
         # Your exact band definitions
         lf_band = (frequencies >= 0.04) & (frequencies < 0.15)
@@ -331,14 +373,18 @@ class CardiovascularAnalyzer:
             'frequencies': frequencies,
             'psd': psd,
             'rr_fft': rr_fft,  # Store for BRS analysis
-            'uniform_time': uniform_time
+            'uniform_time': uniform_time,
+            'time_offset': time_offset,  # Store offset for reference
+            'window_duration': max_time
         }
         
     def calculate_brs_sequence(self):
-        """Updated to use windowed data"""
+        """Updated to use windowed data and store sequence details for plotting"""
         windowed_data = self.get_windowed_data()
         Systolic_Array = windowed_data['bp_systolic']
         RRDistance_ms = windowed_data['ecg_rr_intervals']
+        td_BP_peaks = windowed_data['bp_td_peaks']
+        td_peaks = windowed_data['ecg_td_peaks']
         
         if len(Systolic_Array) < 3 or len(RRDistance_ms) < 3:
             self.results['brs_sequence'] = {
@@ -359,10 +405,22 @@ class CardiovascularAnalyzer:
             thresh_pi=4
         )
         
+        # Store additional data needed for plotting
+        results['plotting_data'] = {
+            'sbp': Systolic_Array,
+            'rri': RRDistance_ms,
+            'sap_times': td_BP_peaks,
+            'rri_times': td_peaks[:-1] if len(td_peaks) > len(RRDistance_ms) else td_peaks[:len(RRDistance_ms)],
+            'ramps': find_sap_ramps(Systolic_Array, min_len=3, thresh=1),  # Your function
+            'best_delay': results.get('best_delay', 1),
+            'r_threshold': 0.8,  # Use the same threshold as analysis
+            'thresh_pi': 4
+        }
+        
         self.results['brs_sequence'] = results
         
     def calculate_brs_spectral(self):
-        """Updated to use windowed data"""
+        """Updated to use windowed data with proper time alignment"""
         windowed_data = self.get_windowed_data()
         td_BP_peaks = windowed_data['bp_td_peaks']
         Systolic_Array = windowed_data['bp_systolic']
@@ -382,23 +440,55 @@ class CardiovascularAnalyzer:
             }
             return
         
-        # Your exact interpolation for BP
+        # IMPORTANT: Normalize BP time to start from 0 (same as ECG)
+        if len(td_BP_peaks) > 1:
+            # Use the same time offset as ECG if available
+            if 'time_offset' in self.results['frequency_domain']:
+                time_offset = self.results['frequency_domain']['time_offset']
+            else:
+                time_offset = td_BP_peaks[0]
+            
+            td_BP_peaks_normalized = td_BP_peaks - time_offset
+            max_bp_time = td_BP_peaks_normalized[-1]
+        else:
+            self.results['brs_spectral'] = {
+                'error': 'Insufficient BP peaks for spectral analysis',
+                'bp_peaks': len(td_BP_peaks)
+            }
+            return
+        
+        # Your exact interpolation for BP with normalized time
         interp_fs = 4
-        uniform_time_bp = np.arange(0, max(td_BP_peaks), 1/interp_fs) if len(td_BP_peaks) > 1 else np.array([])
+        uniform_time_bp = np.arange(0, max_bp_time, 1/interp_fs)
         
         if len(uniform_time_bp) < 10:
             self.results['brs_spectral'] = {
                 'error': 'BP time window too short for spectral analysis',
-                'bp_duration': max(td_BP_peaks) - min(td_BP_peaks) if len(td_BP_peaks) > 1 else 0
+                'bp_duration': max_bp_time
             }
             return
             
-        bp_interp_func = interp1d(td_BP_peaks, Systolic_Array, kind='cubic', fill_value="extrapolate")
+        bp_interp_func = interp1d(td_BP_peaks_normalized, Systolic_Array, kind='cubic', fill_value="extrapolate")
         bp_fft = bp_interp_func(uniform_time_bp)
-        frequencies_bp, psd_bp = welch(bp_fft, fs=interp_fs, nperseg=min(256, len(bp_fft)//4))
+        
+        # Use appropriate nperseg
+        nperseg = min(256, len(bp_fft)//4)
+        if nperseg < 8:
+            self.results['brs_spectral'] = {
+                'error': 'BP window too short for reliable spectral analysis',
+                'bp_data_points': len(bp_fft)
+            }
+            return
+            
+        frequencies_bp, psd_bp = welch(bp_fft, fs=interp_fs, nperseg=nperseg)
         
         # Get RR data from frequency domain results
         rr_fft = self.results['frequency_domain']['rr_fft']
+        
+        # Ensure RR and BP data have compatible lengths for coherence analysis
+        min_length = min(len(rr_fft), len(bp_fft))
+        rr_fft_trimmed = rr_fft[:min_length]
+        bp_fft_trimmed = bp_fft[:min_length]
         
         # Your exact band definitions
         lf_band = (frequencies_bp >= 0.04) & (frequencies_bp < 0.15)
@@ -408,15 +498,19 @@ class CardiovascularAnalyzer:
         lf_power_BP = np.trapezoid(psd_bp[lf_band], frequencies_bp[lf_band]) if np.any(lf_band) else 0
         hf_power_BP = np.trapezoid(psd_bp[hf_band], frequencies_bp[hf_band]) if np.any(hf_band) else 0
         
-        # Your exact coherence calculation
+        # Your exact coherence calculation with trimmed data
         try:
-            frequencies_coh, coherence_values = coherence(rr_fft, bp_fft, fs=interp_fs, nperseg=min(256, len(rr_fft)//4))
+            nperseg_coh = min(256, min_length//4)
+            if nperseg_coh < 8:
+                raise ValueError("Insufficient data for coherence analysis")
+                
+            frequencies_coh, coherence_values = coherence(rr_fft_trimmed, bp_fft_trimmed, fs=interp_fs, nperseg=nperseg_coh)
             lf_coherence = np.mean(coherence_values[(frequencies_coh >= 0.04) & (frequencies_coh < 0.15)])
             hf_coherence = np.mean(coherence_values[(frequencies_coh >= 0.15) & (frequencies_coh < 0.4)])
             
             # Your exact cross-spectral calculation
-            frequencies_csd, csd_bp_rr = csd(bp_fft, rr_fft, fs=interp_fs, nperseg=min(256, len(bp_fft)//4))
-            _, psd_bp_auto = welch(bp_fft, fs=interp_fs, nperseg=min(256, len(bp_fft)//4))
+            frequencies_csd, csd_bp_rr = csd(bp_fft_trimmed, rr_fft_trimmed, fs=interp_fs, nperseg=nperseg_coh)
+            _, psd_bp_auto = welch(bp_fft_trimmed, fs=interp_fs, nperseg=nperseg_coh)
             transfer_gain = np.abs(csd_bp_rr)/psd_bp_auto
             
             # Your exact band definitions for transfer function
@@ -437,13 +531,15 @@ class CardiovascularAnalyzer:
                 'transfer_gain': transfer_gain,
                 'frequencies_csd': frequencies_csd,
                 'valid_lf': lf_coherence > 0.5,
-                'valid_hf': hf_coherence > 0.5
+                'valid_hf': hf_coherence > 0.5,
+                'data_length_used': min_length
             }
         except Exception as e:
             self.results['brs_spectral'] = {
                 'error': f'Spectral BRS calculation failed: {str(e)}',
                 'rr_length': len(rr_fft),
-                'bp_length': len(bp_fft)
+                'bp_length': len(bp_fft),
+                'min_length': min_length
             }
         
     def analyze_all(self, time_window=None):
