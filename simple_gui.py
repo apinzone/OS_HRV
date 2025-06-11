@@ -196,22 +196,12 @@ with st.sidebar:
     if st.session_state.analyzed:
         st.header("📊 Plot Selection")
         
-        # Interactive plot options
-        st.subheader("🎯 Interactive Plots")
-        interactive_plots = st.multiselect(
-            "Interactive visualizations:",
-            [
-                "🔍 Interactive ECG (R-peaks)",
-                "🔍 Interactive BP (Systolic peaks)", 
-                "🔍 Interactive Tachogram"
-            ]
-        )
-        
-        # Static plot options
-        st.subheader("📈 Static Analysis Plots")
+        # Analysis results plot options
+        st.subheader("📈 Analysis Results")
         static_plots = st.multiselect(
-            "Analysis results:",
+            "Select analysis visualizations:",
             [
+                "🔍 Interactive Tachogram",
                 "📊 Frequency Domain",
                 "🔄 Poincaré Plot", 
                 "🩺 BRS Sequence Analysis",
@@ -219,8 +209,8 @@ with st.sidebar:
             ]
         )
         
-        # Combine all selected plots
-        all_selected_plots = interactive_plots + static_plots
+        # Use static_plots as the selected plots
+        all_selected_plots = static_plots
         
         if st.button("🎨 Generate Selected Plots"):
             st.session_state.selected_plots = all_selected_plots
@@ -279,116 +269,8 @@ if st.session_state.analyzed:
         if 'selected_plots' in st.session_state:
             for plot_type in st.session_state.selected_plots:
                 
-                # Interactive ECG with R-peaks
-                if "Interactive ECG" in plot_type:
-                    st.subheader("🔍 Interactive ECG Signal with R-peaks")
-                    
-                    fig = go.Figure()
-                    
-                    # Add ECG trace
-                    fig.add_trace(go.Scatter(
-                        x=st.session_state.analyzer.ecg_data['time'],
-                        y=st.session_state.analyzer.ecg_data['raw'],
-                        mode='lines',
-                        name='ECG',
-                        line=dict(color='blue', width=1)
-                    ))
-                    
-                    # Add R-peaks
-                    peaks = st.session_state.analyzer.ecg_data['peaks']
-                    time_data = st.session_state.analyzer.ecg_data['time']
-                    ecg_data = st.session_state.analyzer.ecg_data['raw']
-                    
-                    if len(peaks) > 0:
-                        valid_peaks = [p for p in peaks if p < len(time_data) and p < len(ecg_data)]
-                        peak_times = [time_data[p] for p in valid_peaks]
-                        peak_values = [ecg_data[p] for p in valid_peaks]
-                        
-                        fig.add_trace(go.Scatter(
-                            x=peak_times,
-                            y=peak_values,
-                            mode='markers',
-                            name=f'R-peaks (n={len(valid_peaks)})',
-                            marker=dict(color='red', size=8)
-                        ))
-                    
-                    # Highlight analysis window if it exists
-                    if 'time_window' in st.session_state:
-                        tw = st.session_state.time_window
-                        fig.add_vrect(
-                            x0=tw['start_time'], x1=tw['end_time'],
-                            fillcolor="yellow", opacity=0.2,
-                            annotation_text="Analysis Window", annotation_position="top left"
-                        )
-                    
-                    fig.update_layout(
-                        title='Interactive ECG Signal with R-peak Detection',
-                        xaxis_title='Time (s)',
-                        yaxis_title='ECG (mV)',
-                        hovermode='x unified',
-                        height=400
-                    )
-                    
-                    st.plotly_chart(fig, use_container_width=True)
-                
-                # Interactive BP with systolic peaks
-                elif "Interactive BP" in plot_type:
-                    st.subheader("🔍 Interactive Blood Pressure with Systolic Peaks")
-                    
-                    fig = go.Figure()
-                    
-                    # Add BP trace
-                    fig.add_trace(go.Scatter(
-                        x=st.session_state.analyzer.bp_data['time'],
-                        y=st.session_state.analyzer.bp_data['raw'],
-                        mode='lines',
-                        name='Blood Pressure',
-                        line=dict(color='red', width=1)
-                    ))
-                    
-                    # Add systolic peaks
-                    bp_peaks = st.session_state.analyzer.bp_data['peaks']
-                    time_data = st.session_state.analyzer.bp_data['time']
-                    bp_data = st.session_state.analyzer.bp_data['raw']
-                    
-                    if len(bp_peaks) > 0:
-                        valid_peaks = [p for p in bp_peaks if p < len(time_data) and p < len(bp_data)]
-                        peak_times = [time_data[p] for p in valid_peaks]
-                        peak_values = [bp_data[p] for p in valid_peaks]
-                        
-                        fig.add_trace(go.Scatter(
-                            x=peak_times,
-                            y=peak_values,
-                            mode='markers',
-                            name=f'Systolic Peaks (n={len(valid_peaks)})',
-                            marker=dict(color='green', size=8)
-                        ))
-                    
-                    # Highlight analysis window if it exists
-                    if 'time_window' in st.session_state:
-                        tw = st.session_state.time_window
-                        fig.add_vrect(
-                            x0=tw['start_time'], x1=tw['end_time'],
-                            fillcolor="yellow", opacity=0.2,
-                            annotation_text="Analysis Window", annotation_position="top left"
-                        )
-                    
-                    # Add statistics
-                    avg_systolic = np.mean(st.session_state.analyzer.bp_data['systolic'])
-                    std_systolic = np.std(st.session_state.analyzer.bp_data['systolic'])
-                    
-                    fig.update_layout(
-                        title=f'Interactive Blood Pressure Signal (Mean: {avg_systolic:.1f}±{std_systolic:.1f} mmHg)',
-                        xaxis_title='Time (s)',
-                        yaxis_title='Blood Pressure (mmHg)',
-                        hovermode='x unified',
-                        height=400
-                    )
-                    
-                    st.plotly_chart(fig, use_container_width=True)
-                
                 # Interactive tachogram
-                elif "Interactive Tachogram" in plot_type:
+                if "Interactive Tachogram" in plot_type:
                     st.subheader("🔍 Interactive Heart Rate Variability Tachogram")
                     
                     fig = go.Figure()
