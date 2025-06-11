@@ -19,7 +19,7 @@ st.set_page_config(
 )
 
 st.title("🫀 Heart Rate Variability Analysis Tool")
-st.markdown("Upload an ACQ file to analyze HRV and BRS metrics with adjustable peak detection")
+st.markdown("Upload an ACQ file to analyze HRV and BRS metrics with adjustable peak detection and time window selection")
 
 # Initialize session state
 if 'analyzer' not in st.session_state:
@@ -60,14 +60,66 @@ with st.sidebar:
                     st.session_state.file_loaded = True
                     st.session_state.analyzed = False
                     st.session_state.preview_mode = False
-                    st.success("✅ File loaded! Now adjust peak detection parameters below and preview results.")
+                    st.success("✅ File loaded! Now adjust parameters below and preview results.")
                     
                 except Exception as e:
                     st.error(f"❌ File loading failed: {str(e)}")
                     st.session_state.file_loaded = False
 
-    # Peak Detection Parameters (only show if file is loaded but not analyzed)
+    # Show parameters only if file is loaded but not analyzed
     if st.session_state.file_loaded and not st.session_state.analyzed:
+        
+        # NEW: Time Window Selection
+        st.header("⏱️ Analysis Time Window")
+        st.markdown("**Select the time range for HRV analysis:**")
+        
+        # Get total recording duration
+        if hasattr(st.session_state.analyzer, 'ecg_data') and 'time' in st.session_state.analyzer.ecg_data:
+            max_time = max(st.session_state.analyzer.ecg_data['time'])
+            max_time_min = max_time / 60
+            
+            st.write(f"📊 **Total recording duration:** {max_time:.1f} seconds ({max_time_min:.1f} minutes)")
+            
+            # Time window sliders
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                start_time = st.slider(
+                    "Start Time (seconds)", 
+                    min_value=0.0, 
+                    max_value=max_time-1, 
+                    value=0.0, 
+                    step=1.0,
+                    help="Start of analysis window"
+                )
+            
+            with col2:
+                end_time = st.slider(
+                    "End Time (seconds)", 
+                    min_value=start_time+10, 
+                    max_value=max_time, 
+                    value=max_time, 
+                    step=1.0,
+                    help="End of analysis window"
+                )
+            
+            # Calculate and display window duration
+            window_duration = end_time - start_time
+            window_duration_min = window_duration / 60
+            
+            # Show selected window info
+            st.info(f"🎯 **Selected window:** {start_time:.0f}s to {end_time:.0f}s ({window_duration:.0f}s = {window_duration_min:.1f} min)")
+            
+            # Store time window in session state
+            st.session_state.time_window = {
+                'start_time': start_time,
+                'end_time': end_time,
+                'duration': window_duration
+            }
+        
+        st.markdown("---")
+        
+        # Peak Detection Parameters
         st.header("🎛️ Peak Detection Parameters")
         
         # ECG Peak Detection Parameters
@@ -123,8 +175,8 @@ with st.sidebar:
         }
         
         # Preview button
-        if st.button("🔍 Preview Peak Detection", use_container_width=True):
-            with st.spinner("Detecting peaks with new parameters..."):
+        if st.button("🔍 Preview Peak Detection & Time Window", use_container_width=True):
+            with st.spinner("Detecting peaks with new parameters and time window..."):
                 try:
                     # Update peak detection with new parameters
                     st.session_state.analyzer.find_peaks_with_params(
@@ -136,7 +188,7 @@ with st.sidebar:
                         bp_prominence=bp_prominence
                     )
                     st.session_state.preview_mode = True
-                    st.success("✅ Peak detection updated! Check the preview plots.")
+                    st.success("✅ Peak detection updated! Check the preview plots with your selected time window.")
                 except Exception as e:
                     st.error(f"❌ Peak detection failed: {str(e)}")
 
@@ -176,6 +228,26 @@ with st.sidebar:
         if st.button("🎨 Generate Selected Plots"):
             st.session_state.selected_plots = all_selected_plots
 
+# HELPER FUNCTIONS FOR TIME WINDOW FILTERING
+def filter_data_by_time_window(data_array, time_array, start_time, end_time):
+    """Filter data to only include points within the specified time window"""
+    mask = (time_array >= start_time) & (time_array <= end_time)
+    return data_array[mask], time_array[mask], mask
+
+def filter_peaks_by_time_window(peaks, time_array, start_time, end_time):
+    """Filter peaks to only include those within the specified time window"""
+    # Convert peak indices to times
+    peak_times = time_array[peaks]
+    # Find peaks within time window
+    mask = (peak_times >= start_time) & (peak_times <= end_time)
+    filtered_peaks = peaks[mask]
+    
+    # Adjust peak indices relative to the filtered data
+    start_idx = np.where(time_array >= start_time)[0][0] if len(np.where(time_array >= start_time)[0]) > 0 else 0
+    adjusted_peaks = filtered_peaks - start_idx
+    
+    return adjusted_peaks, mask
+
 # MAIN CONTENT AREA
 # Case 1: Analysis is complete - show results and plots
 if st.session_state.analyzed:
@@ -184,6 +256,11 @@ if st.session_state.analyzed:
     
     with col1:
         st.subheader("📋 Analysis Results")
+        
+        # Show the time window used for analysis
+        if 'time_window' in st.session_state:
+            tw = st.session_state.time_window
+            st.info(f"🎯 **Analysis window:** {tw['start_time']:.0f}s - {tw['end_time']:.0f}s ({tw['duration']:.0f}s)")
         
         # Get comprehensive results
         results = st.session_state.analyzer.get_summary()
@@ -238,6 +315,15 @@ if st.session_state.analyzed:
                             marker=dict(color='red', size=8)
                         ))
                     
+                    # Highlight analysis window if it exists
+                    if 'time_window' in st.session_state:
+                        tw = st.session_state.time_window
+                        fig.add_vrect(
+                            x0=tw['start_time'], x1=tw['end_time'],
+                            fillcolor="yellow", opacity=0.2,
+                            annotation_text="Analysis Window", annotation_position="top left"
+                        )
+                    
                     fig.update_layout(
                         title='Interactive ECG Signal with R-peak Detection',
                         xaxis_title='Time (s)',
@@ -281,6 +367,15 @@ if st.session_state.analyzed:
                             marker=dict(color='green', size=8)
                         ))
                     
+                    # Highlight analysis window if it exists
+                    if 'time_window' in st.session_state:
+                        tw = st.session_state.time_window
+                        fig.add_vrect(
+                            x0=tw['start_time'], x1=tw['end_time'],
+                            fillcolor="yellow", opacity=0.2,
+                            annotation_text="Analysis Window", annotation_position="top left"
+                        )
+                    
                     # Add statistics
                     avg_systolic = np.mean(st.session_state.analyzer.bp_data['systolic'])
                     std_systolic = np.std(st.session_state.analyzer.bp_data['systolic'])
@@ -323,6 +418,22 @@ if st.session_state.analyzed:
                         line=dict(color='red', width=1)
                     ), row=2, col=1)
                     
+                    # Highlight analysis window if it exists
+                    if 'time_window' in st.session_state:
+                        tw = st.session_state.time_window
+                        # Add to both subplots
+                        fig.add_vrect(
+                            x0=tw['start_time'], x1=tw['end_time'],
+                            fillcolor="yellow", opacity=0.2,
+                            annotation_text="Analysis Window", annotation_position="top left",
+                            row=1, col=1
+                        )
+                        fig.add_vrect(
+                            x0=tw['start_time'], x1=tw['end_time'],
+                            fillcolor="yellow", opacity=0.2,
+                            row=2, col=1
+                        )
+                    
                     fig.update_xaxes(title_text="Time (s)", row=2, col=1)
                     fig.update_yaxes(title_text="ECG (mV)", row=1, col=1)
                     fig.update_yaxes(title_text="BP (mmHg)", row=2, col=1)
@@ -352,6 +463,15 @@ if st.session_state.analyzed:
                         line=dict(color='blue', width=1),
                         marker=dict(size=4)
                     ))
+                    
+                    # Highlight analysis window if it exists
+                    if 'time_window' in st.session_state:
+                        tw = st.session_state.time_window
+                        fig.add_vrect(
+                            x0=tw['start_time'], x1=tw['end_time'],
+                            fillcolor="yellow", opacity=0.2,
+                            annotation_text="Analysis Window", annotation_position="top left"
+                        )
                     
                     # Add statistics
                     mean_rr = np.mean(rr_intervals)
@@ -477,10 +597,18 @@ if st.session_state.analyzed:
                     plt.tight_layout()
                     st.pyplot(fig)
 
-# Case 2: File loaded and in preview mode - show peak detection preview
+# Case 2: File loaded and in preview mode - show peak detection preview with time window
 elif st.session_state.file_loaded and st.session_state.preview_mode:
-    st.subheader("🔍 Peak Detection Preview")
-    st.markdown("**Review the detected peaks below. Adjust parameters in the sidebar if needed.**")
+    st.subheader("🔍 Peak Detection Preview with Time Window Selection")
+    st.markdown("**Review the detected peaks and time window below. Adjust parameters in the sidebar if needed.**")
+    
+    # Get time window info
+    time_window_info = ""
+    if 'time_window' in st.session_state:
+        tw = st.session_state.time_window
+        time_window_info = f" | **Selected Window:** {tw['start_time']:.0f}s - {tw['end_time']:.0f}s ({tw['duration']:.0f}s)"
+    
+    st.info(f"🎯 **Preview Mode** {time_window_info}")
     
     # Create two columns for ECG and BP previews
     col1, col2 = st.columns(2)
@@ -504,7 +632,7 @@ elif st.session_state.file_loaded and st.session_state.preview_mode:
             with metric_col2:
                 st.metric("Estimated HR", f"{hr_from_peaks:.1f} BPM")
         
-        # Interactive ECG preview - ENTIRE TIME SERIES
+        # Interactive ECG preview - ENTIRE TIME SERIES with highlighted window
         fig = go.Figure()
         
         # Show entire ECG signal
@@ -527,6 +655,16 @@ elif st.session_state.file_loaded and st.session_state.preview_mode:
                     name=f'All R-peaks (n={len(valid_peaks)})',
                     marker=dict(color='red', size=4, symbol='circle')
                 ))
+        
+        # Highlight the selected analysis window
+        if 'time_window' in st.session_state:
+            tw = st.session_state.time_window
+            fig.add_vrect(
+                x0=tw['start_time'], x1=tw['end_time'],
+                fillcolor="yellow", opacity=0.3,
+                annotation_text=f"Analysis Window ({tw['duration']:.0f}s)", 
+                annotation_position="top left"
+            )
         
         # Calculate recording duration
         duration_min = time_data[-1] / 60 if len(time_data) > 0 else 0
@@ -559,7 +697,7 @@ elif st.session_state.file_loaded and st.session_state.preview_mode:
             with metric_col2:
                 st.metric("Mean Systolic", f"{np.mean(systolic_values):.1f} mmHg")
         
-        # Interactive BP preview - ENTIRE TIME SERIES
+        # Interactive BP preview - ENTIRE TIME SERIES with highlighted window
         fig = go.Figure()
         
         # Show entire BP signal
@@ -583,6 +721,16 @@ elif st.session_state.file_loaded and st.session_state.preview_mode:
                     marker=dict(color='green', size=4, symbol='circle')
                 ))
         
+        # Highlight the selected analysis window
+        if 'time_window' in st.session_state:
+            tw = st.session_state.time_window
+            fig.add_vrect(
+                x0=tw['start_time'], x1=tw['end_time'],
+                fillcolor="yellow", opacity=0.3,
+                annotation_text=f"Analysis Window ({tw['duration']:.0f}s)", 
+                annotation_position="top left"
+            )
+        
         # Calculate recording duration
         duration_min = bp_time_data[-1] / 60 if len(bp_time_data) > 0 else 0
         
@@ -597,7 +745,7 @@ elif st.session_state.file_loaded and st.session_state.preview_mode:
         
         st.plotly_chart(fig, use_container_width=True)
     
-    # Add RR Interval Tachogram Preview
+    # Add RR Interval Tachogram Preview with time window highlighting
     st.markdown("---")
     st.subheader("📈 RR Interval Tachogram Preview")
     st.write("**Heart Rate Variability across the entire recording:**")
@@ -618,6 +766,16 @@ elif st.session_state.file_loaded and st.session_state.preview_mode:
             line=dict(color='purple', width=1),
             marker=dict(size=3, color='purple')
         ))
+        
+        # Highlight the selected analysis window
+        if 'time_window' in st.session_state:
+            tw = st.session_state.time_window
+            fig_tacho.add_vrect(
+                x0=tw['start_time'], x1=tw['end_time'],
+                fillcolor="yellow", opacity=0.3,
+                annotation_text=f"Analysis Window ({tw['duration']:.0f}s)", 
+                annotation_position="top left"
+            )
         
         # Add statistics
         mean_rr = np.mean(rr_intervals)
@@ -659,6 +817,38 @@ elif st.session_state.file_loaded and st.session_state.preview_mode:
     else:
         st.warning("⚠️ Not enough R-peaks detected for RR interval analysis. Try adjusting ECG parameters.")
     
+    # Show window-specific statistics if time window is selected
+    if 'time_window' in st.session_state and len(peaks) > 1:
+        st.markdown("---")
+        st.subheader("🎯 Analysis Window Statistics")
+        
+        tw = st.session_state.time_window
+        
+        # Convert to numpy arrays to ensure proper indexing
+        rr_intervals_np = np.array(rr_intervals)
+        rr_time_points_np = np.array(rr_time_points)
+        
+        # Filter RR intervals to analysis window
+        window_mask = (rr_time_points_np >= tw['start_time']) & (rr_time_points_np <= tw['end_time'])
+        window_rr = rr_intervals_np[window_mask]
+        
+        if len(window_rr) > 0:
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.metric("Window RR Count", len(window_rr))
+            with col2:
+                st.metric("Window Mean RR", f"{np.mean(window_rr):.1f} ms")
+            with col3:
+                st.metric("Window RR Std", f"{np.std(window_rr):.1f} ms")
+            with col4:
+                window_cv = (np.std(window_rr) / np.mean(window_rr)) * 100
+                st.metric("Window RR CV%", f"{window_cv:.1f}%")
+            
+            st.info(f"ℹ️ Analysis will use {len(window_rr)} RR intervals from the selected {tw['duration']:.0f}-second window.")
+        else:
+            st.warning("⚠️ No RR intervals found in the selected time window. Try adjusting the window or peak detection parameters.")
+    
     # Action buttons
     st.markdown("---")
     st.markdown("**What would you like to do next?**")
@@ -667,9 +857,11 @@ elif st.session_state.file_loaded and st.session_state.preview_mode:
     
     with col1:
         if st.button("✅ Accept & Run Full Analysis", type="primary", use_container_width=True):
-            with st.spinner("Running complete cardiovascular analysis..."):
+            with st.spinner("Running complete cardiovascular analysis on selected time window..."):
                 try:
-                    st.session_state.analyzer.analyze_with_current_peaks()
+                    # Pass the time window to the analyzer
+                    time_window = st.session_state.get('time_window', None)
+                    st.session_state.analyzer.analyze_with_current_peaks(time_window)
                     st.session_state.analyzed = True
                     st.session_state.preview_mode = False
                     st.success("✅ Complete analysis finished!")
@@ -680,7 +872,7 @@ elif st.session_state.file_loaded and st.session_state.preview_mode:
     with col2:
         if st.button("🔄 Adjust Parameters", use_container_width=True):
             st.session_state.preview_mode = False
-            st.info("👈 Adjust parameters in the sidebar and click 'Preview Peak Detection' again")
+            st.info("👈 Adjust parameters or time window in the sidebar and click 'Preview' again")
             st.rerun()
     
     with col3:
@@ -688,7 +880,9 @@ elif st.session_state.file_loaded and st.session_state.preview_mode:
             with st.spinner("Analyzing with default parameters..."):
                 try:
                     st.session_state.analyzer.find_peaks()  # Original method
-                    st.session_state.analyzer.analyze_with_current_peaks()
+                    # Pass the time window to the analyzer even with default settings
+                    time_window = st.session_state.get('time_window', None)
+                    st.session_state.analyzer.analyze_with_current_peaks(time_window)
                     st.session_state.analyzed = True
                     st.session_state.preview_mode = False
                     st.success("✅ Analysis with defaults completed!")
@@ -705,9 +899,15 @@ else:
     st.markdown("""
     ## About This HRV Analysis Tool
     
-    This tool provides comprehensive cardiovascular analysis with **adjustable peak detection parameters**.
+    This tool provides comprehensive cardiovascular analysis with **adjustable peak detection parameters** and **time window selection**.
     
     ### 🎛️ New Features:
+    
+    **Time Window Selection:**
+    - Select specific time segments for analysis (e.g., first 5 minutes)
+    - Visual preview of selected window on full time series
+    - Window-specific statistics before analysis
+    - Zoom into stable recording periods
     
     **Adjustable Peak Detection:**
     - Customize ECG R-peak detection parameters
@@ -716,10 +916,10 @@ else:
     - Fine-tune before running full analysis
     
     **Interactive Preview:**
-    - See entire time series of your data
+    - See entire time series with highlighted analysis window
     - Validate peak detection quality across full recording
+    - Preview RR intervals within selected window
     - Adjust parameters and preview again
-    - Accept settings or try different ones
     
     ### 📊 Analysis Features:
     
@@ -741,11 +941,26 @@ else:
     ### 🔧 How to Use:
     
     1. **Upload** your ACQ file
-    2. **Adjust** peak detection parameters using sliders
-    3. **Preview** peak detection results on full time series
-    4. **Accept** parameters and run full analysis
-    5. **Select** and generate plots
-    6. **Download** your complete results
+    2. **Select time window** for analysis (start/end times)
+    3. **Adjust** peak detection parameters using sliders
+    4. **Preview** peak detection results and time window
+    5. **Accept** parameters and run full analysis
+    6. **Select** and generate plots
+    7. **Download** your complete results
+    
+    ### ⏱️ Time Window Selection:
+    
+    **Why use time windows?**
+    - Focus on stable recording periods
+    - Exclude artifacts or movement at beginning/end
+    - Analyze specific conditions or time periods
+    - Compare different segments of same recording
+    
+    **Window Selection Tips:**
+    - Start after initial settling period (first 30-60s)
+    - Choose stable periods without artifacts
+    - Minimum 2-3 minutes for reliable HRV analysis
+    - 5+ minutes recommended for frequency domain
     
     ### 🎯 Peak Detection Parameters:
     
@@ -759,12 +974,13 @@ else:
     - **Distance**: Minimum samples between systolic peaks
     - **Prominence**: Peak prominence above surrounding signal
     
-    ### 📈 Interactive Visualizations:
+    ### 📈 Enhanced Visualizations:
     
-    - **Full time series ECG and BP signals** with detected peaks
-    - **Complete RR interval tachogram** with statistical reference lines
+    - **Full time series ECG and BP signals** with analysis window highlighted
+    - **Complete RR interval tachogram** with window overlay
     - **Zoomable plots** for detailed inspection
-    - **Peak detection validation tools**
+    - **Window-specific statistics** before analysis
+    - **Peak detection validation** across entire recording
     
     ### 🩺 Advanced Analysis:
     
@@ -776,10 +992,11 @@ else:
     **Quality Control:**
     - Real-time peak count and heart rate estimation
     - Visual validation of detection accuracy across entire recording
+    - Window-specific RR interval statistics
     - Parameter optimization before analysis
     - Comprehensive statistical summaries
     """)
     
     # Footer
     st.markdown("---")
-    st.markdown("Built with Streamlit • Interactive Peak Detection • Full Time Series Preview")
+    st.markdown("Built with Streamlit • Interactive Peak Detection • Time Window Selection • Full Time Series Preview")
