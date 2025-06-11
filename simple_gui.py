@@ -418,12 +418,66 @@ if st.session_state.analyzed:
                     mean_rr = np.mean(rr_intervals)
                     std_rr = np.std(rr_intervals)
                     
+                    # Create metrics text panel - check if we have analysis results
+                    metrics_text = "<b>📊 HRV Metrics</b><br><br>"
+                    
+                    if 'time_domain' in st.session_state.analyzer.results:
+                        td = st.session_state.analyzer.results['time_domain']
+                        
+                        if 'error' in td:
+                            metrics_text += f"❌ Error:<br>{td['error']}"
+                        else:
+                            # Basic measurements
+                            metrics_text += f"<b>📈 Basic</b><br>"
+                            metrics_text += f"Beats: {td['num_beats']}<br>"
+                            metrics_text += f"Mean RR: {td['mean_rr']:.1f} ms<br>"
+                            metrics_text += f"HR: {td['hr']:.1f} BPM<br>"
+                            metrics_text += f"RR Diff: {td['avg_diff']:.1f} ms<br><br>"
+                            
+                            # Time domain parameters
+                            metrics_text += f"<b>🔢 Time Domain</b><br>"
+                            metrics_text += f"RMSSD: {td['rmssd']:.1f} ms<br>"
+                            metrics_text += f"SDNN: {td['sdnn']:.1f} ms<br>"
+                            metrics_text += f"pNN50: {td['pnn50']:.1f}%<br>"
+                            metrics_text += f"SDSD: {td['sdsd']:.1f} ms<br>"
+                            metrics_text += f"SampEn: {td['sample_entropy']:.3f}"
+                    else:
+                        metrics_text += "⚠️ Run analysis first<br><br>"
+                        metrics_text += f"<b>📊 Raw Data</b><br>"
+                        metrics_text += f"Count: {len(rr_intervals)}<br>"
+                        metrics_text += f"Mean: {mean_rr:.1f} ms<br>"
+                        metrics_text += f"Std: {std_rr:.1f} ms"
+                    
+                    # Add metrics as annotation panel on the right side of the plot
+                    fig.add_annotation(
+                        x=1.02,  # Position to the right of plot area
+                        y=1.0,   # Top of plot area
+                        xref="paper",
+                        yref="paper",
+                        text=metrics_text,
+                        showarrow=False,
+                        font=dict(
+                            family="Arial, sans-serif",
+                            size=11,
+                            color="black"
+                        ),
+                        align="left",
+                        bgcolor="rgba(248, 249, 250, 0.95)",
+                        bordercolor="rgba(108, 117, 125, 0.5)",
+                        borderwidth=1,
+                        borderpad=10,
+                        xanchor="left",
+                        yanchor="top"
+                        # Removed fixed width - box will fit text content
+                    )
+                    
                     fig.update_layout(
-                        title=f'Interactive RR Interval Tachogram (Mean: {mean_rr:.1f}±{std_rr:.1f} ms)',
+                        title=f'Interactive RR Interval Tachogram with HRV Metrics (Mean: {mean_rr:.1f}±{std_rr:.1f} ms)',
                         xaxis_title='Time (s)',
                         yaxis_title='RR Interval (ms)',
                         hovermode='x unified',
-                        height=400
+                        height=600,
+                        margin=dict(r=250)  # Add right margin for metrics panel
                     )
                     
                     st.plotly_chart(fig, use_container_width=True)
