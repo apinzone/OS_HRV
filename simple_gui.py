@@ -225,6 +225,10 @@ if 'preview_mode' not in st.session_state:
     st.session_state.preview_mode = False
 if 'analysis_started' not in st.session_state:
     st.session_state.analysis_started = False
+if 'channels_info' not in st.session_state:
+    st.session_state.channels_info = []
+if 'channels_configured' not in st.session_state:
+    st.session_state.channels_configured = False
 
 # ============================================================================
 # HELPER FUNCTIONS
@@ -253,18 +257,20 @@ def show_analysis_status():
             st.markdown('<div class="status-item"><div class="status-pending">📁 No File</div></div>', unsafe_allow_html=True)
     
     with col2:
-        if st.session_state.preview_mode:
-            st.markdown('<div class="status-item"><div class="status-warning">🔍 Preview Mode</div></div>', unsafe_allow_html=True)
+        if st.session_state.channels_configured:
+            st.markdown('<div class="status-item"><div class="status-success">✅ Channels Set</div></div>', unsafe_allow_html=True)
         elif st.session_state.file_loaded:
-            st.markdown('<div class="status-item"><div class="status-info">⚙️ Configure</div></div>', unsafe_allow_html=True)
+            st.markdown('<div class="status-item"><div class="status-warning">🔧 Configure</div></div>', unsafe_allow_html=True)
         else:
-            st.markdown('<div class="status-item"><div class="status-pending">⚙️ Waiting</div></div>', unsafe_allow_html=True)
+            st.markdown('<div class="status-item"><div class="status-pending">🔧 Waiting</div></div>', unsafe_allow_html=True)
     
     with col3:
         if st.session_state.analyzed:
             st.markdown('<div class="status-item"><div class="status-success">✅ Analyzed</div></div>', unsafe_allow_html=True)
         elif st.session_state.analysis_started:
             st.markdown('<div class="status-item"><div class="status-warning">⏳ Processing</div></div>', unsafe_allow_html=True)
+        elif st.session_state.preview_mode:
+            st.markdown('<div class="status-item"><div class="status-info">🔍 Preview</div></div>', unsafe_allow_html=True)
         else:
             st.markdown('<div class="status-item"><div class="status-pending">⏳ Pending</div></div>', unsafe_allow_html=True)
     
@@ -285,17 +291,27 @@ def run_analysis_with_progress(time_window=None):
     
     progress_bar = st.progress(0)
     status_text = st.empty()
-    
+
     try:
-        # Step 1: Peak Detection
+
+    # Step 1: Peak Detection
         status_text.markdown("**🔍 Step 1/5:** Detecting ECG R-peaks and BP systolic peaks...")
         progress_bar.progress(10)
+
+        # Check analysis capabilities first
+        if not st.session_state.analyzer.channels_configured:
+            raise Exception("Channels not configured. Please configure channels first.")
         
-        if hasattr(st.session_state, 'peak_params'):
-            st.session_state.analyzer.find_peaks_with_params(**st.session_state.peak_params)
-        else:
-            st.session_state.analyzer.find_peaks()
-        
+        capabilities = st.session_state.analyzer.get_analysis_capabilities()
+
+        try:
+            if hasattr(st.session_state, 'peak_params'):
+                st.session_state.analyzer.find_peaks_with_params(**st.session_state.peak_params)
+            else:
+                st.session_state.analyzer.find_peaks()
+        except Exception as peak_error:
+            status_text.markdown("**⚠️ Step 1:** Standard detection failed, trying adaptive method...")
+            st.session_state.analyzer.find_peaks_adaptive()
         progress_bar.progress(20)
         status_text.markdown("**✅ Step 1 Complete:** Peak detection finished")
         
@@ -435,24 +451,27 @@ with st.sidebar:
         st.info(file_info)
         
         if st.button("🔄 Load File", type="primary", use_container_width=True):
-            with st.spinner("Loading and validating file..."):
+            with st.spinner("Loading and detecting channels..."):
                 try:
                     # Save uploaded file temporarily
                     with tempfile.NamedTemporaryFile(delete=False, suffix=".acq") as tmp_file:
                         tmp_file.write(uploaded_file.getvalue())
                         tmp_file_path = tmp_file.name
                     
-                    # Load file
-                    st.session_state.analyzer.load_file(tmp_file_path)
+                    # Load file and detect channels
+                    channels_info = st.session_state.analyzer.load_file_and_detect_channels(tmp_file_path)
                     
                     # Clean up temp file
                     os.unlink(tmp_file_path)
                     
+                    # Store channel info for selection
+                    st.session_state.channels_info = channels_info
                     st.session_state.file_loaded = True
+                    st.session_state.channels_configured = False
                     st.session_state.analyzed = False
                     st.session_state.preview_mode = False
                     
-                    st.success("✅ File loaded successfully!")
+                    st.success(f"✅ File loaded! Found {len(channels_info)} channels. Please configure channels below.")
                     st.rerun()
                     
                 except Exception as e:
@@ -461,47 +480,178 @@ with st.sidebar:
     
     st.markdown('</div>', unsafe_allow_html=True)
     
+    # Channel Selection Interface
+    if st.session_state.file_loaded and not st.session_state.channels_configured:
+        st.markdown("## 🔧 Channel Configuration")
+        st.markdown('<div class="sidebar-section">', unsafe_allow_html=True)
+    
+    # Display available channels
+    st.markdown("### Available Channels:")
+    for ch in st.session_state.channels_info:
+        # Create color coding based on likely type
+        if 'ECG' in ch['likely_type']:
+            type_color = "🟢"
+        elif 'BP' in ch['likely_type']:
+            type_color = "🔵"
+        else:
+            type_color = "⚪"
+        
+        st.markdown(f"""
+        {type_color} **Channel {ch['index']}:** {ch['name']} ({ch['units']})  
+        📊 Range: {ch['data_range']} | Type: {ch['likely_type']}  
+        ⏱️ Duration: {ch['duration']:.1f}s | 📈 Rate: {ch['sample_rate']:.1f} Hz
+        """)
+    
+    st.markdown("---")
+    
+    # Channel selection dropdowns
+    ecg_options = ["None"] + [f"Channel {ch['index']}: {ch['name']}" for ch in st.session_state.channels_info]
+    bp_options = ["None"] + [f"Channel {ch['index']}: {ch['name']}" for ch in st.session_state.channels_info]
+    
+    # Find suggested defaults
+    ecg_default = 0  # Default to "None"
+    bp_default = 0   # Default to "None"
+    
+    for i, ch in enumerate(st.session_state.channels_info):
+        if 'ECG' in ch['likely_type'] and ecg_default == 0:
+            ecg_default = i + 1  # +1 because "None" is first option
+        elif 'BP' in ch['likely_type'] and bp_default == 0:
+            bp_default = i + 1   # +1 because "None" is first option
+    
+    ecg_selection = st.selectbox(
+        "⚡ Select ECG Channel:",
+        ecg_options,
+        index=ecg_default,
+        help="Choose the channel containing ECG/EKG data"
+    )
+    
+    bp_selection = st.selectbox(
+        "🩸 Select BP Channel:",
+        bp_options,
+        index=bp_default,
+        help="Choose the channel containing blood pressure data"
+    )
+    
+    # Show what analysis will be available
+    ecg_selected = ecg_selection != "None"
+    bp_selected = bp_selection != "None"
+    
+    if ecg_selected or bp_selected:
+        st.markdown("### 📊 Available Analyses:")
+        available_analyses = []
+        if ecg_selected:
+            available_analyses.extend(["✅ Time Domain HRV", "✅ Frequency Domain HRV"])
+        if ecg_selected and bp_selected:
+            available_analyses.extend(["✅ BRS Sequence Method", "✅ BRS Spectral Method"])
+        elif bp_selected and not ecg_selected:
+            available_analyses.append("✅ Blood Pressure Analysis")
+        
+        for analysis in available_analyses:
+            st.markdown(f"- {analysis}")
+    
+    # Configure button
+    if st.button("✅ Configure Channels", type="primary", use_container_width=True):
+        try:
+            # Parse selections
+            ecg_idx = None if ecg_selection == "None" else int(ecg_selection.split(":")[0].replace("Channel ", ""))
+            bp_idx = None if bp_selection == "None" else int(bp_selection.split(":")[0].replace("Channel ", ""))
+            
+            if ecg_idx is None and bp_idx is None:
+                st.error("❌ Please select at least one channel (ECG or BP)")
+            else:
+                # Configure channels
+                success_msgs = st.session_state.analyzer.configure_channels(ecg_idx, bp_idx)
+                
+                # Show capabilities
+                capabilities = st.session_state.analyzer.get_analysis_capabilities()
+                
+                st.session_state.channels_configured = True
+                st.session_state.analyzed = False
+                
+                success_text = "\n".join(success_msgs)
+                
+                # Show what analysis can be performed
+                available_analyses = []
+                if capabilities['time_domain_hrv']:
+                    available_analyses.append("Time Domain HRV")
+                if capabilities['frequency_domain_hrv']:
+                    available_analyses.append("Frequency Domain HRV")
+                if capabilities['brs_sequence']:
+                    available_analyses.append("BRS Sequence Method")
+                if capabilities['brs_spectral']:
+                    available_analyses.append("BRS Spectral Method")
+                
+                success_text += f"\n\n📊 Available analyses: {', '.join(available_analyses)}"
+                
+                st.success(success_text)
+                st.rerun()
+                
+        except Exception as e:
+            st.error(f"❌ Channel configuration failed: {str(e)}")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+    
     # Time Window Selection (only if file is loaded)
-    if st.session_state.file_loaded and not st.session_state.analyzed:
-        st.markdown("## ⏱️ Analysis Window")
+    # Time Window Selection and Peak Detection Parameters (only if channels are configured)
+    if st.session_state.file_loaded and st.session_state.channels_configured:
+        
+        # Show current channel configuration
+        analyzer = st.session_state.analyzer
+        
+        st.markdown("## 📋 Current Configuration")
         st.markdown('<div class="sidebar-section">', unsafe_allow_html=True)
         
-        if hasattr(st.session_state.analyzer, 'ecg_data') and 'time' in st.session_state.analyzer.ecg_data:
-            max_time = max(st.session_state.analyzer.ecg_data['time'])
-            max_time_min = max_time / 60
+        config_info = ""
+        if analyzer.ecg_data:
+            scale_info = f" ({analyzer.ecg_data['detected_scale']} detected)" if 'detected_scale' in analyzer.ecg_data else ""
+            config_info += f"⚡ **ECG:** Channel {analyzer.ecg_channel} - {analyzer.ecg_data['channel_name']}{scale_info}\n\n"
+        if analyzer.bp_data:
+            config_info += f"🩸 **BP:** Channel {analyzer.bp_channel} - {analyzer.bp_data['channel_name']}"
+        
+        st.markdown(config_info)
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+        # Time Window Selection (only if file is loaded)
+        if not st.session_state.analyzed:
+            st.markdown("## ⏱️ Analysis Window")
+            st.markdown('<div class="sidebar-section">', unsafe_allow_html=True)
             
-            st.info(f"📊 **Recording:** {max_time:.1f}s ({max_time_min:.1f} min)")
-            
-            # Time window sliders with better styling
-            start_time = st.slider(
-                "🎯 Start Time (seconds)", 
-                min_value=0.0, 
-                max_value=max_time-10, 
-                value=0.0, 
-                step=1.0,
-                help="Start of analysis window"
-            )
-            
-            end_time = st.slider(
-                "🏁 End Time (seconds)", 
-                min_value=start_time+10, 
-                max_value=max_time, 
-                value=max_time, 
-                step=1.0,
-                help="End of analysis window"
-            )
-            
-            # Window duration display
-            window_duration = end_time - start_time
-            window_duration_min = window_duration / 60
-            
-            st.success(f"📐 **Window:** {window_duration:.0f}s ({window_duration_min:.1f} min)")
-            
-            st.session_state.time_window = {
-                'start_time': start_time,
-                'end_time': end_time,
-                'duration': window_duration
-            }
+            if hasattr(st.session_state.analyzer, 'ecg_data') and 'time' in st.session_state.analyzer.ecg_data:
+                max_time = max(st.session_state.analyzer.ecg_data['time'])
+                max_time_min = max_time / 60
+                
+                st.info(f"📊 **Recording:** {max_time:.1f}s ({max_time_min:.1f} min)")
+                
+                # Time window sliders with better styling
+                start_time = st.slider(
+                    "🎯 Start Time (seconds)", 
+                    min_value=0.0, 
+                    max_value=max_time-10, 
+                    value=0.0, 
+                    step=1.0,
+                    help="Start of analysis window"
+                )
+                
+                end_time = st.slider(
+                    "🏁 End Time (seconds)", 
+                    min_value=start_time+10, 
+                    max_value=max_time, 
+                    value=max_time, 
+                    step=1.0,
+                    help="End of analysis window"
+                )
+                
+                # Window duration display
+                window_duration = end_time - start_time
+                window_duration_min = window_duration / 60
+                
+                st.success(f"📐 **Window:** {window_duration:.0f}s ({window_duration_min:.1f} min)")
+                
+                st.session_state.time_window = {
+                    'start_time': start_time,
+                    'end_time': end_time,
+                    'duration': window_duration
+                }
         
         st.markdown('</div>', unsafe_allow_html=True)
         
@@ -576,12 +726,18 @@ with st.sidebar:
 # ============================================================================
 
 # Case 1: Analysis Complete - Show Results
-if st.session_state.analyzed:
-    # Results Header
-    st.markdown("""
+if st.session_state.analyzed and st.session_state.channels_configured:
+    # Results Header with scale info
+    scale_note = ""
+    if hasattr(st.session_state.analyzer, 'get_scale_info'):
+        scale_info = st.session_state.analyzer.get_scale_info()
+        if scale_info['conversion_applied']:
+            scale_note = f" | ECG converted from {scale_info['detected_scale']} to mV"
+    
+    st.markdown(f"""
     <div class="results-header">
         <h2 style="margin: 0; color: #155724;">🎉 Analysis Complete</h2>
-        <p style="margin: 0.5rem 0 0 0; color: #155724;">Comprehensive cardiovascular analysis finished successfully</p>
+        <p style="margin: 0.5rem 0 0 0; color: #155724;">Comprehensive cardiovascular analysis finished successfully{scale_note}</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -1424,7 +1580,7 @@ if st.session_state.analyzed:
                     close_plot_section()
 
 # Case 2: Preview Mode - Show Enhanced Peak Detection Preview
-elif st.session_state.file_loaded and st.session_state.preview_mode:
+elif st.session_state.file_loaded and st.session_state.channels_configured and st.session_state.preview_mode:
     st.markdown("""
     <div class="window-info">
         <h3 style="margin: 0;">🔍 Peak Detection Preview & Time Window Selection</h3>
@@ -1432,6 +1588,29 @@ elif st.session_state.file_loaded and st.session_state.preview_mode:
     </div>
     """, unsafe_allow_html=True)
     
+    # Show channel configuration in preview
+    if hasattr(st.session_state.analyzer, 'ecg_data') or hasattr(st.session_state.analyzer, 'bp_data'):
+        analyzer = st.session_state.analyzer
+        
+        config_text = "**📋 Configured Channels:** "
+        channel_parts = []
+        
+        if analyzer.ecg_data:
+            scale_note = f" ({analyzer.ecg_data.get('detected_scale', 'Unknown')} scale)" 
+            channel_parts.append(f"ECG Ch{analyzer.ecg_channel}{scale_note}")
+        
+        if analyzer.bp_data:
+            channel_parts.append(f"BP Ch{analyzer.bp_channel}")
+        
+        config_text += " | ".join(channel_parts)
+        
+        st.markdown(f"""
+        <div class="metric-card">
+            <h4>🔧 Channel Configuration</h4>
+            <p>{config_text}</p>
+        </div>
+        """, unsafe_allow_html=True)
+
     # Time window info
     if 'time_window' in st.session_state:
         tw = st.session_state.time_window
@@ -1713,28 +1892,34 @@ elif st.session_state.file_loaded and st.session_state.preview_mode:
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        if st.button("✅ Accept & Run Full Analysis", type="primary", use_container_width=True,
-                    help="Proceed with comprehensive HRV and BRS analysis using current settings"):
-            st.session_state.analysis_started = True
-            
-            with st.spinner("🔄 Running comprehensive cardiovascular analysis..."):
-                try:
-                    time_window = st.session_state.get('time_window', None)
-                    success = run_analysis_with_progress(time_window)
+            if st.button("✅ Accept & Run Full Analysis", type="primary", use_container_width=True,
+                        help="Proceed with comprehensive HRV and BRS analysis using current settings"):
+                
+                # Check analysis capabilities before starting
+                capabilities = st.session_state.analyzer.get_analysis_capabilities()
+                if not any(capabilities.values()):
+                    st.error("❌ No analysis capabilities available. Please check channel configuration.")
+                else:
+                    st.session_state.analysis_started = True
                     
-                    if success:
-                        st.session_state.analyzed = True
-                        st.session_state.preview_mode = False
-                        st.session_state.analysis_started = False
-                        st.success("🎉 Complete analysis finished successfully!")
-                        st.balloons()
-                        st.rerun()
-                    else:
-                        st.session_state.analysis_started = False
-                        
-                except Exception as e:
-                    st.session_state.analysis_started = False
-                    st.error(f"❌ Analysis failed: {str(e)}")
+                    with st.spinner("🔄 Running comprehensive cardiovascular analysis..."):
+                        try:
+                            time_window = st.session_state.get('time_window', None)
+                            success = run_analysis_with_progress(time_window)
+                            
+                            if success:
+                                st.session_state.analyzed = True
+                                st.session_state.preview_mode = False
+                                st.session_state.analysis_started = False
+                                st.success("🎉 Complete analysis finished successfully!")
+                                st.balloons()
+                                st.rerun()
+                            else:
+                                st.session_state.analysis_started = False
+                                
+                        except Exception as e:
+                            st.session_state.analysis_started = False
+                            st.error(f"❌ Analysis failed: {str(e)}")
     
     with col2:
         if st.button("🔄 Adjust Parameters", use_container_width=True,
@@ -1783,16 +1968,19 @@ else:
     
     with col1:
         st.markdown("""
-        <div class="metric-card">
-            <h3>🎛️ Advanced Features</h3>
-            <ul style="margin: 0; padding-left: 1.2rem;">
-                <li><strong>Time Window Selection:</strong> Focus analysis on specific recording segments</li>
-                <li><strong>Adjustable Peak Detection:</strong> Fine-tune ECG and BP peak identification</li>
-                <li><strong>Real-time Preview:</strong> Validate settings before full analysis</li>
-                <li><strong>Interactive Visualizations:</strong> Explore results with dynamic plots</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
+                <div class="metric-card">
+                    <h3>🎛️ Advanced Features</h3>
+                    <ul style="margin: 0; padding-left: 1.2rem;">
+                        <li><strong>Flexible Channel Selection:</strong> Choose ECG and BP from any channel order</li>
+                        <li><strong>Smart Channel Detection:</strong> Automatic suggestions based on signal characteristics</li>
+                        <li><strong>Single-Channel Analysis:</strong> ECG-only or BP-only analysis support</li>
+                        <li><strong>Time Window Selection:</strong> Focus analysis on specific recording segments</li>
+                        <li><strong>Adjustable Peak Detection:</strong> Fine-tune ECG and BP peak identification</li>
+                        <li><strong>Real-time Preview:</strong> Validate settings before full analysis</li>
+                        <li><strong>Interactive Visualizations:</strong> Explore results with dynamic plots</li>
+                    </ul>
+                </div>
+                """, unsafe_allow_html=True)
         
         st.markdown("""
         <div class="metric-card">
@@ -1812,9 +2000,9 @@ else:
             <h3>🚀 How to Get Started</h3>
             <ol style="margin: 0; padding-left: 1.2rem;">
                 <li><strong>Upload:</strong> Select your ACQ file in the sidebar</li>
-                <li><strong>Configure:</strong> Choose analysis time window</li>
-                <li><strong>Adjust:</strong> Fine-tune peak detection parameters</li>
-                <li><strong>Preview:</strong> Validate settings with real-time preview</li>
+                <li><strong>Select Channels:</strong> Choose which channels contain ECG and/or BP data</li>
+                <li><strong>Configure:</strong> Set up your analysis parameters</li>
+                <li><strong>Preview:</strong> Validate peak detection and time window</li>
                 <li><strong>Analyze:</strong> Run comprehensive cardiovascular analysis</li>
                 <li><strong>Explore:</strong> Generate interactive visualizations</li>
                 <li><strong>Download:</strong> Export professional analysis reports</li>

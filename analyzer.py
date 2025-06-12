@@ -1,4 +1,4 @@
-# analyzer_consistent.py
+# analyzer.py - Enhanced with ECG scale detection and flexible channel selection
 import numpy as np
 import math
 from scipy.signal import find_peaks, welch, coherence, csd
@@ -11,37 +11,244 @@ class CardiovascularAnalyzer:
         self.ecg_data = {}
         self.bp_data = {}
         self.results = {}
-        self.time_window = None  # NEW: Store time window
+        self.time_window = None
+        # Scale detection attributes
+        self.ecg_scale = 'unknown'
+        self.ecg_scale_factor = 1.0
+        # NEW: Channel selection attributes
+        self.file_channels = []
+        self.file_object = None
+        self.filepath = None
+        self.ecg_channel = None
+        self.bp_channel = None
+        self.channels_configured = False
+
+    def detect_ecg_scale(self, ecg_signal):
+        """
+        Detect if ECG is in mV or μV based on signal characteristics
+        Returns: ('mV', factor) or ('μV', factor) or ('V', factor)
+        """
+        # Calculate signal statistics
+        signal_std = np.std(ecg_signal)
+        signal_max = np.max(np.abs(ecg_signal))
+        signal_range = np.ptp(ecg_signal)  # peak-to-peak
         
-    def load_file(self, filepath):
-        """Exactly matches your original file loading"""
-        file = bioread.read_file(filepath)
-        Channel_List = file.channels
+        # Try basic peak detection with different thresholds
+        signal_abs_max = np.max(np.abs(ecg_signal))
         
-        # BP Data (Channel 0) - exactly as in your code
-        BP_Data = file.channels[0].raw_data
-        BP_Time = file.channels[0].time_index
-        BP_fs = len(BP_Data)/max(BP_Time)
+        # Test with mV-scale thresholds (typical: 0.5-5 mV range)
+        if 0.1 <= signal_abs_max <= 10:
+            # Signal is likely in mV range
+            test_height = signal_abs_max * 0.3  # 30% of max as threshold
+            test_prominence = signal_std * 0.5
+            
+            peaks_mv, _ = find_peaks(ecg_signal, 
+                                   height=test_height, 
+                                   distance=50,  # Lower distance for testing
+                                   prominence=test_prominence)
+            
+            if len(peaks_mv) > 10:  # Found reasonable number of peaks
+                return 'mV', 1.0
         
-        self.bp_data = {
-            'raw': BP_Data,
-            'time': BP_Time,
-            'fs': BP_fs
+        # Test with μV-scale thresholds (typical: 500-5000 μV range)
+        elif 100 <= signal_abs_max <= 10000:
+            # Signal is likely in μV range
+            test_height = signal_abs_max * 0.3
+            test_prominence = signal_std * 0.5
+            
+            peaks_uv, _ = find_peaks(ecg_signal, 
+                                   height=test_height, 
+                                   distance=50,
+                                   prominence=test_prominence)
+            
+            if len(peaks_uv) > 10:  # Found reasonable number of peaks
+                return 'μV', 0.001  # Convert μV to mV
+        
+        # Test with V-scale thresholds (if signal is very small)
+        elif 0.0001 <= signal_abs_max <= 0.01:
+            # Signal might be in V range (very small values)
+            test_height = signal_abs_max * 0.3
+            test_prominence = signal_std * 0.5
+            
+            peaks_v, _ = find_peaks(ecg_signal, 
+                                  height=test_height, 
+                                  distance=50,
+                                  prominence=test_prominence)
+            
+            if len(peaks_v) > 10:
+                return 'V', 1000.0  # Convert V to mV
+        
+        # If auto-detection fails, make educated guess based on amplitude
+        if signal_abs_max > 50:
+            print(f"⚠️  ECG amplitude ({signal_abs_max:.1f}) suggests μV scale")
+            return 'μV', 0.001
+        elif signal_abs_max < 0.1:
+            print(f"⚠️  ECG amplitude ({signal_abs_max:.4f}) suggests V scale")
+            return 'V', 1000.0
+        else:
+            print(f"⚠️  ECG amplitude ({signal_abs_max:.3f}) suggests mV scale")
+            return 'mV', 1.0
+
+    def _guess_channel_type(self, channel):
+        """Guess if channel is ECG, BP, or Other based on characteristics"""
+        name = getattr(channel, 'name', '').lower()
+        units = getattr(channel, 'units', '').lower()
+        data = channel.raw_data
+        
+        # Check name patterns
+        if any(keyword in name for keyword in ['ecg', 'ekg', 'heart', 'cardiac']):
+            return 'ECG (likely)'
+        elif any(keyword in name for keyword in ['bp', 'blood', 'pressure', 'arterial']):
+            return 'BP (likely)'
+        
+        # Check units
+        if any(unit in units for unit in ['mv', 'millivolt', 'volt']):
+            return 'ECG (likely)'
+        elif any(unit in units for unit in ['mmhg', 'pressure', 'torr']):
+            return 'BP (likely)'
+        
+        # Check data characteristics
+        data_range = np.ptp(data)  # peak-to-peak
+        data_mean = np.mean(np.abs(data))
+        
+        # ECG typically has smaller amplitude variations
+        if data_range < 10 and data_mean < 5:
+            return 'ECG (maybe)'
+        # BP typically has higher values
+        elif data_mean > 50 and data_range > 20:
+            return 'BP (maybe)'
+        
+        return 'Unknown'
+
+    def load_file_and_detect_channels(self, filepath):
+        """Load file and return available channel information for user selection"""
+        try:
+            file = bioread.read_file(filepath)
+            self.file_object = file  # Store for later use
+            self.filepath = filepath
+            
+            # Extract channel information
+            channels_info = []
+            for i, channel in enumerate(file.channels):
+                channel_info = {
+                    'index': i,
+                    'name': getattr(channel, 'name', f'Channel {i}'),
+                    'units': getattr(channel, 'units', 'Unknown'),
+                    'samples': len(channel.raw_data),
+                    'duration': max(channel.time_index) if len(channel.time_index) > 0 else 0,
+                    'sample_rate': len(channel.raw_data) / max(channel.time_index) if max(channel.time_index) > 0 else 0,
+                    'data_range': f"{np.min(channel.raw_data):.3f} to {np.max(channel.raw_data):.3f}",
+                    'likely_type': self._guess_channel_type(channel)
+                }
+                channels_info.append(channel_info)
+            
+            self.file_channels = channels_info
+            self.channels_configured = False
+            
+            print(f"✅ File loaded: {len(file.channels)} channels detected")
+            for ch in channels_info:
+                print(f"   Channel {ch['index']}: {ch['name']} ({ch['units']}) - {ch['likely_type']}")
+            
+            return channels_info
+            
+        except Exception as e:
+            raise Exception(f"Failed to load file: {str(e)}")
+
+    def configure_channels(self, ecg_channel_idx=None, bp_channel_idx=None):
+        """Configure which channels to use for ECG and BP analysis"""
+        if not hasattr(self, 'file_object') or self.file_object is None:
+            raise Exception("No file loaded. Load file first.")
+        
+        # Reset previous data
+        self.ecg_data = {}
+        self.bp_data = {}
+        self.results = {}
+        
+        success_messages = []
+        
+        # Configure ECG channel
+        if ecg_channel_idx is not None:
+            try:
+                ecg_channel = self.file_object.channels[ecg_channel_idx]
+                
+                # ECG Data processing with scale detection
+                ECG_Data = ecg_channel.raw_data
+                Time = ecg_channel.time_index
+                ECG_fs = len(ECG_Data)/max(Time) if max(Time) > 0 else 1000
+                
+                # Scale detection
+                self.ecg_scale, self.ecg_scale_factor = self.detect_ecg_scale(ECG_Data)
+                ECG_Data_mV = ECG_Data * self.ecg_scale_factor
+                
+                self.ecg_data = {
+                    'raw': ECG_Data_mV,
+                    'raw_original': ECG_Data,
+                    'time': Time,
+                    'fs': ECG_fs,
+                    'detected_scale': self.ecg_scale,
+                    'scale_factor': self.ecg_scale_factor,
+                    'channel_index': ecg_channel_idx,
+                    'channel_name': getattr(ecg_channel, 'name', f'Channel {ecg_channel_idx}')
+                }
+                
+                self.ecg_channel = ecg_channel_idx
+                success_messages.append(f"✅ ECG: Channel {ecg_channel_idx} configured ({self.ecg_scale} detected)")
+                
+            except Exception as e:
+                raise Exception(f"Failed to configure ECG channel {ecg_channel_idx}: {str(e)}")
+        
+        # Configure BP channel  
+        if bp_channel_idx is not None:
+            try:
+                bp_channel = self.file_object.channels[bp_channel_idx]
+                
+                # BP Data processing
+                BP_Data = bp_channel.raw_data
+                BP_Time = bp_channel.time_index
+                BP_fs = len(BP_Data)/max(BP_Time) if max(BP_Time) > 0 else 1000
+                
+                self.bp_data = {
+                    'raw': BP_Data,
+                    'time': BP_Time,
+                    'fs': BP_fs,
+                    'channel_index': bp_channel_idx,
+                    'channel_name': getattr(bp_channel, 'name', f'Channel {bp_channel_idx}')
+                }
+                
+                self.bp_channel = bp_channel_idx
+                success_messages.append(f"✅ BP: Channel {bp_channel_idx} configured")
+                
+            except Exception as e:
+                raise Exception(f"Failed to configure BP channel {bp_channel_idx}: {str(e)}")
+        
+        # Mark as configured if at least one channel is set
+        if ecg_channel_idx is not None or bp_channel_idx is not None:
+            self.channels_configured = True
+        
+        return success_messages
+
+    def get_analysis_capabilities(self):
+        """Return what types of analysis can be performed based on configured channels"""
+        capabilities = {
+            'time_domain_hrv': bool(self.ecg_data),
+            'frequency_domain_hrv': bool(self.ecg_data),
+            'brs_sequence': bool(self.ecg_data and self.bp_data),
+            'brs_spectral': bool(self.ecg_data and self.bp_data),
+            'bp_analysis': bool(self.bp_data)
         }
         
-        # ECG Data (Channel 1) - exactly as in your code
-        ECG_Data = file.channels[1].raw_data
-        Time = file.channels[1].time_index
-        ECG_fs = len(ECG_Data)/max(Time)
-        
-        self.ecg_data = {
-            'raw': ECG_Data,
-            'time': Time,
-            'fs': ECG_fs
+        return capabilities
+
+    def get_scale_info(self):
+        """Get information about detected ECG scale"""
+        return {
+            'detected_scale': self.ecg_scale,
+            'scale_factor': self.ecg_scale_factor,
+            'conversion_applied': self.ecg_scale != 'mV'
         }
-        
+
     def set_time_window(self, start_time, end_time):
-        """NEW: Set time window for analysis"""
+        """Set time window for analysis"""
         self.time_window = {
             'start_time': start_time,
             'end_time': end_time,
@@ -49,12 +256,12 @@ class CardiovascularAnalyzer:
         }
         
     def filter_data_by_time_window(self, data_array, time_array, start_time, end_time):
-        """NEW: Filter data to only include points within the specified time window"""
+        """Filter data to only include points within the specified time window"""
         mask = (time_array >= start_time) & (time_array <= end_time)
         return data_array[mask], time_array[mask], mask
 
     def filter_peaks_by_time_window(self, peaks, time_array, start_time, end_time):
-        """NEW: Filter peaks to only include those within the specified time window"""
+        """Filter peaks to only include those within the specified time window"""
         # Convert peak indices to times
         peak_times = np.array([time_array[p] for p in peaks if p < len(time_array)])
         
@@ -65,43 +272,132 @@ class CardiovascularAnalyzer:
         valid_peaks = [peaks[i] for i in range(len(peaks)) if i < len(time_mask) and time_mask[i]]
         
         return np.array(valid_peaks), time_mask
+
+    def find_peaks_adaptive(self):
+        """
+        Adaptive peak detection that works with the detected scale
+        """
+        if not self.ecg_data:
+            raise Exception("ECG channel not configured. Cannot perform peak detection.")
+            
+        # ECG peaks - use adaptive thresholds based on signal characteristics
+        x = self.ecg_data['raw']  # Already converted to mV
         
-    def find_peaks(self):
-        """Exactly matches your original peak detection"""
-        # ECG peaks - your exact parameters
-        x = self.ecg_data['raw']
-        peaks, _ = find_peaks(x, height=0.8, threshold=None, distance=100, 
-                             prominence=(0.7,None), width=None, wlen=None, 
-                             rel_height=None, plateau_size=None)
+        # Calculate adaptive thresholds
+        signal_std = np.std(x)
+        signal_max = np.max(np.abs(x))
+        
+        # Scale-aware thresholds (now that signal is in mV)
+        height_threshold = max(0.3, signal_max * 0.4)  # At least 0.3 mV or 40% of max
+        prominence_threshold = max(0.2, signal_std * 0.8)  # At least 0.2 mV or 80% of std
+        
+        print(f"🔧 ECG Peak Detection:")
+        print(f"   Height threshold: {height_threshold:.3f} mV")
+        print(f"   Prominence threshold: {prominence_threshold:.3f} mV")
+        
+        peaks, properties = find_peaks(x, 
+                                     height=height_threshold, 
+                                     threshold=None, 
+                                     distance=100, 
+                                     prominence=(prominence_threshold, None), 
+                                     width=None, 
+                                     wlen=None, 
+                                     rel_height=None, 
+                                     plateau_size=None)
+        
+        print(f"   Found {len(peaks)} ECG peaks")
         
         td_peaks = (peaks / self.ecg_data['fs'])
         RRDistance = distancefinder(td_peaks)  # Your function
-        RRDistance_ms = [element * 1000 for element in RRDistance]  # Your conversion
+        RRDistance_ms = [element * 1000 for element in RRDistance]
         
         self.ecg_data.update({
             'peaks': peaks,
             'td_peaks': td_peaks,
-            'rr_intervals': RRDistance_ms
+            'rr_intervals': RRDistance_ms,
+            'peak_detection_method': 'adaptive'
         })
         
-        # BP peaks - your exact parameters
-        BP = self.bp_data['raw']
-        BP_peaks, _ = find_peaks(BP, height=110, threshold=None, distance=100, 
-                                prominence=(5,None), width=None, wlen=None, 
-                                rel_height=None, plateau_size=None)
+        # BP peaks - only if BP channel is configured
+        if self.bp_data:
+            BP = self.bp_data['raw']
+            BP_peaks, _ = find_peaks(BP, height=110, threshold=None, distance=100, 
+                                    prominence=(5,None), width=None, wlen=None, 
+                                    rel_height=None, plateau_size=None)
+            
+            td_BP_peaks = (BP_peaks/self.bp_data['fs'])
+            Systolic_Array = BP[BP_peaks]
+            
+            self.bp_data.update({
+                'peaks': BP_peaks,
+                'td_peaks': td_BP_peaks,
+                'systolic': Systolic_Array
+            })
+
+    def find_peaks(self):
+        """Peak detection with fallback to adaptive"""
+        if not self.ecg_data:
+            raise Exception("ECG channel not configured. Cannot perform peak detection.")
+            
+        try:
+            # Try original method first (works if signal is in mV)
+            x = self.ecg_data['raw']
+            peaks, _ = find_peaks(x, height=0.8, threshold=None, distance=100, 
+                                 prominence=(0.7,None), width=None, wlen=None, 
+                                 rel_height=None, plateau_size=None)
+            
+            # Check if we found reasonable number of peaks
+            if len(peaks) < 10:
+                print("⚠️  Few peaks found with standard thresholds, trying adaptive detection...")
+                self.find_peaks_adaptive()
+                return
+            
+            # Original method worked
+            td_peaks = (peaks / self.ecg_data['fs'])
+            RRDistance = distancefinder(td_peaks)  # Your function
+            RRDistance_ms = [element * 1000 for element in RRDistance]
+            
+            self.ecg_data.update({
+                'peaks': peaks,
+                'td_peaks': td_peaks,
+                'rr_intervals': RRDistance_ms,
+                'peak_detection_method': 'original'
+            })
+            
+            print(f"✅ Original peak detection worked: {len(peaks)} peaks found")
+            
+        except Exception as e:
+            print(f"⚠️  Original peak detection failed: {e}")
+            print("Falling back to adaptive detection...")
+            self.find_peaks_adaptive()
         
-        td_BP_peaks = (BP_peaks/self.bp_data['fs'])
-        Systolic_Array = BP[BP_peaks]  # Your variable name
-        
-        self.bp_data.update({
-            'peaks': BP_peaks,
-            'td_peaks': td_BP_peaks,
-            'systolic': Systolic_Array
-        })
+        # BP peaks - only if BP channel is configured
+        if self.bp_data:
+            BP = self.bp_data['raw']
+            BP_peaks, _ = find_peaks(BP, height=110, threshold=None, distance=100, 
+                                    prominence=(5,None), width=None, wlen=None, 
+                                    rel_height=None, plateau_size=None)
+            
+            td_BP_peaks = (BP_peaks/self.bp_data['fs'])
+            Systolic_Array = BP[BP_peaks]
+            
+            self.bp_data.update({
+                'peaks': BP_peaks,
+                'td_peaks': td_BP_peaks,
+                'systolic': Systolic_Array
+            })
 
     def find_peaks_with_params(self, ecg_height=0.8, ecg_distance=100, ecg_prominence=0.7,
-                            bp_height=110, bp_distance=100, bp_prominence=5):
-        """Find peaks with custom parameters"""
+                            bp_height=110, bp_distance=100, bp_prominence=5, use_adaptive=False):
+        """Find peaks with custom parameters OR adaptive detection"""
+        
+        if not self.ecg_data:
+            raise Exception("ECG channel not configured. Cannot perform peak detection.")
+        
+        if use_adaptive:
+            # Use adaptive detection instead of manual parameters
+            self.find_peaks_adaptive()
+            return
         
         # ECG peaks with custom parameters
         x = self.ecg_data['raw']
@@ -122,29 +418,31 @@ class CardiovascularAnalyzer:
         self.ecg_data.update({
             'peaks': peaks,
             'td_peaks': td_peaks,
-            'rr_intervals': RRDistance_ms
+            'rr_intervals': RRDistance_ms,
+            'peak_detection_method': 'manual_params'
         })
         
-        # BP peaks with custom parameters
-        BP = self.bp_data['raw']
-        BP_peaks, _ = find_peaks(BP, 
-                                height=bp_height, 
-                                threshold=None, 
-                                distance=bp_distance, 
-                                prominence=(bp_prominence, None), 
-                                width=None, 
-                                wlen=None, 
-                                rel_height=None, 
-                                plateau_size=None)
-        
-        td_BP_peaks = (BP_peaks/self.bp_data['fs'])
-        Systolic_Array = BP[BP_peaks]
-        
-        self.bp_data.update({
-            'peaks': BP_peaks,
-            'td_peaks': td_BP_peaks,
-            'systolic': Systolic_Array
-        })
+        # BP peaks with custom parameters - only if BP channel is configured
+        if self.bp_data:
+            BP = self.bp_data['raw']
+            BP_peaks, _ = find_peaks(BP, 
+                                    height=bp_height, 
+                                    threshold=None, 
+                                    distance=bp_distance, 
+                                    prominence=(bp_prominence, None), 
+                                    width=None, 
+                                    wlen=None, 
+                                    rel_height=None, 
+                                    plateau_size=None)
+            
+            td_BP_peaks = (BP_peaks/self.bp_data['fs'])
+            Systolic_Array = BP[BP_peaks]
+            
+            self.bp_data.update({
+                'peaks': BP_peaks,
+                'td_peaks': td_BP_peaks,
+                'systolic': Systolic_Array
+            })
         
         # Store the parameters used
         self.peak_detection_params = {
@@ -153,71 +451,94 @@ class CardiovascularAnalyzer:
             'ecg_prominence': ecg_prominence,
             'bp_height': bp_height,
             'bp_distance': bp_distance,
-            'bp_prominence': bp_prominence
+            'bp_prominence': bp_prominence,
+            'use_adaptive': use_adaptive
         }
 
     def analyze_with_current_peaks(self, time_window=None):
-        """NEW: Run analysis with current peak detection results and optional time window"""
+        """Run analysis with current peak detection results and optional time window"""
         if time_window:
             self.set_time_window(time_window['start_time'], time_window['end_time'])
         
-        self.calculate_time_domain()
-        self.calculate_frequency_domain()
-        self.calculate_brs_sequence()
-        self.calculate_brs_spectral()
+        capabilities = self.get_analysis_capabilities()
+        
+        if capabilities['time_domain_hrv']:
+            self.calculate_time_domain()
+        if capabilities['frequency_domain_hrv']:
+            self.calculate_frequency_domain()
+        if capabilities['brs_sequence']:
+            self.calculate_brs_sequence()
+        if capabilities['brs_spectral']:
+            self.calculate_brs_spectral()
         
     def get_windowed_data(self):
-        """NEW: Get ECG and BP data filtered by time window if set"""
+        """Get ECG and BP data filtered by time window if set"""
         if self.time_window is None:
             # No time window set, return all data
             return {
-                'ecg_peaks': self.ecg_data['peaks'],
-                'ecg_td_peaks': self.ecg_data['td_peaks'],
-                'ecg_rr_intervals': self.ecg_data['rr_intervals'],
-                'bp_peaks': self.bp_data['peaks'],
-                'bp_td_peaks': self.bp_data['td_peaks'],
-                'bp_systolic': self.bp_data['systolic']
+                'ecg_peaks': self.ecg_data.get('peaks', []),
+                'ecg_td_peaks': self.ecg_data.get('td_peaks', []),
+                'ecg_rr_intervals': self.ecg_data.get('rr_intervals', []),
+                'bp_peaks': self.bp_data.get('peaks', []),
+                'bp_td_peaks': self.bp_data.get('td_peaks', []),
+                'bp_systolic': self.bp_data.get('systolic', [])
             }
         
         # Filter ECG data by time window
         start_time = self.time_window['start_time']
         end_time = self.time_window['end_time']
         
-        # Filter ECG peaks
-        ecg_peaks_windowed, _ = self.filter_peaks_by_time_window(
-            self.ecg_data['peaks'], self.ecg_data['time'], start_time, end_time
-        )
-        
-        # Recalculate td_peaks and RR intervals for windowed data
-        if len(ecg_peaks_windowed) > 1:
-            ecg_td_peaks_windowed = ecg_peaks_windowed / self.ecg_data['fs']
-            ecg_rr_windowed = distancefinder(ecg_td_peaks_windowed)
-            ecg_rr_windowed_ms = [element * 1000 for element in ecg_rr_windowed]
-        else:
-            ecg_td_peaks_windowed = np.array([])
-            ecg_rr_windowed_ms = []
-        
-        # Filter BP peaks
-        bp_peaks_windowed, _ = self.filter_peaks_by_time_window(
-            self.bp_data['peaks'], self.bp_data['time'], start_time, end_time
-        )
-        
-        # Recalculate BP data for windowed peaks
-        if len(bp_peaks_windowed) > 1:
-            bp_td_peaks_windowed = bp_peaks_windowed / self.bp_data['fs']
-            bp_systolic_windowed = self.bp_data['raw'][bp_peaks_windowed]
-        else:
-            bp_td_peaks_windowed = np.array([])
-            bp_systolic_windowed = np.array([])
-        
-        return {
-            'ecg_peaks': ecg_peaks_windowed,
-            'ecg_td_peaks': ecg_td_peaks_windowed,
-            'ecg_rr_intervals': ecg_rr_windowed_ms,
-            'bp_peaks': bp_peaks_windowed,
-            'bp_td_peaks': bp_td_peaks_windowed,
-            'bp_systolic': bp_systolic_windowed
+        result = {
+            'ecg_peaks': [],
+            'ecg_td_peaks': [],
+            'ecg_rr_intervals': [],
+            'bp_peaks': [],
+            'bp_td_peaks': [],
+            'bp_systolic': []
         }
+        
+        # Filter ECG peaks if available
+        if self.ecg_data and 'peaks' in self.ecg_data:
+            ecg_peaks_windowed, _ = self.filter_peaks_by_time_window(
+                self.ecg_data['peaks'], self.ecg_data['time'], start_time, end_time
+            )
+            
+            # Recalculate td_peaks and RR intervals for windowed data
+            if len(ecg_peaks_windowed) > 1:
+                ecg_td_peaks_windowed = ecg_peaks_windowed / self.ecg_data['fs']
+                ecg_rr_windowed = distancefinder(ecg_td_peaks_windowed)
+                ecg_rr_windowed_ms = [element * 1000 for element in ecg_rr_windowed]
+            else:
+                ecg_td_peaks_windowed = np.array([])
+                ecg_rr_windowed_ms = []
+            
+            result.update({
+                'ecg_peaks': ecg_peaks_windowed,
+                'ecg_td_peaks': ecg_td_peaks_windowed,
+                'ecg_rr_intervals': ecg_rr_windowed_ms
+            })
+        
+        # Filter BP peaks if available
+        if self.bp_data and 'peaks' in self.bp_data:
+            bp_peaks_windowed, _ = self.filter_peaks_by_time_window(
+                self.bp_data['peaks'], self.bp_data['time'], start_time, end_time
+            )
+            
+            # Recalculate BP data for windowed peaks
+            if len(bp_peaks_windowed) > 1:
+                bp_td_peaks_windowed = bp_peaks_windowed / self.bp_data['fs']
+                bp_systolic_windowed = self.bp_data['raw'][bp_peaks_windowed]
+            else:
+                bp_td_peaks_windowed = np.array([])
+                bp_systolic_windowed = np.array([])
+            
+            result.update({
+                'bp_peaks': bp_peaks_windowed,
+                'bp_td_peaks': bp_td_peaks_windowed,
+                'bp_systolic': bp_systolic_windowed
+            })
+        
+        return result
         
     def calculate_time_domain(self):
         """Updated to use windowed data"""
@@ -418,8 +739,6 @@ class CardiovascularAnalyzer:
         }
         
         self.results['brs_sequence'] = results
-        
-# In analyzer.py, replace the calculate_brs_spectral method (around line 350) with this updated version:
 
     def calculate_brs_spectral(self):
         """Updated to exactly match main.py spectral calculations"""
@@ -557,22 +876,51 @@ class CardiovascularAnalyzer:
             }
         
     def analyze_all(self, time_window=None):
-        """Run complete analysis exactly like your main.py, with optional time window"""
+        """Run complete analysis based on available channels"""
+        if not self.channels_configured:
+            raise Exception("Channels not configured. Please configure channels first.")
+        
         if time_window:
             self.set_time_window(time_window['start_time'], time_window['end_time'])
+        
+        capabilities = self.get_analysis_capabilities()
+        
+        # Only run analyses for which we have data
+        if capabilities['time_domain_hrv'] or capabilities['brs_sequence']:
+            self.find_peaks()
+        
+        if capabilities['time_domain_hrv']:
+            self.calculate_time_domain()
             
-        self.find_peaks()
-        self.calculate_time_domain()
-        self.calculate_frequency_domain()
-        self.calculate_brs_sequence()
-        self.calculate_brs_spectral()
+        if capabilities['frequency_domain_hrv']:
+            self.calculate_frequency_domain()
+            
+        if capabilities['brs_sequence']:
+            self.calculate_brs_sequence()
+            
+        if capabilities['brs_spectral']:
+            self.calculate_brs_spectral()
         
     def get_summary(self):
-        """Enhanced summary including all your original metrics, with time window info"""
+        """Enhanced summary including all your original metrics, with channel configuration info"""
         if not self.results:
             return "No analysis completed yet"
             
         summary = []
+        
+        # Channel configuration info
+        summary.append("=== CHANNEL CONFIGURATION ===")
+        if self.ecg_data:
+            summary.append(f"ECG Channel: {self.ecg_channel} ({self.ecg_data.get('channel_name', 'Unknown')})")
+            summary.append(f"ECG Scale: {self.ecg_data.get('detected_scale', 'Unknown')}")
+        else:
+            summary.append("ECG Channel: Not configured")
+            
+        if self.bp_data:
+            summary.append(f"BP Channel: {self.bp_channel} ({self.bp_data.get('channel_name', 'Unknown')})")
+        else:
+            summary.append("BP Channel: Not configured")
+        summary.append("")
         
         # Time window information
         if self.time_window:
@@ -672,3 +1020,4 @@ class CardiovascularAnalyzer:
                     summary.append(f"Low HF coherence ({brs_spec['hf_coherence']:.3f}) – HF BRS not reliable")
         
         return "\n".join(summary)
+        
