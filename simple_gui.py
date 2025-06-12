@@ -1,15 +1,30 @@
+import sys
+import os
+
+# Handle paths when running as executable
+if getattr(sys, 'frozen', False):
+    # Running as executable
+    current_dir = os.path.dirname(sys.executable)
+else:
+    # Running as script
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Add current directory to path for imports
+sys.path.insert(0, current_dir)
+
 # enhanced_professional_gui.py
 import streamlit as st
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import tempfile
-import os
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import plotly.express as px
 from datetime import datetime
 from analyzer import CardiovascularAnalyzer
+from scipy.interpolate import interp1d  
+from scipy.signal import welch
 from functions import *
 
 # ============================================================================
@@ -536,7 +551,8 @@ with st.sidebar:
         plot_options = [
             "🔍 Interactive Tachogram",
             "📊 Frequency Domain",
-            "🔄 Poincaré Plot", 
+            "🔄 Poincaré Plot",
+            "🌊 Spectral BRS Analysis",  # ← ADD THIS NEW OPTION
             "🩺 BRS Sequence Analysis",
             "🩺 BRS Time Domain Visualization"
         ]
@@ -1003,7 +1019,352 @@ if st.session_state.analyzed:
                                        f"r_threshold={plot_data['r_threshold']}, thresh_pi={plot_data['thresh_pi']} ms")
                     
                     close_plot_section()
-                
+                        # STEP 2A: Update plot options list in simple_gui.py (around line 820)
+
+                elif "Spectral BRS Analysis" in plot_type:
+                    create_professional_plot_header(
+                        "🌊 Spectral Baroreflex Sensitivity Analysis",
+                        "Cross-spectral analysis showing RRI and SBP power spectra, coherence, and transfer function"
+                    )
+                    
+                    # Check if we have the required spectral data
+                    if 'brs_spectral' not in st.session_state.analyzer.results or 'frequency_domain' not in st.session_state.analyzer.results:
+                        st.markdown("""
+                        <div class="error-box">
+                            <strong>❌ Spectral Analysis Error:</strong> Required spectral data not available. 
+                            Please ensure frequency domain and BRS spectral analysis completed successfully.
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    else:
+                        brs_spec_data = st.session_state.analyzer.results['brs_spectral']
+                        freq_data = st.session_state.analyzer.results['frequency_domain']
+                        
+                        if 'error' in brs_spec_data:
+                            st.markdown(f"""
+                            <div class="error-box">
+                                <strong>❌ Spectral BRS Error:</strong> {brs_spec_data['error']}
+                            </div>
+                            """, unsafe_allow_html=True)
+                        
+                        elif 'error' in freq_data:
+                            st.markdown(f"""
+                            <div class="error-box">
+                                <strong>❌ Frequency Domain Error:</strong> {freq_data['error']}
+                            </div>
+                            """, unsafe_allow_html=True)
+                        
+                        else:
+                            # Create comprehensive spectral analysis plot
+                            fig = make_subplots(
+                                rows=2, cols=2,
+                                subplot_titles=(
+                                    'RRI Power Spectral Density', 
+                                    'SBP Power Spectral Density',
+                                    'RRI-SBP Coherence', 
+                                    'Transfer Function |H(f)| = |CSD|/PSD_BP'
+                                ),
+                                specs=[[{"secondary_y": False}, {"secondary_y": False}],
+                                    [{"secondary_y": False}, {"secondary_y": False}]],
+                                vertical_spacing=0.12,
+                                horizontal_spacing=0.1
+                            )
+                            
+                            # Get the RRI spectral data
+                            frequencies_rr = freq_data['frequencies']
+                            psd_rr = freq_data['psd']
+                            
+                            # RRI PSD (Top Left)
+                            fig.add_trace(go.Scatter(
+                                x=frequencies_rr,
+                                y=psd_rr * 1e6,  # Convert to ms²/Hz for display
+                                mode='lines',
+                                name='RRI PSD',
+                                line=dict(color='#3498db', width=2),
+                                showlegend=False
+                            ), row=1, col=1)
+                            
+                            # Highlight frequency bands on RRI PSD
+                            lf_band = (frequencies_rr >= 0.04) & (frequencies_rr < 0.15)
+                            hf_band = (frequencies_rr >= 0.15) & (frequencies_rr < 0.4)
+                            
+                            if np.any(lf_band):
+                                fig.add_trace(go.Scatter(
+                                    x=frequencies_rr[lf_band],
+                                    y=psd_rr[lf_band] * 1e6,
+                                    mode='lines',
+                                    fill='tonexty',
+                                    name='LF Band',
+                                    line=dict(color='#e74c3c', width=0),
+                                    fillcolor='rgba(231, 76, 60, 0.3)',
+                                    showlegend=True
+                                ), row=1, col=1)
+                            
+                            if np.any(hf_band):
+                                fig.add_trace(go.Scatter(
+                                    x=frequencies_rr[hf_band],
+                                    y=psd_rr[hf_band] * 1e6,
+                                    mode='lines',
+                                    fill='tonexty',
+                                    name='HF Band',
+                                    line=dict(color='#27ae60', width=0),
+                                    fillcolor='rgba(39, 174, 96, 0.3)',
+                                    showlegend=True
+                                ), row=1, col=1)
+                            
+                            # SBP PSD (Top Right) - use the calculated data from analyzer
+                            if 'frequencies_bp' in brs_spec_data and 'psd_bp' in brs_spec_data:
+                                frequencies_bp = brs_spec_data['frequencies_bp']
+                                psd_bp = brs_spec_data['psd_bp']
+                                
+                                fig.add_trace(go.Scatter(
+                                    x=frequencies_bp,
+                                    y=psd_bp,
+                                    mode='lines',
+                                    name='SBP PSD',
+                                    line=dict(color='#e74c3c', width=2),
+                                    showlegend=False
+                                ), row=1, col=2)
+                                
+                                # Highlight bands on SBP
+                                lf_band_bp = (frequencies_bp >= 0.04) & (frequencies_bp < 0.15)
+                                hf_band_bp = (frequencies_bp >= 0.15) & (frequencies_bp < 0.4)
+                                
+                                if np.any(lf_band_bp):
+                                    fig.add_trace(go.Scatter(
+                                        x=frequencies_bp[lf_band_bp],
+                                        y=psd_bp[lf_band_bp],
+                                        mode='lines',
+                                        fill='tonexty',
+                                        name='LF Band (BP)',
+                                        line=dict(color='#e74c3c', width=0),
+                                        fillcolor='rgba(231, 76, 60, 0.2)',
+                                        showlegend=False
+                                    ), row=1, col=2)
+                                
+                                if np.any(hf_band_bp):
+                                    fig.add_trace(go.Scatter(
+                                        x=frequencies_bp[hf_band_bp],
+                                        y=psd_bp[hf_band_bp],
+                                        mode='lines',
+                                        fill='tonexty',
+                                        name='HF Band (BP)',
+                                        line=dict(color='#27ae60', width=0),
+                                        fillcolor='rgba(39, 174, 96, 0.2)',
+                                        showlegend=False
+                                    ), row=1, col=2)
+                            
+                            # Coherence plot (Bottom Left)
+                            if 'frequencies_coh' in brs_spec_data and 'coherence_values' in brs_spec_data:
+                                frequencies_coh = brs_spec_data['frequencies_coh']
+                                coherence_values = brs_spec_data['coherence_values']
+                                
+                                fig.add_trace(go.Scatter(
+                                    x=frequencies_coh,
+                                    y=coherence_values,
+                                    mode='lines',
+                                    name='Coherence',
+                                    line=dict(color='#9b59b6', width=2),
+                                    showlegend=False
+                                ), row=2, col=1)
+                                
+                                # Add coherence threshold line
+                                fig.add_hline(y=0.5, line_dash="dash", line_color="#f39c12", 
+                                            annotation_text="Threshold (0.5)", row=2, col=1)
+                                
+                                # Highlight significant coherence regions
+                                significant_mask = coherence_values >= 0.5
+                                if np.any(significant_mask):
+                                    fig.add_trace(go.Scatter(
+                                        x=frequencies_coh[significant_mask],
+                                        y=coherence_values[significant_mask],
+                                        mode='markers',
+                                        name='Valid Coherence (≥0.5)',
+                                        marker=dict(color='#e74c3c', size=4),
+                                        showlegend=False
+                                    ), row=2, col=1)
+                            
+                            # Transfer Function (Bottom Right) - exactly matching main.py calculations
+                            if 'transfer_gain' in brs_spec_data and 'frequencies_csd' in brs_spec_data:
+                                frequencies_csd = brs_spec_data['frequencies_csd']
+                                transfer_gain = brs_spec_data['transfer_gain']
+                                
+                                fig.add_trace(go.Scatter(
+                                    x=frequencies_csd,
+                                    y=transfer_gain,
+                                    mode='lines',
+                                    name='Transfer Function |H(f)|',
+                                    line=dict(color='#2c3e50', width=2),
+                                    showlegend=False
+                                ), row=2, col=2)
+                                
+                                # Add comprehensive BRS results annotation
+                                lf_coherence = brs_spec_data.get('lf_coherence', 0)
+                                hf_coherence = brs_spec_data.get('hf_coherence', 0)
+                                brs_lf_tf = brs_spec_data.get('brs_lf_tf', 0)
+                                brs_hf_tf = brs_spec_data.get('brs_hf_tf', 0)
+                                nperseg_used = brs_spec_data.get('nperseg_used', 'N/A')
+                                
+                                fig.add_annotation(
+                                    x=0.98, y=0.95, xref="paper", yref="paper",
+                                    text=f"<b>🔍 Spectral BRS Results</b><br><br>"
+                                        f"<b>LF Band (0.04-0.15 Hz)</b><br>"
+                                        f"BRS: {brs_lf_tf:.3f} ms/mmHg<br>"
+                                        f"Coherence: {lf_coherence:.3f} {'✅' if lf_coherence > 0.5 else '❌'}<br><br>"
+                                        f"<b>HF Band (0.15-0.4 Hz)</b><br>"
+                                        f"BRS: {brs_hf_tf:.3f} ms/mmHg<br>"
+                                        f"Coherence: {hf_coherence:.3f} {'✅' if hf_coherence > 0.5 else '❌'}<br><br>"
+                                        f"<b>Method</b><br>"
+                                        f"CSD: |csd(bp,rr)| / psd_bp<br>"
+                                        f"nperseg: {nperseg_used}<br>"
+                                        f"Interp: 4 Hz",
+                                    showarrow=False,
+                                    font=dict(family="Arial", size=10, color="black"),
+                                    align="left", bgcolor="rgba(248, 249, 250, 0.95)",
+                                    bordercolor="rgba(108, 117, 125, 0.5)", borderwidth=1, borderpad=10,
+                                    xanchor="right", yanchor="top"
+                                )
+                            
+                            # Update axes labels and formatting
+                            fig.update_xaxes(title_text="Frequency (Hz)", row=1, col=1)
+                            fig.update_yaxes(title_text="PSD (ms²/Hz)", row=1, col=1)
+                            
+                            fig.update_xaxes(title_text="Frequency (Hz)", row=1, col=2)
+                            fig.update_yaxes(title_text="PSD (mmHg²/Hz)", row=1, col=2)
+                            
+                            fig.update_xaxes(title_text="Frequency (Hz)", row=2, col=1)
+                            fig.update_yaxes(title_text="Coherence", row=2, col=1)
+                            
+                            fig.update_xaxes(title_text="Frequency (Hz)", row=2, col=2)
+                            fig.update_yaxes(title_text="Transfer Gain (ms/mmHg)", row=2, col=2)
+                            
+                            # Set consistent frequency range for all subplots (focus on relevant HRV bands)
+                            for row in [1, 2]:
+                                for col in [1, 2]:
+                                    fig.update_xaxes(range=[0, 0.5], row=row, col=col)
+                            
+                            # Overall layout
+                            fig.update_layout(
+                                title=f'Spectral BRS Analysis - Matches main.py Implementation',
+                                height=700,
+                                showlegend=True,
+                                legend=dict(
+                                    orientation="h", 
+                                    yanchor="bottom", 
+                                    y=1.02, 
+                                    xanchor="center", 
+                                    x=0.5
+                                ),
+                                plot_bgcolor='rgba(248,249,250,0.8)',
+                                margin=dict(r=250)  # Extra space for annotations
+                            )
+                            
+                            st.plotly_chart(fig, use_container_width=True)
+                            
+                            # Enhanced summary metrics
+                            col1, col2, col3, col4 = st.columns(4)
+                            
+                            with col1:
+                                lf_valid = "✅ Valid" if brs_spec_data.get('valid_lf', False) else "❌ Invalid"
+                                st.metric(
+                                    "🔵 LF BRS", 
+                                    f"{brs_spec_data.get('brs_lf_tf', 0):.3f} ms/mmHg",
+                                    help=f"Low frequency BRS - {lf_valid}"
+                                )
+                            
+                            with col2:
+                                hf_valid = "✅ Valid" if brs_spec_data.get('valid_hf', False) else "❌ Invalid"
+                                st.metric(
+                                    "🟢 HF BRS", 
+                                    f"{brs_spec_data.get('brs_hf_tf', 0):.3f} ms/mmHg",
+                                    help=f"High frequency BRS - {hf_valid}"
+                                )
+                            
+                            with col3:
+                                st.metric(
+                                    "🔵 LF Coherence", 
+                                    f"{brs_spec_data.get('lf_coherence', 0):.3f}",
+                                    help="Coherence in LF band (>0.5 required for validity)"
+                                )
+                            
+                            with col4:
+                                st.metric(
+                                    "🟢 HF Coherence", 
+                                    f"{brs_spec_data.get('hf_coherence', 0):.3f}",
+                                    help="Coherence in HF band (>0.5 required for validity)"
+                                )
+                            
+                            # Technical details in expandable section
+                            with st.expander("📋 Technical Analysis Details (matches main.py)", expanded=False):
+                                col1, col2 = st.columns(2)
+                                
+                                with col1:
+                                    st.markdown("**🔧 Analysis Parameters (matches main.py exactly):**")
+                                    st.markdown(f"- Interpolation frequency: 4 Hz")
+                                    st.markdown(f"- Spectral method: Welch's method") 
+                                    st.markdown(f"- CSD calculation: csd(bp_fft, rr_fft)")
+                                    st.markdown(f"- Transfer function: |CSD| / PSD_bp")
+                                    st.markdown(f"- nperseg used: {brs_spec_data.get('nperseg_used', 'N/A')}")
+                                    st.markdown(f"- Data points used: {brs_spec_data.get('data_length_used', 'N/A')}")
+                                    
+                                    if 'time_offset' in freq_data:
+                                        st.markdown(f"- Time normalization: {freq_data['time_offset']:.1f}s offset")
+                                    
+                                    if 'window_duration' in freq_data:
+                                        st.markdown(f"- Analysis duration: {freq_data['window_duration']:.1f}s")
+                                
+                                with col2:
+                                    st.markdown("**📊 Frequency Bands:**")
+                                    st.markdown("- VLF: 0.003 - 0.04 Hz")
+                                    st.markdown("- LF: 0.04 - 0.15 Hz")
+                                    st.markdown("- HF: 0.15 - 0.4 Hz")
+                                    st.markdown("")
+                                    st.markdown("**✅ Validity Criteria:**")
+                                    st.markdown("- Coherence > 0.5 required")
+                                    st.markdown("- Sufficient data length")
+                                    st.markdown("- Stable spectral estimates")
+                                    
+                                    if 'analysis_method' in brs_spec_data:
+                                        st.markdown(f"- Method: {brs_spec_data['analysis_method']}")
+                            
+                            # Interpretation guide
+                            st.markdown("### 📚 Interpretation Guide")
+                            
+                            interpretation_col1, interpretation_col2 = st.columns(2)
+                            
+                            with interpretation_col1:
+                                st.markdown("""
+                                **🔍 Understanding the Plots:**
+                                - **Top Left:** RRI power spectral density with frequency bands
+                                - **Top Right:** SBP power spectral density with frequency bands
+                                - **Bottom Left:** Coherence shows strength of linear relationship
+                                - **Bottom Right:** Transfer function |H(f)| = |CSD|/PSD_BP quantifies BRS
+                                """)
+                                
+                                st.markdown("""
+                                **📊 Coherence Interpretation:**
+                                - **> 0.5:** Strong linear relationship (BRS values reliable)
+                                - **< 0.5:** Weak relationship (BRS values unreliable)
+                                - **Peak coherence:** Indicates dominant coupling frequencies
+                                """)
+                            
+                            with interpretation_col2:
+                                st.markdown("""
+                                **🩺 Clinical Significance:**
+                                - **Higher BRS:** Better cardiovascular regulation
+                                - **LF BRS:** Reflects sympathetic and parasympathetic modulation
+                                - **HF BRS:** Primarily reflects parasympathetic activity
+                                """)
+                                
+                                st.markdown("""
+                                **⚠️ Quality Assessment:**
+                                - Check coherence before interpreting BRS values
+                                - Look for consistent patterns across frequency bands
+                                - Consider data length and artifact presence
+                                - This implementation exactly matches your main.py calculations
+                                """)
+                    
+                    close_plot_section()
                 elif "BRS Sequence Analysis" in plot_type:
                     create_professional_plot_header(
                         "🩺 BRS Sequence Analysis Summary",

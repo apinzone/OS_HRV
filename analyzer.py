@@ -419,8 +419,10 @@ class CardiovascularAnalyzer:
         
         self.results['brs_sequence'] = results
         
+# In analyzer.py, replace the calculate_brs_spectral method (around line 350) with this updated version:
+
     def calculate_brs_spectral(self):
-        """Updated to use windowed data with proper time alignment"""
+        """Updated to exactly match main.py spectral calculations"""
         windowed_data = self.get_windowed_data()
         td_BP_peaks = windowed_data['bp_td_peaks']
         Systolic_Array = windowed_data['bp_systolic']
@@ -457,8 +459,8 @@ class CardiovascularAnalyzer:
             }
             return
         
-        # Your exact interpolation for BP with normalized time
-        interp_fs = 4
+        # Interpolation for BP - exactly matching main.py
+        interp_fs = 4  # Fixed 4 Hz like main.py
         uniform_time_bp = np.arange(0, max_bp_time, 1/interp_fs)
         
         if len(uniform_time_bp) < 10:
@@ -471,54 +473,57 @@ class CardiovascularAnalyzer:
         bp_interp_func = interp1d(td_BP_peaks_normalized, Systolic_Array, kind='cubic', fill_value="extrapolate")
         bp_fft = bp_interp_func(uniform_time_bp)
         
-        # Use appropriate nperseg
-        nperseg = min(256, len(bp_fft)//4)
-        if nperseg < 8:
-            self.results['brs_spectral'] = {
-                'error': 'BP window too short for reliable spectral analysis',
-                'bp_data_points': len(bp_fft)
-            }
-            return
-            
-        frequencies_bp, psd_bp = welch(bp_fft, fs=interp_fs, nperseg=nperseg)
-        
         # Get RR data from frequency domain results
         rr_fft = self.results['frequency_domain']['rr_fft']
         
-        # Ensure RR and BP data have compatible lengths for coherence analysis
+        # Ensure RR and BP data have compatible lengths
         min_length = min(len(rr_fft), len(bp_fft))
         rr_fft_trimmed = rr_fft[:min_length]
         bp_fft_trimmed = bp_fft[:min_length]
         
-        # Your exact band definitions
-        lf_band = (frequencies_bp >= 0.04) & (frequencies_bp < 0.15)
-        hf_band = (frequencies_bp >= 0.15) & (frequencies_bp < 0.4)
+        # Use FIXED nperseg=256 to match main.py exactly
+        nperseg = 256
         
-        # Your exact power calculations (no unit conversion to match original)
-        lf_power_BP = np.trapezoid(psd_bp[lf_band], frequencies_bp[lf_band]) if np.any(lf_band) else 0
-        hf_power_BP = np.trapezoid(psd_bp[hf_band], frequencies_bp[hf_band]) if np.any(hf_band) else 0
+        # Only use adaptive sizing if data is genuinely too short
+        if min_length < nperseg * 2:  # Need at least 2 windows for reliable estimates
+            if min_length < 64:  # Absolute minimum for any spectral analysis
+                self.results['brs_spectral'] = {
+                    'error': 'Insufficient data length for reliable spectral BRS analysis',
+                    'min_length': min_length,
+                    'required_minimum': 64
+                }
+                return
+            nperseg = min_length // 4  # Fallback only if absolutely necessary
         
-        # Your exact coherence calculation with trimmed data
+        # Band definitions - exactly matching main.py
+        lf_band = lambda freqs: (freqs >= 0.04) & (freqs < 0.15)
+        hf_band = lambda freqs: (freqs >= 0.15) & (freqs < 0.4)
+        
+        # Calculate BP PSD - exactly matching main.py approach
+        frequencies_bp, psd_bp = welch(bp_fft_trimmed, fs=interp_fs, nperseg=nperseg)
+        lf_power_BP = np.trapezoid(psd_bp[lf_band(frequencies_bp)], frequencies_bp[lf_band(frequencies_bp)]) if np.any(lf_band(frequencies_bp)) else 0
+        hf_power_BP = np.trapezoid(psd_bp[hf_band(frequencies_bp)], frequencies_bp[hf_band(frequencies_bp)]) if np.any(hf_band(frequencies_bp)) else 0
+        
+        # Coherence calculation - exactly matching main.py
         try:
-            nperseg_coh = min(256, min_length//4)
-            if nperseg_coh < 8:
-                raise ValueError("Insufficient data for coherence analysis")
-                
-            frequencies_coh, coherence_values = coherence(rr_fft_trimmed, bp_fft_trimmed, fs=interp_fs, nperseg=nperseg_coh)
-            lf_coherence = np.mean(coherence_values[(frequencies_coh >= 0.04) & (frequencies_coh < 0.15)])
-            hf_coherence = np.mean(coherence_values[(frequencies_coh >= 0.15) & (frequencies_coh < 0.4)])
+            frequencies_coh, coherence_values = coherence(rr_fft_trimmed, bp_fft_trimmed, fs=interp_fs, nperseg=nperseg)
+            lf_coherence = np.mean(coherence_values[lf_band(frequencies_coh)]) if np.any(lf_band(frequencies_coh)) else 0
+            hf_coherence = np.mean(coherence_values[hf_band(frequencies_coh)]) if np.any(hf_band(frequencies_coh)) else 0
             
-            # Your exact cross-spectral calculation
-            frequencies_csd, csd_bp_rr = csd(bp_fft_trimmed, rr_fft_trimmed, fs=interp_fs, nperseg=nperseg_coh)
-            _, psd_bp_auto = welch(bp_fft_trimmed, fs=interp_fs, nperseg=nperseg_coh)
-            transfer_gain = np.abs(csd_bp_rr)/psd_bp_auto
+            # CSD calculation - EXACTLY matching main.py (note: bp_fft, rr_fft order like main.py)
+            frequencies_csd, csd_bp_rr = csd(bp_fft_trimmed, rr_fft_trimmed, fs=interp_fs, nperseg=nperseg)
+            _, psd_bp_auto = welch(bp_fft_trimmed, fs=interp_fs, nperseg=nperseg)
             
-            # Your exact band definitions for transfer function
-            lf_band_tf = (frequencies_csd >= 0.04) & (frequencies_csd < 0.15)
-            hf_band_tf = (frequencies_csd >= 0.15) & (frequencies_csd < 0.4)
+            # Transfer function - exactly matching main.py
+            transfer_gain = np.abs(csd_bp_rr) / psd_bp_auto
+            
+            # BRS calculations - exactly matching main.py
+            lf_band_tf = lf_band(frequencies_csd)
+            hf_band_tf = hf_band(frequencies_csd)
             brs_lf_tf = np.mean(transfer_gain[lf_band_tf]) if np.any(lf_band_tf) else 0
             brs_hf_tf = np.mean(transfer_gain[hf_band_tf]) if np.any(hf_band_tf) else 0
             
+            # Store results exactly matching your main.py variables
             self.results['brs_spectral'] = {
                 'brs_lf_tf': brs_lf_tf,
                 'brs_hf_tf': brs_hf_tf,
@@ -528,18 +533,27 @@ class CardiovascularAnalyzer:
                 'hf_power_bp': hf_power_BP,
                 'frequencies_coh': frequencies_coh,
                 'coherence_values': coherence_values,
-                'transfer_gain': transfer_gain,
                 'frequencies_csd': frequencies_csd,
+                'csd_bp_rr': csd_bp_rr,  # Store the actual CSD for plotting
+                'psd_bp_auto': psd_bp_auto,  # Store BP PSD for plotting
+                'transfer_gain': transfer_gain,
+                'frequencies_bp': frequencies_bp,  # Store BP frequencies for plotting
+                'psd_bp': psd_bp,  # Store BP PSD for plotting
                 'valid_lf': lf_coherence > 0.5,
                 'valid_hf': hf_coherence > 0.5,
-                'data_length_used': min_length
+                'data_length_used': min_length,
+                'nperseg_used': nperseg,  # Track what nperseg was actually used
+                'bp_fft': bp_fft_trimmed,  # Store for plotting if needed
+                'analysis_method': 'matches_main_py'  # Flag for verification
             }
+            
         except Exception as e:
             self.results['brs_spectral'] = {
                 'error': f'Spectral BRS calculation failed: {str(e)}',
                 'rr_length': len(rr_fft),
                 'bp_length': len(bp_fft),
-                'min_length': min_length
+                'min_length': min_length,
+                'nperseg_attempted': nperseg
             }
         
     def analyze_all(self, time_window=None):
