@@ -1,10 +1,18 @@
-# analyzer.py - Enhanced with ECG scale detection and flexible channel selection
+# analyzer.py - Enhanced with ECG scale detection, flexible channel selection, and EDF support
 import numpy as np
 import math
 from scipy.signal import find_peaks, welch, coherence, csd
 from scipy.interpolate import interp1d
 import bioread
+import os
 from functions import *  # All your existing functions
+
+# EDF support with graceful fallback
+try:
+    import pyedflib
+    EDF_AVAILABLE = True
+except ImportError:
+    EDF_AVAILABLE = False
 
 class CardiovascularAnalyzer:
     def __init__(self):
@@ -15,10 +23,11 @@ class CardiovascularAnalyzer:
         # Scale detection attributes
         self.ecg_scale = 'unknown'
         self.ecg_scale_factor = 1.0
-        # NEW: Channel selection attributes
+        # Channel selection attributes
         self.file_channels = []
         self.file_object = None
         self.filepath = None
+        self.file_type = None  # NEW: Track file type ('acq' or 'edf')
         self.ecg_channel = None
         self.bp_channel = None
         self.channels_configured = False
@@ -89,22 +98,36 @@ class CardiovascularAnalyzer:
             print(f"⚠️  ECG amplitude ({signal_abs_max:.3f}) suggests mV scale")
             return 'mV', 1.0
 
-    def _guess_channel_type(self, channel):
+    def _guess_channel_type(self, channel_info):
         """Guess if channel is ECG, BP, or Other based on characteristics"""
-        name = getattr(channel, 'name', '').lower()
-        units = getattr(channel, 'units', '').lower()
-        data = channel.raw_data
+        # For EDF files, channel_info is a dict with keys: name, units, data, sample_rate
+        # For ACQ files, channel_info is the actual channel object
+        
+        if isinstance(channel_info, dict):
+            # EDF format
+            name = channel_info['name'].lower()
+            units = channel_info['units'].lower()
+            data = channel_info['data']
+        else:
+            # ACQ format (original code)
+            name = getattr(channel_info, 'name', '').lower()
+            units = getattr(channel_info, 'units', '').lower()
+            data = channel_info.raw_data
         
         # Check name patterns
-        if any(keyword in name for keyword in ['ecg', 'ekg', 'heart', 'cardiac']):
+        if any(keyword in name for keyword in ['ecg', 'ekg', 'heart', 'cardiac', 'lead', 'ii', 'v1', 'v2']):
             return 'ECG (likely)'
-        elif any(keyword in name for keyword in ['bp', 'blood', 'pressure', 'arterial']):
+        elif any(keyword in name for keyword in ['bp', 'blood', 'pressure', 'arterial', 'abp', 'systolic']):
             return 'BP (likely)'
+        elif any(keyword in name for keyword in ['resp', 'breathing', 'airflow']):
+            return 'Respiratory (maybe)'
+        elif any(keyword in name for keyword in ['emg', 'muscle']):
+            return 'EMG (maybe)'
         
         # Check units
-        if any(unit in units for unit in ['mv', 'millivolt', 'volt']):
+        if any(unit in units for unit in ['mv', 'millivolt', 'volt', 'µv', 'uv', 'microvolt']):
             return 'ECG (likely)'
-        elif any(unit in units for unit in ['mmhg', 'pressure', 'torr']):
+        elif any(unit in units for unit in ['mmhg', 'pressure', 'torr', 'kpa']):
             return 'BP (likely)'
         
         # Check data characteristics
@@ -120,12 +143,137 @@ class CardiovascularAnalyzer:
         
         return 'Unknown'
 
-    def load_file_and_detect_channels(self, filepath):
-        """Load file and return available channel information for user selection"""
+    def _load_edf_file(self, filepath):
+            """Load EDF file and extract channel information - FIXED for current pyedflib API"""
+            if not EDF_AVAILABLE:
+                raise Exception("EDF support requires pyedflib. Install with: pip install pyedflib")
+            
+            try:
+                # Open EDF file
+                edf_file = pyedflib.EdfReader(filepath)
+                
+                # Get file info
+                n_channels = edf_file.signals_in_file
+                file_duration = edf_file.file_duration
+                
+                print(f"📁 EDF File Info: {n_channels} channels, {file_duration:.1f}s duration")
+                
+                # Extract channel information using robust method detection
+                channels_info = []
+                
+                # Try to get all signal headers at once (newer API)
+                try:
+                    signal_headers = edf_file.getSignalHeaders()
+                    use_headers = True
+                    print("✅ Using getSignalHeaders() method")
+                except AttributeError:
+                    use_headers = False
+                    print("⚠️  getSignalHeaders() not available, using individual methods")
+                
+                for i in range(n_channels):
+                    if use_headers:
+                        # Use signal headers (newer API)
+                        header = signal_headers[i]
+                        signal_label = header.get('label', f'Channel_{i}').strip()
+                        sample_rate = header.get('sample_rate', 1000.0)
+                        physical_dimension = header.get('dimension', 'Unknown').strip()
+                        physical_min = header.get('physical_min', -1000.0)
+                        physical_max = header.get('physical_max', 1000.0)
+                    else:
+                        # Use individual methods (try multiple naming conventions)
+                        try:
+                            # Try different method names that exist in various pyedflib versions
+                            if hasattr(edf_file, 'signal_label'):
+                                signal_label = edf_file.signal_label(i)
+                            elif hasattr(edf_file, 'getSignalLabel'):
+                                signal_label = edf_file.getSignalLabel(i)
+                            else:
+                                signal_label = f'Channel_{i}'
+                            
+                            if hasattr(edf_file, 'samplefrequency'):
+                                sample_rate = edf_file.samplefrequency(i)
+                            elif hasattr(edf_file, 'getSampleFreency'):  # Note: typo in some versions
+                                sample_rate = edf_file.getSampleFreency(i)
+                            elif hasattr(edf_file, 'getSampleFrequency'):
+                                sample_rate = edf_file.getSampleFrequency(i)
+                            else:
+                                sample_rate = 1000.0
+                            
+                            if hasattr(edf_file, 'physical_dimension'):
+                                physical_dimension = edf_file.physical_dimension(i)
+                            elif hasattr(edf_file, 'getPhysicalDimension'):
+                                physical_dimension = edf_file.getPhysicalDimension(i)
+                            else:
+                                physical_dimension = 'Unknown'
+                            
+                            if hasattr(edf_file, 'physical_min'):
+                                physical_min = edf_file.physical_min(i)
+                            elif hasattr(edf_file, 'getPhysicalMinimum'):
+                                physical_min = edf_file.getPhysicalMinimum(i)
+                            else:
+                                physical_min = -1000.0
+                            
+                            if hasattr(edf_file, 'physical_max'):
+                                physical_max = edf_file.physical_max(i)
+                            elif hasattr(edf_file, 'getPhysicalMaximum'):
+                                physical_max = edf_file.getPhysicalMaximum(i)
+                            else:
+                                physical_max = 1000.0
+                                
+                        except Exception as e:
+                            print(f"⚠️  Using fallback values for channel {i}: {e}")
+                            signal_label = f'Channel_{i}'
+                            sample_rate = 1000.0
+                            physical_dimension = 'Unknown'
+                            physical_min = -1000.0
+                            physical_max = 1000.0
+                    
+                    # Read signal data
+                    signal_data = edf_file.readSignal(i)
+                    
+                    # Create time index
+                    time_index = np.arange(len(signal_data)) / sample_rate
+                    
+                    # Clean up strings
+                    signal_label = str(signal_label).strip()
+                    physical_dimension = str(physical_dimension).strip()
+                    
+                    # Create channel info dictionary
+                    channel_info = {
+                        'index': i,
+                        'name': signal_label,
+                        'units': physical_dimension,
+                        'samples': len(signal_data),
+                        'duration': len(signal_data) / sample_rate,
+                        'sample_rate': sample_rate,
+                        'data_range': f"{np.min(signal_data):.3f} to {np.max(signal_data):.3f}",
+                        'physical_min': physical_min,
+                        'physical_max': physical_max,
+                        'data': signal_data,
+                        'time_index': time_index,
+                        'likely_type': self._guess_channel_type({
+                            'name': signal_label,
+                            'units': physical_dimension,
+                            'data': signal_data,
+                            'sample_rate': sample_rate
+                        })
+                    }
+                    
+                    channels_info.append(channel_info)
+                
+                # Close the file
+                edf_file.close()
+                
+                return channels_info
+                
+            except Exception as e:
+                raise Exception(f"Failed to load EDF file: {str(e)}")
+
+    def _load_acq_file(self, filepath):
+        """Load ACQ file and extract channel information (original method)"""
         try:
             file = bioread.read_file(filepath)
             self.file_object = file  # Store for later use
-            self.filepath = filepath
             
             # Extract channel information
             channels_info = []
@@ -138,14 +286,40 @@ class CardiovascularAnalyzer:
                     'duration': max(channel.time_index) if len(channel.time_index) > 0 else 0,
                     'sample_rate': len(channel.raw_data) / max(channel.time_index) if max(channel.time_index) > 0 else 0,
                     'data_range': f"{np.min(channel.raw_data):.3f} to {np.max(channel.raw_data):.3f}",
-                    'likely_type': self._guess_channel_type(channel)
+                    'likely_type': self._guess_channel_type(channel),
+                    'channel_object': channel  # Store original channel object for ACQ files
                 }
                 channels_info.append(channel_info)
             
+            return channels_info
+            
+        except Exception as e:
+            raise Exception(f"Failed to load ACQ file: {str(e)}")
+
+    def load_file_and_detect_channels(self, filepath):
+        """Load file and return available channel information for user selection"""
+        try:
+            # Determine file type
+            file_ext = os.path.splitext(filepath)[1].lower()
+            
+            if file_ext == '.acq':
+                self.file_type = 'acq'
+                channels_info = self._load_acq_file(filepath)
+            elif file_ext in ['.edf', '.bdf']:
+                self.file_type = 'edf'
+                channels_info = self._load_edf_file(filepath)
+                # For EDF files, we store the channel info directly since we don't have a file object
+                self.file_object = None
+            else:
+                raise Exception(f"Unsupported file format: {file_ext}")
+            
+            self.filepath = filepath
             self.file_channels = channels_info
             self.channels_configured = False
+            self.analyzed = False
+            self.preview_mode = False
             
-            print(f"✅ File loaded: {len(file.channels)} channels detected")
+            print(f"✅ {self.file_type.upper()} file loaded: {len(channels_info)} channels detected")
             for ch in channels_info:
                 print(f"   Channel {ch['index']}: {ch['name']} ({ch['units']}) - {ch['likely_type']}")
             
@@ -156,7 +330,7 @@ class CardiovascularAnalyzer:
 
     def configure_channels(self, ecg_channel_idx=None, bp_channel_idx=None):
         """Configure which channels to use for ECG and BP analysis"""
-        if not hasattr(self, 'file_object') or self.file_object is None:
+        if not self.file_channels:
             raise Exception("No file loaded. Load file first.")
         
         # Reset previous data
@@ -169,14 +343,23 @@ class CardiovascularAnalyzer:
         # Configure ECG channel
         if ecg_channel_idx is not None:
             try:
-                ecg_channel = self.file_object.channels[ecg_channel_idx]
+                if self.file_type == 'acq':
+                    # ACQ file handling (original method)
+                    ecg_channel = self.file_object.channels[ecg_channel_idx]
+                    ECG_Data = ecg_channel.raw_data
+                    Time = ecg_channel.time_index
+                    ECG_fs = len(ECG_Data)/max(Time) if max(Time) > 0 else 1000
+                    channel_name = getattr(ecg_channel, 'name', f'Channel {ecg_channel_idx}')
+                    
+                elif self.file_type == 'edf':
+                    # EDF file handling
+                    ecg_channel_info = self.file_channels[ecg_channel_idx]
+                    ECG_Data = ecg_channel_info['data']
+                    Time = ecg_channel_info['time_index']
+                    ECG_fs = ecg_channel_info['sample_rate']
+                    channel_name = ecg_channel_info['name']
                 
-                # ECG Data processing with scale detection
-                ECG_Data = ecg_channel.raw_data
-                Time = ecg_channel.time_index
-                ECG_fs = len(ECG_Data)/max(Time) if max(Time) > 0 else 1000
-                
-                # Scale detection
+                # Scale detection (same for both file types)
                 self.ecg_scale, self.ecg_scale_factor = self.detect_ecg_scale(ECG_Data)
                 ECG_Data_mV = ECG_Data * self.ecg_scale_factor
                 
@@ -188,7 +371,7 @@ class CardiovascularAnalyzer:
                     'detected_scale': self.ecg_scale,
                     'scale_factor': self.ecg_scale_factor,
                     'channel_index': ecg_channel_idx,
-                    'channel_name': getattr(ecg_channel, 'name', f'Channel {ecg_channel_idx}')
+                    'channel_name': channel_name
                 }
                 
                 self.ecg_channel = ecg_channel_idx
@@ -200,19 +383,28 @@ class CardiovascularAnalyzer:
         # Configure BP channel  
         if bp_channel_idx is not None:
             try:
-                bp_channel = self.file_object.channels[bp_channel_idx]
-                
-                # BP Data processing
-                BP_Data = bp_channel.raw_data
-                BP_Time = bp_channel.time_index
-                BP_fs = len(BP_Data)/max(BP_Time) if max(BP_Time) > 0 else 1000
+                if self.file_type == 'acq':
+                    # ACQ file handling (original method)
+                    bp_channel = self.file_object.channels[bp_channel_idx]
+                    BP_Data = bp_channel.raw_data
+                    BP_Time = bp_channel.time_index
+                    BP_fs = len(BP_Data)/max(BP_Time) if max(BP_Time) > 0 else 1000
+                    channel_name = getattr(bp_channel, 'name', f'Channel {bp_channel_idx}')
+                    
+                elif self.file_type == 'edf':
+                    # EDF file handling
+                    bp_channel_info = self.file_channels[bp_channel_idx]
+                    BP_Data = bp_channel_info['data']
+                    BP_Time = bp_channel_info['time_index']
+                    BP_fs = bp_channel_info['sample_rate']
+                    channel_name = bp_channel_info['name']
                 
                 self.bp_data = {
                     'raw': BP_Data,
                     'time': BP_Time,
                     'fs': BP_fs,
                     'channel_index': bp_channel_idx,
-                    'channel_name': getattr(bp_channel, 'name', f'Channel {bp_channel_idx}')
+                    'channel_name': channel_name
                 }
                 
                 self.bp_channel = bp_channel_idx
@@ -910,6 +1102,7 @@ class CardiovascularAnalyzer:
         
         # Channel configuration info
         summary.append("=== CHANNEL CONFIGURATION ===")
+        summary.append(f"File Type: {self.file_type.upper()}")
         if self.ecg_data:
             summary.append(f"ECG Channel: {self.ecg_channel} ({self.ecg_data.get('channel_name', 'Unknown')})")
             summary.append(f"ECG Scale: {self.ecg_data.get('detected_scale', 'Unknown')}")
@@ -1020,4 +1213,3 @@ class CardiovascularAnalyzer:
                     summary.append(f"Low HF coherence ({brs_spec['hf_coherence']:.3f}) – HF BRS not reliable")
         
         return "\n".join(summary)
-        

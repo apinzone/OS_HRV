@@ -26,6 +26,13 @@ from analyzer import CardiovascularAnalyzer
 from scipy.interpolate import interp1d  
 from scipy.signal import welch
 from functions import *
+# EDF support with graceful fallback
+try:
+    import pyedflib
+    EDF_AVAILABLE = True
+except ImportError:
+    EDF_AVAILABLE = False
+    print("⚠️  pyedflib not available. Install with: pip install pyedflib")
 
 # ============================================================================
 # PAGE CONFIGURATION & STYLING
@@ -240,7 +247,7 @@ def show_professional_header():
     <div class="main-header">
         <h1>🫀 PhysioKit</h1>
         <p>Professional HRV & Baroreflex Sensitivity Analysis Platform</p>
-        <div class="version-info">Version 1.0 | Advanced Peak Detection & Time Window Analysis</div>
+        <div class="version-info">Version 1.1 | Advanced Peak Detection & Time Window Analysis</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -439,44 +446,62 @@ with st.sidebar:
     st.markdown("## 📁 File Upload")
     st.markdown('<div class="sidebar-section">', unsafe_allow_html=True)
     
-    # File upload with enhanced styling
+    # Enhanced file upload with EDF support (CHANGE 2)
+    if EDF_AVAILABLE:
+        file_types = ["acq", "edf", "bdf"]
+        help_text = "Upload your ACQ file (AcqKnowledge) or EDF/BDF file (European Data Format) containing ECG and blood pressure data"
+    else:
+        file_types = ["acq"]
+        help_text = "Upload your ACQ file containing ECG and blood pressure data. For EDF support, install pyedflib: pip install pyedflib"
+    
     uploaded_file = st.file_uploader(
-        "Choose an ACQ file", 
-        type="acq",
-        help="Upload your ACQ file containing ECG and blood pressure data"
+        "Choose a physiological data file", 
+        type=file_types,
+        help=help_text
     )
     
     if uploaded_file is not None:
-        file_info = f"**File:** {uploaded_file.name}\n\n**Size:** {uploaded_file.size / 1024:.1f} KB"
-        st.info(file_info)
+        file_ext = uploaded_file.name.split('.')[-1].lower()  # CHANGE 3
         
-        if st.button("🔄 Load File", type="primary", use_container_width=True):
-            with st.spinner("Loading and detecting channels..."):
-                try:
-                    # Save uploaded file temporarily
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=".acq") as tmp_file:
-                        tmp_file.write(uploaded_file.getvalue())
-                        tmp_file_path = tmp_file.name
-                    
-                    # Load file and detect channels
-                    channels_info = st.session_state.analyzer.load_file_and_detect_channels(tmp_file_path)
-                    
-                    # Clean up temp file
-                    os.unlink(tmp_file_path)
-                    
-                    # Store channel info for selection
-                    st.session_state.channels_info = channels_info
-                    st.session_state.file_loaded = True
-                    st.session_state.channels_configured = False
-                    st.session_state.analyzed = False
-                    st.session_state.preview_mode = False
-                    
-                    st.success(f"✅ File loaded! Found {len(channels_info)} channels. Please configure channels below.")
-                    st.rerun()
-                    
-                except Exception as e:
-                    st.error(f"❌ File loading failed: {str(e)}")
-                    st.session_state.file_loaded = False
+        if file_ext in ['edf', 'bdf'] and not EDF_AVAILABLE:  # CHANGE 3
+            st.error("❌ EDF/BDF files require pyedflib. Install with: pip install pyedflib")
+        else:
+            file_info = f"**File:** {uploaded_file.name}\n\n**Size:** {uploaded_file.size / 1024:.1f} KB\n\n**Type:** {file_ext.upper()}"  # CHANGE 3
+            st.info(file_info)
+            
+            if st.button("🔄 Load File", type="primary", use_container_width=True):
+                with st.spinner(f"Loading {file_ext.upper()} file and detecting channels..."):  # CHANGE 3
+                    try:
+                        # Save uploaded file temporarily (CHANGE 4)
+                        file_suffix = f".{file_ext}"
+                        with tempfile.NamedTemporaryFile(delete=False, suffix=file_suffix) as tmp_file:
+                            tmp_file.write(uploaded_file.getvalue())
+                            tmp_file_path = tmp_file.name
+                        
+                        # Load file and detect channels
+                        channels_info = st.session_state.analyzer.load_file_and_detect_channels(tmp_file_path)
+                        
+                        # Clean up temp file
+                        os.unlink(tmp_file_path)
+                        
+                        # Store channel info for selection
+                        st.session_state.channels_info = channels_info
+                        st.session_state.file_loaded = True
+                        st.session_state.channels_configured = False
+                        st.session_state.analyzed = False
+                        st.session_state.preview_mode = False
+                        
+                        st.success(f"✅ {file_ext.upper()} file loaded! Found {len(channels_info)} channels. Please configure channels below.")  # CHANGE 5
+                        st.rerun()
+                        
+                    except Exception as e:
+                        st.error(f"❌ {file_ext.upper()} file loading failed: {str(e)}")  # CHANGE 6
+                        st.session_state.file_loaded = False
+                        # Clean up temp file on error (CHANGE 6)
+                        try:
+                            os.unlink(tmp_file_path)
+                        except:
+                            pass
     
     st.markdown('</div>', unsafe_allow_html=True)
     
@@ -484,15 +509,23 @@ with st.sidebar:
     if st.session_state.file_loaded and not st.session_state.channels_configured:
         st.markdown("## 🔧 Channel Configuration")
         st.markdown('<div class="sidebar-section">', unsafe_allow_html=True)
+        
+        # Show file type information (CHANGE 7)
+        file_type = getattr(st.session_state.analyzer, 'file_type', 'unknown').upper()
+        st.markdown(f"**📁 File Type:** {file_type}")
     
     # Display available channels
     st.markdown("### Available Channels:")
     for ch in st.session_state.channels_info:
-        # Create color coding based on likely type
+        # Create color coding based on likely type (CHANGE 8)
         if 'ECG' in ch['likely_type']:
             type_color = "🟢"
         elif 'BP' in ch['likely_type']:
             type_color = "🔵"
+        elif 'Respiratory' in ch['likely_type']:
+            type_color = "🟡"
+        elif 'EMG' in ch['likely_type']:
+            type_color = "🟠"
         else:
             type_color = "⚪"
         
@@ -600,14 +633,14 @@ with st.sidebar:
         
         st.markdown("## 📋 Current Configuration")
         st.markdown('<div class="sidebar-section">', unsafe_allow_html=True)
-        
-        config_info = ""
+
+        config_info = f"**📁 File Type:** {getattr(analyzer, 'file_type', 'Unknown').upper()}\n\n"
         if analyzer.ecg_data:
             scale_info = f" ({analyzer.ecg_data['detected_scale']} detected)" if 'detected_scale' in analyzer.ecg_data else ""
             config_info += f"⚡ **ECG:** Channel {analyzer.ecg_channel} - {analyzer.ecg_data['channel_name']}{scale_info}\n\n"
         if analyzer.bp_data:
             config_info += f"🩸 **BP:** Channel {analyzer.bp_channel} - {analyzer.bp_data['channel_name']}"
-        
+
         st.markdown(config_info)
         st.markdown('</div>', unsafe_allow_html=True)
     
@@ -727,17 +760,19 @@ with st.sidebar:
 
 # Case 1: Analysis Complete - Show Results
 if st.session_state.analyzed and st.session_state.channels_configured:
-    # Results Header with scale info
+    # Results Header with scale info and file type
     scale_note = ""
     if hasattr(st.session_state.analyzer, 'get_scale_info'):
         scale_info = st.session_state.analyzer.get_scale_info()
         if scale_info['conversion_applied']:
             scale_note = f" | ECG converted from {scale_info['detected_scale']} to mV"
-    
+
+    file_type_note = f" | {getattr(st.session_state.analyzer, 'file_type', 'Unknown').upper()} file"
+
     st.markdown(f"""
     <div class="results-header">
         <h2 style="margin: 0; color: #155724;">🎉 Analysis Complete</h2>
-        <p style="margin: 0.5rem 0 0 0; color: #155724;">Comprehensive cardiovascular analysis finished successfully{scale_note}</p>
+        <p style="margin: 0.5rem 0 0 0; color: #155724;">Comprehensive cardiovascular analysis finished successfully{scale_note}{file_type_note}</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -1971,6 +2006,7 @@ else:
                 <div class="metric-card">
                     <h3>🎛️ Advanced Features</h3>
                     <ul style="margin: 0; padding-left: 1.2rem;">
+                        <li><strong>Multi-Format Support:</strong> ACQ{', EDF, and BDF files' if EDF_AVAILABLE else ' files (EDF support available with pyedflib)'}</li>
                         <li><strong>Flexible Channel Selection:</strong> Choose ECG and BP from any channel order</li>
                         <li><strong>Smart Channel Detection:</strong> Automatic suggestions based on signal characteristics</li>
                         <li><strong>Single-Channel Analysis:</strong> ECG-only or BP-only analysis support</li>
