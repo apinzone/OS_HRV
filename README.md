@@ -23,7 +23,7 @@ The script extracts time- and frequency-domain HRV metrics, generates common HRV
 ## Dependencies
 
 ```bash
-pip install numpy scipy matplotlib seaborn bioread
+pip install -r requirements.txt
 ```
 
 ## Core Files
@@ -31,6 +31,18 @@ pip install numpy scipy matplotlib seaborn bioread
 * `main.py`: The core script to run ECG/BP signal analysis and generate figures
 * `functions.py`: Utility functions for peak detection, RR interval analysis, entropy, and plotting
 * `sample_script.py`: A small snippet of ECG waves (8 beats total) plotted with R-R intervals annotated for visualization purposes
+
+## How to Run
+
+### GUI
+```
+streamlit run .\simple_gui.py
+```
+
+### Main
+```
+python main.py
+```
 
 ## Key Outputs
 
