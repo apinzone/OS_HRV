@@ -1552,7 +1552,6 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                                 - Check coherence before interpreting BRS values
                                 - Look for consistent patterns across frequency bands
                                 - Consider data length and artifact presence
-                                - This implementation exactly matches your main.py calculations
                                 """)
                     
                     close_plot_section()

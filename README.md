@@ -16,7 +16,7 @@ The script extracts time- and frequency-domain HRV metrics, generates common HRV
 
 ## Input Requirements
 
-* `.acq` file recorded with a BIOPAC system
+* `.acq` file recorded with a BIOPAC system or `.edf` file recorded with any physiological measurement equipment
 * At least one ECG channel (ideally 3-lead ECG)
 * Optional: blood pressure waveform channel for systolic peak analysis
 
@@ -86,6 +86,10 @@ plt.plot(...)
 * A future goal of the project is to incorporate sequencing methods calculate measurements of baroreflex sensitvity. We have extended the peak detector to SBP waves and have included
   comparison of LF bands for R-R intervals and systolic BP to measure BRS. Feel free to comment out any BP lines if only interested in HRV.
 
+## To run the GUI
+* streamlit run simple_gui.py 
+* Select your file, configure channels accordingly, set peak detection parameters, and run analysis
+* Watch attached demo (demo.mp4 in figures folder) video for a brief guide as well.
 ## Author
 
 Developed by Anthony G. Pinzone, Ph.D., CSCS\*D
