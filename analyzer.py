@@ -238,6 +238,27 @@ class CardiovascularAnalyzer:
                     signal_label = str(signal_label).strip()
                     physical_dimension = str(physical_dimension).strip()
                     
+                    # --- SAFE TIMING PATCH (record-duration aware, with fallback) ---
+                    try:
+                        # Prefer a robust duration from header; fall back to existing attribute
+                        try:
+                            true_file_duration = float(edf_file.getFileDuration())
+                        except Exception:
+                            true_file_duration = float(getattr(edf_file, "file_duration", 0.0))
+
+                        if true_file_duration > 0:
+                            n_total = len(signal_data)
+                            fs_true = n_total / true_file_duration  # robust fs (handles multi-second records)
+
+                            # Only swap if it differs meaningfully (avoids tiny float changes)
+                            if abs(fs_true - float(sample_rate)) > 1e-6:
+                                sample_rate = float(fs_true)
+                                time_index = np.arange(n_total, dtype=float) / sample_rate
+                    except Exception:
+                        # If anything goes wrong, silently keep your original sample_rate/time_index
+                        pass
+                    # --- END SAFE TIMING PATCH ---
+
                     # Create channel info dictionary
                     channel_info = {
                         'index': i,
