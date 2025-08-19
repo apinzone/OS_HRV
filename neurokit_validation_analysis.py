@@ -183,19 +183,7 @@ class NeuroKitValidator:
             f.write(str(rr_intervals_ms.tolist()))
         
         print(f"NeuroKit2 debug data exported to {output_file}")
-        
-        # Also print first few for immediate comparison
-        print("\n=== NEUROKIT2 - FIRST 10 PEAKS ===")
-        for i in range(min(10, len(rr_times))):
-            print(f"Peak {i+1}: {rr_times[i]:.6f}s")
-        
-        print("\n=== NEUROKIT2 - FIRST 10 RR INTERVALS ===")
-        for i in range(min(10, len(rr_intervals_ms))):
-            print(f"RR {i+1}: {rr_intervals_ms[i]:.3f}ms")
-        
-        # Add this line after the first 10 RR intervals
-        print(f"\n=== COMPLETE RR INTERVALS ===")
-        print("ANALYSIS DEBUG: ALL RR INTERVALS:", [float(rr) for rr in rr_intervals_ms])
+    
     
     def analyze_single_file(self, filepath):
         """
