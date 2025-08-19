@@ -1,4 +1,0 @@
-name,edf_path,txt_path,rr_path,fs_Hz,duration_s,hr_bpm,noise,lf,hf,lfampl,hfampl,n_samples,n_beats,mean_RR_ms,sdnn_ms
-HR60_clean,ecg_synth_outputs\HR60_clean.edf,ecg_synth_outputs\HR60_clean.txt,ecg_synth_outputs\HR60_clean_RR_ms.txt,256,300.0,60.0,0.0,0.1,0.25,0.5,1.0,4096,15,1000.2790178571429,17.161822884134057
-HR70_noise,ecg_synth_outputs\HR70_noise.edf,ecg_synth_outputs\HR70_noise.txt,ecg_synth_outputs\HR70_noise_RR_ms.txt,256,300.0,70.0,0.02,0.1,0.25,0.7,0.9,4172,18,857.9963235294117,12.035210804774017
-HR90_clean,ecg_synth_outputs\HR90_clean.edf,ecg_synth_outputs\HR90_clean.txt,ecg_synth_outputs\HR90_clean_RR_ms.txt,250,300.0,90.0,0.0,0.1,0.25,0.6,1.2,4002,23,667.2727272727273,7.573021150812227

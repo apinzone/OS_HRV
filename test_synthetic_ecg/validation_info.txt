@@ -1,0 +1,15 @@
+SYNTHETIC ECG VALIDATION DATASET
+========================================
+
+Ground Truth Parameters:
+  mean_hr_bpm: 60
+  hr_std_bpm: 1
+  mean_rr_ms: 1000.0
+  lf_freq_hz: 0.1
+  hf_freq_hz: 0.25
+  lf_hf_ratio: 1.0
+  duration_sec: 300
+  sampling_rate_hz: 256
+
+Generated 5 synthetic ECG files
+Files saved to: test_synthetic_ecg
