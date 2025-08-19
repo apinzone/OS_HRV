@@ -113,11 +113,17 @@ class NeuroKitValidator:
         sd2 = nonlinear['HRV_SD2'].iloc[0] if 'HRV_SD2' in nonlinear.columns else np.nan
         sd1_sd2_ratio = sd1 / sd2 if (sd2 > 0 and not np.isnan(sd1) and not np.isnan(sd2)) else np.nan
         
-        # Frequency domain metrics
+        
+        # Frequency domain metrics (NO conversion)
         lf_power = frequency_domain['HRV_LF'].iloc[0] if 'HRV_LF' in frequency_domain.columns else np.nan
         hf_power = frequency_domain['HRV_HF'].iloc[0] if 'HRV_HF' in frequency_domain.columns else np.nan
         lf_hf_ratio = lf_power / hf_power if (hf_power > 0 and not np.isnan(lf_power) and not np.isnan(hf_power)) else np.nan
-        
+
+        # Calculate normalized units (n.u.)
+        total_power = lf_power + hf_power if (not np.isnan(lf_power) and not np.isnan(hf_power)) else np.nan
+        lf_nu = (lf_power / total_power) if (total_power > 0 and not np.isnan(total_power)) else np.nan
+        hf_nu = (hf_power / total_power) if (total_power > 0 and not np.isnan(total_power)) else np.nan
+
         # DEBUG: Export raw data for comparison
         self._export_debug_data(r_peaks['ECG_R_Peaks'], rr_times, rr_intervals_ms, sampling_rate)
         
@@ -143,7 +149,10 @@ class NeuroKitValidator:
             'lf_power_ms2': lf_power,
             'hf_power_ms2': hf_power,
             'lf_hf_ratio': lf_hf_ratio,
-            
+            'lf_nu': lf_nu,           # ADD THIS
+            'hf_nu': hf_nu,           # ADD THIS
+            'total_power': total_power, # ADD THIS
+        
             # Raw data for verification
             'r_peaks_indices': r_peaks['ECG_R_Peaks'].tolist(),
             'rr_intervals_ms': rr_intervals_ms.tolist() if len(rr_intervals_ms) > 0 else []
@@ -183,6 +192,10 @@ class NeuroKitValidator:
         print("\n=== NEUROKIT2 - FIRST 10 RR INTERVALS ===")
         for i in range(min(10, len(rr_intervals_ms))):
             print(f"RR {i+1}: {rr_intervals_ms[i]:.3f}ms")
+        
+        # Add this line after the first 10 RR intervals
+        print(f"\n=== COMPLETE RR INTERVALS ===")
+        print("ANALYSIS DEBUG: ALL RR INTERVALS:", [float(rr) for rr in rr_intervals_ms])
     
     def analyze_single_file(self, filepath):
         """
@@ -242,7 +255,8 @@ class NeuroKitValidator:
         print(f"  LF Power (ms²): {results['lf_power_ms2']:.3f}")
         print(f"  HF Power (ms²): {results['hf_power_ms2']:.3f}")
         print(f"  LF/HF Ratio: {results['lf_hf_ratio']:.3f}")
-        
+        print(f"  LF (n.u.): {results['lf_nu']:.3f}")      # ADD THIS
+        print(f"  HF (n.u.): {results['hf_nu']:.3f}")      # ADD THIS
         print("-" * 50)
     
     def analyze_validation_dataset(self, dataset_dir, output_file=None):

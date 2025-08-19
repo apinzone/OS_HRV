@@ -779,10 +779,14 @@ class CardiovascularAnalyzer:
         print(f"ANALYSIS DEBUG: Total RR intervals: {len(RRDistance_ms)}")
         print(f"ANALYSIS DEBUG: ALL RR INTERVALS: {(RRDistance_ms)}")
         RMSSD = np.sqrt(np.average(rms(Successive_time_diff)))  # Your function
-        SD1 = np.sqrt(0.5*math.pow(SDSD,2))
+        SD1 = SDSD / np.sqrt(2)
         SD2 = np.sqrt((2*math.pow(SDNN,2) - (0.5*math.pow(SDSD,2))))
         S = math.pi * SD1 * SD2
-        
+        print(f"RMSSD: {RMSSD}")
+        print(f"SDNN {SDNN}")
+        print(f"pnn50: {pNN50}")
+        print(f"SD1: {SD1}")
+        print(f"SD2: {SD2}")
         if len(td_peaks) > 0:
             Sampling_Time = max(td_peaks) - min(td_peaks) if self.time_window else max(td_peaks)
         else:
@@ -899,7 +903,10 @@ class CardiovascularAnalyzer:
         # Normalized units
         lf_nu = (lf_power/total_power) if total_power > 0 else 0
         hf_nu = (hf_power/total_power) if total_power > 0 else 0
-        
+
+        print(f"LF: {lf_power} ms2")
+        print(f"HF {hf_power} ms2")
+        print(f"LF/HF: {lf_hf_ratio} ms2")
         self.results['frequency_domain'] = {
             'vlf_power': vlf_power,
             'lf_power': lf_power,
@@ -962,14 +969,14 @@ class CardiovascularAnalyzer:
         windowed_data = self.get_windowed_data()
         td_BP_peaks = windowed_data['bp_td_peaks']
         Systolic_Array = windowed_data['bp_systolic']
-        
+    
         if len(Systolic_Array) < 10:
             self.results['brs_spectral'] = {
                 'error': 'Insufficient BP data for spectral BRS analysis',
                 'bp_beats': len(Systolic_Array)
             }
             return
-        
+    
         # Check if we have frequency domain results
         if 'frequency_domain' not in self.results or 'error' in self.results['frequency_domain']:
             self.results['brs_spectral'] = {
@@ -977,7 +984,7 @@ class CardiovascularAnalyzer:
                 'dependency': 'frequency_domain'
             }
             return
-        
+    
         # IMPORTANT: Normalize BP time to start from 0 (same as ECG)
         if len(td_BP_peaks) > 1:
             # Use the same time offset as ECG if available
@@ -1016,7 +1023,7 @@ class CardiovascularAnalyzer:
         min_length = min(len(rr_fft), len(bp_fft))
         rr_fft_trimmed = rr_fft[:min_length]
         bp_fft_trimmed = bp_fft[:min_length]
-        
+    
         # Use FIXED nperseg=256 to match main.py exactly
         nperseg = 256
         
@@ -1030,7 +1037,7 @@ class CardiovascularAnalyzer:
                 }
                 return
             nperseg = min_length // 4  # Fallback only if absolutely necessary
-        
+    
         # Band definitions - exactly matching main.py
         lf_band = lambda freqs: (freqs >= 0.04) & (freqs < 0.15)
         hf_band = lambda freqs: (freqs >= 0.15) & (freqs < 0.4)
@@ -1091,7 +1098,7 @@ class CardiovascularAnalyzer:
                 'min_length': min_length,
                 'nperseg_attempted': nperseg
             }
-        
+
     def analyze_all(self, time_window=None):
         """Run complete analysis based on available channels"""
         if not self.channels_configured:
@@ -1117,13 +1124,72 @@ class CardiovascularAnalyzer:
             
         if capabilities['brs_spectral']:
             self.calculate_brs_spectral()
+
+    def get_validation_metrics(self):
+        """
+        Extract key metrics for validation studies
+        Returns dictionary with all validation metrics
+        """
+        if not self.results:
+            return None
         
+        validation_data = {}
+        
+        # Basic metrics
+        if 'time_domain' in self.results and 'error' not in self.results['time_domain']:
+            td = self.results['time_domain']
+            validation_data.update({
+                'mean_hr_bpm': td.get('hr', 0),
+                'num_beats': td.get('num_beats', 0),
+                'mean_rr': td.get('mean_rr', None),
+                'num_rr_intervals': td.get('num_beats', 0) - 1 if td.get('num_beats', 0) > 0 else 0,
+                'rmssd_ms': td.get('rmssd', 0),
+                'sdnn_ms': td.get('sdnn', 0),
+                'pnn50_percent': td.get('pnn50', 0),
+                'sd1_ms': td.get('sd1', 0),
+                'sd2_ms': td.get('sd2', 0),
+                'sd1_sd2_ratio': td.get('sd1_sd2_ratio', 0),
+                'sample_entropy': td.get('sample_entropy', 0)
+            })
+        
+        # Frequency domain metrics
+        if 'frequency_domain' in self.results and 'error' not in self.results['frequency_domain']:
+            fd = self.results['frequency_domain']
+            validation_data.update({
+                'lf_power_ms2': fd.get('lf_power', 0),
+                'hf_power_ms2': fd.get('hf_power', 0),
+                'lf_hf_ratio': fd.get('lf_hf_ratio', 0),
+                'lf_nu': fd.get('lf_nu', 0),
+                'hf_nu': fd.get('hf_nu', 0)
+            })
+        
+        return validation_data if validation_data else None
+
     def get_summary(self):
         """Enhanced summary including all your original metrics, with channel configuration info"""
         if not self.results:
             return "No analysis completed yet"
             
         summary = []
+        
+        # Channel configuration info
+        summary.append("=== CHANNEL CONFIGURATION ===")
+        summary.append(f"File Type: {self.file_type.upper()}")
+        if self.ecg_data:
+            summary.append(f"ECG Channel: {self.ecg_channel} ({self.ecg_data.get('channel_name', 'Unknown')})")
+            summary.append(f"ECG Scale: {self.ecg_data.get('detected_scale', 'Unknown')}")
+        else:
+            summary.append("ECG Channel: Not configured")
+            
+        if self.bp_data:
+            summary.append(f"BP Channel: {self.bp_channel} ({self.bp_data.get('channel_name', 'Unknown')})")
+        else:
+            summary.append("BP Channel: Not configured")
+        summary.append("")
+        
+        # ... rest of your get_summary code ...
+        
+        return "\n".join(summary)
     
     # Add this method to your CardiovascularAnalyzer class in analyzer.py
     def debug_export_peaks(self, filename_prefix="debug"):

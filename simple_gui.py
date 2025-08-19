@@ -827,33 +827,44 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                         mime="text/plain",
                         use_container_width=True
                     )
-                
-                # Debug button (only show if we have analysis results)
-                if hasattr(st.session_state.analyzer, 'results') and st.session_state.analyzer.results:
-                    if st.button("🔍 Export Debug Data for Validation", use_container_width=True):
-                        try:
-                            debug_data = st.session_state.analyzer.debug_export_peaks("validation_debug")
-                            st.success(f"✅ Debug data exported! Check 'validation_debug_your_pipeline.txt' in your working directory.")
-                            
-                            # Show first few values in the interface
-                            with st.expander("Preview Debug Data", expanded=False):
-                                col1, col2 = st.columns(2)
-                                with col1:
-                                    st.write("**First 5 R-peak times:**")
-                                    for i in range(min(5, len(debug_data['peak_times_sec']))):
-                                        st.write(f"Peak {i+1}: {debug_data['peak_times_sec'][i]:.6f}s")
-                                
-                                with col2:
-                                    st.write("**First 5 RR intervals:**")
-                                    for i in range(min(5, len(debug_data['rr_intervals_ms']))):
-                                        st.write(f"RR {i+1}: {debug_data['rr_intervals_ms'][i]:.3f}ms")
-                        
-                        except Exception as e:
-                            st.error(f"Debug export failed: {str(e)}")
-            
             except Exception as e:
-                st.error(f"Failed to generate report: {str(e)}")
-            
+                st.error(f"Download failed: {str(e)}")
+            # Clean validation export button
+            if hasattr(st.session_state.analyzer, 'results') and st.session_state.analyzer.results:
+                if st.button("📊 Export Validation Data", use_container_width=True):
+                    try:
+                        # Get the core metrics for validation
+                        validation_data = st.session_state.analyzer.get_validation_metrics()
+                        
+                        if validation_data:
+                            # Create filename with timestamp
+                            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                            filename = f"validation_data_{timestamp}.csv"
+                            
+                            # Convert to CSV format
+                            import pandas as pd
+                            df = pd.DataFrame([validation_data])
+                            csv_data = df.to_csv(index=False)
+                            
+                            # Download button
+                            st.download_button(
+                                label="⬇️ Download Validation CSV",
+                                data=csv_data,
+                                file_name=filename,
+                                mime="text/csv",
+                                use_container_width=True
+                            )
+                            
+                            # Show preview
+                            st.success("✅ Validation data ready for download!")
+                            with st.expander("Preview Validation Data", expanded=False):
+                                st.dataframe(df)
+                        else:
+                            st.error("No analysis results available for export")
+                            
+                    except Exception as e:
+                        st.error(f"Export failed: {str(e)}")
+    
     with col2:
         st.markdown("### 📊 Interactive Visualizations")
         
