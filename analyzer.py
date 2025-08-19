@@ -774,6 +774,10 @@ class CardiovascularAnalyzer:
         SDSD = np.std(Successive_time_diff)
         NN50 = NNCounter(Successive_time_diff, 50)  # Your function
         pNN50 = (NN50/len(td_peaks))*100 if len(td_peaks) > 0 else 0
+        # Add this in calculate_time_domain() right before RMSSD calculation
+        print(f"ANALYSIS DEBUG: First 10 RR intervals being analyzed: {RRDistance_ms[:10]}")
+        print(f"ANALYSIS DEBUG: Total RR intervals: {len(RRDistance_ms)}")
+        print(f"ANALYSIS DEBUG: ALL RR INTERVALS: {(RRDistance_ms)}")
         RMSSD = np.sqrt(np.average(rms(Successive_time_diff)))  # Your function
         SD1 = np.sqrt(0.5*math.pow(SDSD,2))
         SD2 = np.sqrt((2*math.pow(SDNN,2) - (0.5*math.pow(SDSD,2))))
@@ -1120,6 +1124,97 @@ class CardiovascularAnalyzer:
             return "No analysis completed yet"
             
         summary = []
+    
+    # Add this method to your CardiovascularAnalyzer class in analyzer.py
+    def debug_export_peaks(self, filename_prefix="debug"):
+        """
+        Export R-peak data for debugging comparison
+        """
+        try:
+            # DEBUG: Print raw data info
+            ecg_raw = self.ecg_data.get('raw', [])
+            peaks = self.ecg_data.get('peaks', [])
+            
+            print(f"DEBUG FUNCTION: ECG raw data length: {len(ecg_raw)}")
+            print(f"DEBUG FUNCTION: First 3 ECG raw values: {list(ecg_raw[:3])}")
+            print(f"DEBUG FUNCTION: Number of peaks: {len(peaks)}")
+            if len(peaks) > 0:
+                print(f"DEBUG FUNCTION: First peak index: {peaks[0]}")
+            else:
+                print(f"DEBUG FUNCTION: First peak index: None")
+            
+            # Check if we have the required data
+            if len(self.ecg_data) == 0:
+                print("No ECG data available")
+                return
+                
+            if len(peaks) == 0:
+                print("No peaks detected")
+                return
+            
+
+            # Get the ACTUAL data used by analysis (windowed data)
+            windowed_data = self.get_windowed_data()
+            
+            # Convert everything to plain Python lists
+            peaks_list = [int(p) for p in peaks]  # Keep original peaks for debug info
+            print(f"DEBUG FUNCTION: First 10 peak indices: {peaks_list[:10]}")
+            td_peaks_list = [float(t) for t in windowed_data['ecg_td_peaks']]
+            rr_intervals_list = [float(r) for r in windowed_data['ecg_rr_intervals']]
+            
+            debug_data = {
+                'total_peaks_detected': len(peaks_list),
+                'windowed_peaks_count': len(peaks_list),
+                'windowed_rr_count': len(rr_intervals_list),
+                'sampling_rate': float(self.ecg_data['fs']),
+                'peak_indices': peaks_list,
+                'peak_times_sec': td_peaks_list,
+                'rr_intervals_ms': rr_intervals_list
+            }
+            
+            # Export to text file
+            output_file = f"{filename_prefix}_your_pipeline.txt"
+            with open(output_file, 'w') as f:
+                f.write("=== YOUR PIPELINE DEBUG DATA ===\n")
+                f.write(f"Total R-peaks detected: {debug_data['total_peaks_detected']}\n")
+                f.write(f"Windowed peaks count: {debug_data['windowed_peaks_count']}\n")
+                f.write(f"RR intervals count: {debug_data['windowed_rr_count']}\n")
+                f.write(f"Sampling rate: {debug_data['sampling_rate']} Hz\n\n")
+                
+                f.write("First 20 R-peak times (seconds):\n")
+                for i, time_sec in enumerate(debug_data['peak_times_sec'][:20]):
+                    f.write(f"  Peak {i+1}: {time_sec:.6f}s\n")
+                
+                f.write("\nFirst 20 RR intervals (ms):\n")
+                for i, rr_ms in enumerate(debug_data['rr_intervals_ms'][:20]):
+                    f.write(f"  RR {i+1}: {rr_ms:.3f}ms\n")
+                
+                f.write("\nAll RR intervals (ms):\n")
+                f.write(str(debug_data['rr_intervals_ms']))
+            
+            print(f"Debug data exported to {output_file}")
+            
+            # Also print first few for immediate comparison
+            print("\n=== YOUR PIPELINE - FIRST 10 PEAKS ===")
+            for i in range(min(10, len(debug_data['peak_times_sec']))):
+                print(f"Peak {i+1}: {debug_data['peak_times_sec'][i]:.6f}s")
+            
+            print("\n=== YOUR PIPELINE - FIRST 10 RR INTERVALS ===")
+            for i in range(min(10, len(debug_data['rr_intervals_ms']))):
+                print(f"RR {i+1}: {debug_data['rr_intervals_ms'][i]:.3f}ms")
+            
+            return debug_data
+            
+        except Exception as e:
+            print(f"Debug function error: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return None
+
+# Add this to your Streamlit interface (simple_gui.py) in the results section:
+# if st.button("🔍 Export Debug Data"):
+#     debug_data = st.session_state.analyzer.debug_export_peaks("validation_debug")
+#     st.success("Debug data exported! Check the text file.")
         
         # Channel configuration info
         summary.append("=== CHANNEL CONFIGURATION ===")

@@ -26,38 +26,63 @@ class SyntheticECGGenerator:
         
     def generate_synthetic_rr_intervals(self, n_samples=100):
         """
-        Generate synthetic RR intervals with controlled HRV parameters
+        Generate synthetic RR intervals with varied HRV parameters for validation
         
         Parameters:
         n_samples: Number of synthetic datasets to generate
         
         Returns:
-        List of RR interval arrays
+        List of RR interval arrays with different HRV characteristics
         """
         rr_datasets = []
         
         for i in range(n_samples):
-            # Calculate number of beats for 5 minutes at target HR
-            total_beats = int(self.duration * (self.mean_hr / 60))
+            # Set unique random seed for each dataset to ensure different patterns
+            np.random.seed(i + 1000)  # Different seed for each file
             
-            # Generate base RR intervals (mean HR with small variation)
-            base_rr = 60 / self.mean_hr  # seconds per beat
-            rr_noise = np.random.normal(0, self.hr_std/self.mean_hr, total_beats)
-            base_rr_series = base_rr * (1 + rr_noise * 0.01)  # Small random variation
+            # Vary HR slightly around target (58-62 BPM for variation)
+            current_hr = self.mean_hr + np.random.normal(0, 2)  # ±2 BPM variation
+            current_hr = np.clip(current_hr, 55, 65)  # Keep within reasonable bounds
             
-            # Add controlled LF and HF oscillations
+            # Vary HRV parameters for each dataset
+            # RMSSD will vary based on these amplitude changes
+            lf_amplitude = np.random.uniform(0.015, 0.025)  # 1.5-2.5% variation
+            hf_amplitude = np.random.uniform(0.015, 0.025)  # 1.5-2.5% variation
+            
+            # Add some phase randomization to prevent identical patterns
+            lf_phase = np.random.uniform(0, 2*np.pi)
+            hf_phase = np.random.uniform(0, 2*np.pi)
+            
+            # Calculate number of beats for 5 minutes at current HR
+            total_beats = int(self.duration * (current_hr / 60))
+            
+            # Generate base RR intervals with more realistic variation
+            base_rr = 60 / current_hr  # seconds per beat
+            
+            # Add realistic beat-to-beat variation (higher std for more HRV)
+            hrv_strength = np.random.uniform(0.02, 0.06)  # 2-6% variation between files
+            rr_noise = np.random.normal(0, hrv_strength, total_beats)
+            base_rr_series = base_rr * (1 + rr_noise)
+            
+            # Create time series for oscillations
             time_beats = np.cumsum(base_rr_series)
             
-            # LF component (0.1 Hz oscillation)
-            lf_amplitude = 0.02  # 2% of base RR
-            lf_component = lf_amplitude * np.sin(2 * np.pi * self.lf_freq * time_beats)
+            # LF component (0.1 Hz oscillation) with random phase
+            lf_component = lf_amplitude * np.sin(2 * np.pi * self.lf_freq * time_beats + lf_phase)
             
-            # HF component (0.25 Hz oscillation) 
-            hf_amplitude = 0.02  # 2% of base RR (equal power for LF/HF ratio = 1.0)
-            hf_component = hf_amplitude * np.sin(2 * np.pi * self.hf_freq * time_beats)
+            # HF component (0.25 Hz oscillation) with random phase
+            hf_component = hf_amplitude * np.sin(2 * np.pi * self.hf_freq * time_beats + hf_phase)
             
-            # Combine components
-            rr_intervals = base_rr_series * (1 + lf_component + hf_component)
+            # Add some random walk component for more realistic variation
+            random_walk = np.cumsum(np.random.normal(0, 0.005, total_beats))
+            random_walk = random_walk - np.mean(random_walk)  # Center around zero
+            random_walk_component = random_walk * 0.01  # Small random walk
+            
+            # Combine all components
+            rr_intervals = base_rr_series * (1 + lf_component + hf_component + random_walk_component)
+            
+            # Ensure physiological bounds (300-2000 ms)
+            rr_intervals = np.clip(rr_intervals, 0.3, 2.0)
             
             # Convert to milliseconds
             rr_intervals_ms = rr_intervals * 1000
@@ -239,12 +264,15 @@ class SyntheticECGGenerator:
         validation_info = {
             'files': [],
             'ground_truth': {
-                'mean_hr_bpm': self.mean_hr,
-                'hr_std_bpm': self.hr_std,
-                'mean_rr_ms': 60000 / self.mean_hr,  # Should be ~1000ms
+                'target_hr_bpm': self.mean_hr,
+                'hr_range_bpm': '55-65 (varied per file)',
+                'target_mean_rr_ms': 60000 / self.mean_hr,
+                'expected_rr_range_ms': '920-1090 (varied per file)',
                 'lf_freq_hz': self.lf_freq,
                 'hf_freq_hz': self.hf_freq,
-                'lf_hf_ratio': self.lf_hf_ratio,
+                'target_lf_hf_ratio': self.lf_hf_ratio,
+                'expected_rmssd_range_ms': '15-35 (varied per file)',
+                'expected_hrv_variation': 'Each file has different HRV parameters',
                 'duration_sec': self.duration,
                 'sampling_rate_hz': self.sampling_rate
             },
@@ -264,13 +292,21 @@ class SyntheticECGGenerator:
             actual_rr_std = np.std(rr_intervals)
             actual_hr = 60000 / actual_rr_mean
             
+            # Calculate basic HRV metrics for validation
+            rr_diffs = np.diff(rr_intervals)
+            actual_rmssd = np.sqrt(np.mean(rr_diffs**2))
+            actual_sdnn = np.std(rr_intervals)
+            
             validation_info['files'].append(filename)
             validation_info['actual_parameters'].append({
                 'file': filename,
                 'mean_rr_ms': actual_rr_mean,
                 'rr_std_ms': actual_rr_std,
                 'mean_hr_bpm': actual_hr,
-                'n_beats': len(rr_intervals)
+                'n_beats': len(rr_intervals),
+                'expected_rmssd_ms': actual_rmssd,
+                'expected_sdnn_ms': actual_sdnn,
+                'hrv_variation_level': 'varied'  # Indicates this has unique HRV
             })
             
             if (i + 1) % 10 == 0:

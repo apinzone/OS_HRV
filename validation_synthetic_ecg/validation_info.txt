@@ -2,12 +2,15 @@ SYNTHETIC ECG VALIDATION DATASET
 ========================================
 
 Ground Truth Parameters:
-  mean_hr_bpm: 60
-  hr_std_bpm: 1
-  mean_rr_ms: 1000.0
+  target_hr_bpm: 60
+  hr_range_bpm: 55-65 (varied per file)
+  target_mean_rr_ms: 1000.0
+  expected_rr_range_ms: 920-1090 (varied per file)
   lf_freq_hz: 0.1
   hf_freq_hz: 0.25
-  lf_hf_ratio: 1.0
+  target_lf_hf_ratio: 1.0
+  expected_rmssd_range_ms: 15-35 (varied per file)
+  expected_hrv_variation: Each file has different HRV parameters
   duration_sec: 300
   sampling_rate_hz: 256
 
