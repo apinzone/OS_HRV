@@ -16,6 +16,7 @@ library(ggplot2)
 library(dplyr)
 library(gridExtra)
 library(corrplot)
+library(extrafont)
 
 # =============================================================================
 # 1. LOAD AND PREPARE DATA
@@ -242,24 +243,25 @@ for(i in 1:length(key_metrics)) {
       )
       
       p <- ggplot(ba_data, aes(x = Mean, y = Difference)) +
-        geom_point(alpha = 0.6, size = 2) +
-        geom_hline(yintercept = mean_bias, color = "blue", linetype = "solid", size = 1) +
-        geom_hline(yintercept = lower_loa, color = "red", linetype = "dashed", size = 1) +
-        geom_hline(yintercept = upper_loa, color = "red", linetype = "dashed", size = 1) +
-        geom_hline(yintercept = 0, color = "black", linetype = "dotted", alpha = 0.5) +
+        geom_point(alpha = 0.9, size = 2.2, color = "black", shape = 1, stroke = 0.8) +
+        geom_hline(yintercept = 0, color = "gray60", linetype = "dotted", size = 0.8) +
+        geom_hline(yintercept = mean_bias, color = "black", linetype = "solid", size = 1.2) +
+        geom_hline(yintercept = lower_loa, color = "black", linetype = "dashed", size = 1) +
+        geom_hline(yintercept = upper_loa, color = "black", linetype = "dashed", size = 1) +
         labs(
-          title = paste("Bland-Altman Plot:", metric_name),
-          subtitle = paste("Bias =", round(mean_bias, 3), 
-                           "| LoA: [", round(lower_loa, 3), ",", round(upper_loa, 3), "]"),
+          title = paste0(LETTERS[i], ") ", metric_name),
+          subtitle = sprintf("Bias = %.3f | LoA: [%.3f, %.3f]", mean_bias, lower_loa, upper_loa),
           x = paste("Mean of NeuroKit2 and PhysioKit", metric_name),
-          y = "NeuroKit2 - PhysioKit"
+          y = "Interprogram Difference"
         ) +
-        theme_minimal() +
+        theme_classic() +
         theme(
-          plot.title = element_text(size = 12, face = "bold"),
-          plot.subtitle = element_text(size = 10),
-          axis.title = element_text(size = 10)
-        )
+          plot.title = element_text(size = 14, face = "bold", family = "serif"),
+          plot.subtitle = element_text(size = 12, family = "serif"),
+          axis.title = element_text(size = 12, family = "serif"),
+          axis.text = element_text(size =12, family = "serif"),
+          text = element_text(family = "serif")
+        ) 
       
       ba_plots[[i]] <- p
       
@@ -270,6 +272,15 @@ for(i in 1:length(key_metrics)) {
 }
 
 cat("\n")
+
+#Export as Tiff
+ggsave("Bland_Altman_Publication.tiff", 
+       arrangeGrob(grobs = ba_plots, ncol = 2), 
+       width = 12, height = 10, 
+       dpi = 600,           
+       compression = "lzw", 
+       bg = "white",
+       units = "in")        
 
 # =============================================================================
 # 5. SUMMARY STATISTICS
@@ -324,3 +335,4 @@ ggsave("Bland_Altman_Plots.png",
 
 cat("  - Bland_Altman_Plots.png\n\n")
 
+cat("=== ANALYSIS COMPLETE ===\n")
