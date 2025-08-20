@@ -793,6 +793,7 @@ class CardiovascularAnalyzer:
             Sampling_Time = 0
             
         Num_Beats = len(RRDistance_ms)
+        total_peaks = len(td_peaks)
         HR = np.round(Num_Beats/(Sampling_Time/60),2) if Sampling_Time > 0 else 0
         
         # Sample entropy with your exact parameters
@@ -802,6 +803,7 @@ class CardiovascularAnalyzer:
         
         self.results['time_domain'] = {
             'num_beats': Num_Beats,
+            'total_peaks': total_peaks,
             'sampling_time': Sampling_Time,
             'hr': HR,
             'avg_diff': AvgDiff,
@@ -1139,17 +1141,15 @@ class CardiovascularAnalyzer:
         if 'time_domain' in self.results and 'error' not in self.results['time_domain']:
             td = self.results['time_domain']
             validation_data.update({
+                'number_of_beats': td.get('total_peaks', 0),
                 'mean_hr_bpm': td.get('hr', 0),
-                'num_beats': td.get('num_beats', 0),
                 'mean_rr': td.get('mean_rr', None),
-                'num_rr_intervals': td.get('num_beats', 0) - 1 if td.get('num_beats', 0) > 0 else 0,
                 'rmssd_ms': td.get('rmssd', 0),
                 'sdnn_ms': td.get('sdnn', 0),
                 'pnn50_percent': td.get('pnn50', 0),
                 'sd1_ms': td.get('sd1', 0),
                 'sd2_ms': td.get('sd2', 0),
                 'sd1_sd2_ratio': td.get('sd1_sd2_ratio', 0),
-                'sample_entropy': td.get('sample_entropy', 0)
             })
         
         # Frequency domain metrics
