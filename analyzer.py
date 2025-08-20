@@ -770,8 +770,8 @@ class CardiovascularAnalyzer:
         # Your exact calculations
         Successive_time_diff = SuccessiveDiff(RRDistance_ms)  # Your function
         AvgDiff = np.average(Successive_time_diff)
-        SDNN = np.std(RRDistance_ms)
-        SDSD = np.std(Successive_time_diff)
+        SDNN = np.std(RRDistance_ms, ddof= 1)
+        SDSD = np.std(Successive_time_diff, ddof = 1)
         NN50 = NNCounter(Successive_time_diff, 50)  # Your function
         pNN50 = (NN50/len(td_peaks))*100 if len(td_peaks) > 0 else 0
         # Add this in calculate_time_domain() right before RMSSD calculation
@@ -820,7 +820,7 @@ class CardiovascularAnalyzer:
         }
         
     def calculate_frequency_domain(self):
-        """Updated to use windowed data with proper time alignment"""
+        """Updated frequency domain with proper units and normalization"""
         windowed_data = self.get_windowed_data()
         td_peaks = windowed_data['ecg_td_peaks']
         RRDistance_ms = windowed_data['ecg_rr_intervals']
@@ -845,7 +845,7 @@ class CardiovascularAnalyzer:
             }
             return
         
-        # Your exact interpolation with normalized time
+        # Interpolation at 4 Hz (standard for HRV)
         interp_fs = 4
         uniform_time = np.arange(0, max_time, 1/interp_fs)
         
@@ -875,40 +875,67 @@ class CardiovascularAnalyzer:
             }
             return
             
+        # Interpolate RR intervals to uniform time grid
         rr_interp_func = interp1d(time_for_interp, RRDistance_ms, kind='cubic', fill_value="extrapolate")
         rr_fft = rr_interp_func(uniform_time)
         
+        # CRITICAL FIX 1: Remove mean (detrend) before PSD calculation
+        rr_fft_detrended = rr_fft - np.mean(rr_fft)
+        
         # Use nperseg that's appropriate for the data length
-        nperseg = min(256, len(rr_fft)//4)
+        nperseg = min(256, len(rr_fft_detrended)//4)
         if nperseg < 8:  # Minimum for meaningful frequency analysis
             self.results['frequency_domain'] = {
                 'error': 'Window too short for reliable frequency analysis',
-                'data_points': len(rr_fft),
+                'data_points': len(rr_fft_detrended),
                 'min_required': 32
             }
             return
         
-        frequencies, psd = welch(rr_fft, fs=interp_fs, nperseg=nperseg)
+        # Calculate PSD using Welch method
+        frequencies, psd = welch(rr_fft_detrended, fs=interp_fs, nperseg=nperseg, detrend='constant')
         
-        # Your exact band definitions
+        # Standard frequency band definitions
+        vlf_band = (frequencies >= 0.003) & (frequencies < 0.04)
         lf_band = (frequencies >= 0.04) & (frequencies < 0.15)
         hf_band = (frequencies >= 0.15) & (frequencies < 0.4)
-        vlf_band = (frequencies >= 0.003) & (frequencies < 0.04)
         
-        # Your exact power calculations (no unit conversion here to match original)
+        # CRITICAL FIX 2: Proper power calculation with correct units
+        # Welch returns PSD in (ms²)/Hz, trapezoid integration gives ms²*Hz
+        # Need to multiply by frequency resolution to get proper ms² units
+        df = frequencies[1] - frequencies[0]  # Frequency resolution
+        
         vlf_power = np.trapezoid(psd[vlf_band], frequencies[vlf_band]) if np.any(vlf_band) else 0
         lf_power = np.trapezoid(psd[lf_band], frequencies[lf_band]) if np.any(lf_band) else 0
         hf_power = np.trapezoid(psd[hf_band], frequencies[hf_band]) if np.any(hf_band) else 0
-        lf_hf_ratio = lf_power / hf_power if hf_power > 0 else 0
-        total_power = lf_power + hf_power
         
-        # Normalized units
-        lf_nu = (lf_power/total_power) if total_power > 0 else 0
-        hf_nu = (hf_power/total_power) if total_power > 0 else 0
-
-        print(f"LF: {lf_power} ms2")
-        print(f"HF {hf_power} ms2")
-        print(f"LF/HF: {lf_hf_ratio} ms2")
+        # Alternative calculation method (sometimes more accurate):
+        # vlf_power = np.sum(psd[vlf_band]) * df
+        # lf_power = np.sum(psd[lf_band]) * df  
+        # hf_power = np.sum(psd[hf_band]) * df
+        
+        # Calculate ratios and total power
+        lf_hf_ratio = lf_power / hf_power if hf_power > 0 else 0
+        total_power = vlf_power + lf_power + hf_power
+        
+        # CRITICAL FIX 3: Correct normalized units calculation
+        # Per gold standard: "proportion to the total power minus the VLF component"
+        total_power_no_vlf = lf_power + hf_power
+        lf_nu = (lf_power / total_power_no_vlf) * 100 if total_power_no_vlf > 0 else 0
+        hf_nu = (hf_power / total_power_no_vlf) * 100 if total_power_no_vlf > 0 else 0
+        
+        # Debug output
+        print(f"🔍 FREQUENCY DOMAIN DEBUG:")
+        print(f"   Sampling rate: {interp_fs} Hz")
+        print(f"   Data points: {len(rr_fft_detrended)}")
+        print(f"   Frequency resolution: {df:.6f} Hz")
+        print(f"   VLF Power: {vlf_power:.3f} ms²")
+        print(f"   LF Power: {lf_power:.3f} ms²")
+        print(f"   HF Power: {hf_power:.3f} ms²")
+        print(f"   LF/HF Ratio: {lf_hf_ratio:.3f}")
+        print(f"   LF (n.u.): {lf_nu:.1f}%")
+        print(f"   HF (n.u.): {hf_nu:.1f}%")
+        
         self.results['frequency_domain'] = {
             'vlf_power': vlf_power,
             'lf_power': lf_power,
@@ -919,10 +946,12 @@ class CardiovascularAnalyzer:
             'hf_nu': hf_nu,
             'frequencies': frequencies,
             'psd': psd,
-            'rr_fft': rr_fft,  # Store for BRS analysis
+            'rr_fft': rr_fft_detrended,  # Store detrended version
             'uniform_time': uniform_time,
-            'time_offset': time_offset,  # Store offset for reference
-            'window_duration': max_time
+            'time_offset': time_offset,
+            'window_duration': max_time,
+            'frequency_resolution': df,
+            'interpolation_fs': interp_fs
         }
         
     def calculate_brs_sequence(self):

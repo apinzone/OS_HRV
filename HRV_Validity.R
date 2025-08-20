@@ -324,6 +324,3 @@ ggsave("Bland_Altman_Plots.png",
 
 cat("  - Bland_Altman_Plots.png\n\n")
 
-cat("=== ANALYSIS COMPLETE ===\n")
-cat("Your PhysioKit pipeline shows excellent validation results!\n")
-cat("Ready for grant application and publication! 🎉\n")
