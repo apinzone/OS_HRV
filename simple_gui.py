@@ -428,6 +428,68 @@ def close_plot_section():
     """Close the plot section div"""
     st.markdown('</div>', unsafe_allow_html=True)
 
+def auto_scale_peak_parameters(analyzer):
+    """
+    Automatically calculate optimal peak detection parameters based on signal characteristics
+    """
+    auto_params = {}
+    
+    try:
+        # ECG Auto-scaling
+        if hasattr(analyzer, 'ecg_data') and analyzer.ecg_data and 'raw' in analyzer.ecg_data:
+            ecg_signal = analyzer.ecg_data['raw']
+            
+            # Calculate signal statistics
+            ecg_max = np.max(ecg_signal)
+            ecg_min = np.min(ecg_signal)
+            ecg_range = ecg_max - ecg_min
+            ecg_std = np.std(ecg_signal)
+            
+            # Auto-scale ECG parameters
+            auto_params['ecg_height'] = max(0.1, ecg_max * 0.8)  # 80% of max value
+            auto_params['ecg_prominence'] = max(0.1, ecg_range * 0.25)  # 25% of signal range
+            auto_params['ecg_distance'] = 100  # Keep standard distance (physiological constraint)
+            
+        else:
+            # Default ECG values if no signal available
+            auto_params['ecg_height'] = 0.8
+            auto_params['ecg_prominence'] = 0.7
+            auto_params['ecg_distance'] = 100
+        
+        # BP Auto-scaling 
+        if hasattr(analyzer, 'bp_data') and analyzer.bp_data and 'raw' in analyzer.bp_data:
+            bp_signal = analyzer.bp_data['raw']
+            
+            # Calculate BP signal statistics
+            bp_max = np.max(bp_signal)
+            bp_min = np.min(bp_signal)
+            bp_range = bp_max - bp_min
+            bp_mean = np.mean(bp_signal)
+            
+            # Auto-scale BP parameters (more conservative for physiological values)
+            auto_params['bp_height'] = max(80, bp_mean + (bp_range * 0.3))  # Above mean + 30% of range
+            auto_params['bp_prominence'] = max(1, bp_range * 0.15)  # 15% of signal range
+            auto_params['bp_distance'] = 100  # Keep standard distance
+            
+        else:
+            # Default BP values if no signal available
+            auto_params['bp_height'] = 110
+            auto_params['bp_prominence'] = 5
+            auto_params['bp_distance'] = 100
+        
+        return auto_params, True, "Auto-scale successful"
+        
+    except Exception as e:
+        # Return safe defaults if auto-scaling fails
+        return {
+            'ecg_height': 0.8,
+            'ecg_prominence': 0.7,
+            'ecg_distance': 100,
+            'bp_height': 110,
+            'bp_prominence': 5,
+            'bp_distance': 100
+        }, False, f"Auto-scale failed: {str(e)}"
+
 # ============================================================================
 # MAIN APPLICATION
 # ============================================================================
@@ -691,19 +753,96 @@ with st.sidebar:
         # Peak Detection Parameters
         st.markdown("## 🎛️ Peak Detection")
         st.markdown('<div class="sidebar-section">', unsafe_allow_html=True)
-        
-        # ECG Parameters
+
+        # Auto-scale button
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            st.markdown("**Parameter Settings:**")
+        with col2:
+            if st.button("🎯 Auto-Scale", help="Automatically calculate optimal parameters based on your signals", use_container_width=True):
+                with st.spinner("Calculating optimal parameters..."):
+                    auto_params, success, message = auto_scale_peak_parameters(st.session_state.analyzer)
+                    
+                    if success:
+                        # Clear the success message first
+                        if 'autoscale_success' in st.session_state:
+                            del st.session_state.autoscale_success
+                        
+                        # Force update session state AND slider keys
+                        st.session_state.ecg_height = auto_params['ecg_height']
+                        st.session_state.ecg_prominence = auto_params['ecg_prominence'] 
+                        st.session_state.ecg_distance = auto_params['ecg_distance']
+                        st.session_state.bp_height = auto_params['bp_height']
+                        st.session_state.bp_prominence = auto_params['bp_prominence']
+                        st.session_state.bp_distance = auto_params['bp_distance']
+                        
+                        # Force update the slider keys too
+                        st.session_state.ecg_height_slider = auto_params['ecg_height']
+                        st.session_state.ecg_prominence_slider = auto_params['ecg_prominence']
+                        st.session_state.ecg_distance_slider = auto_params['ecg_distance']
+                        st.session_state.bp_height_slider = auto_params['bp_height']
+                        st.session_state.bp_prominence_slider = auto_params['bp_prominence']
+                        st.session_state.bp_distance_slider = auto_params['bp_distance']
+                        
+                        # Show success info that persists
+                        st.session_state.autoscale_success = True
+                        st.session_state.autoscale_params = auto_params
+                        st.session_state.autoscale_message = message
+                        
+                        st.rerun()
+                    else:
+                        st.warning(f"⚠️ {message}")
+
+        # Show auto-scale results if they exist
+        if st.session_state.get('autoscale_success', False):
+            st.success(f"✅ {st.session_state.autoscale_message}")
+            params = st.session_state.autoscale_params
+            st.info(f"📊 **Auto-calculated parameters:**\n"
+                f"• ECG Height: {params['ecg_height']:.2f}\n" 
+                f"• ECG Prominence: {params['ecg_prominence']:.2f}\n"
+                f"• BP Height: {params['bp_height']:.1f} mmHg\n"
+                f"• BP Prominence: {params['bp_prominence']:.1f}")
+            
+            # Add a dismiss button
+            if st.button("✅ Got it!", help="Dismiss this message"):
+                del st.session_state.autoscale_success
+                st.rerun()
+
+        # ECG Parameters (with auto-scaled defaults if available)
         with st.expander("⚡ ECG R-peak Detection", expanded=True):
-            ecg_height = st.slider("Height Threshold", 0.1, 2.0, 0.8, 0.1, help="Minimum R-peak amplitude")
-            ecg_distance = st.slider("Min Distance", 50, 200, 100, 10, help="Min samples between peaks")
-            ecg_prominence = st.slider("Prominence", 0.1, 1.5, 0.7, 0.1, help="Peak prominence")
-        
-        # BP Parameters
+            # Use session state values if they exist, otherwise use defaults
+            ecg_height_value = st.session_state.get('ecg_height', 0.8)
+            ecg_distance_value = st.session_state.get('ecg_distance', 100)
+            ecg_prominence_value = st.session_state.get('ecg_prominence', 0.7)
+            
+            ecg_height = st.slider("Height Threshold", 0.1, 3.0, ecg_height_value, 0.1, 
+                                key="ecg_height_slider",
+                                help="Minimum R-peak amplitude (auto-scaled to 80% of signal max)")
+            ecg_distance = st.slider("Min Distance", 50, 200, ecg_distance_value, 10, 
+                                    key="ecg_distance_slider",
+                                    help="Min samples between peaks (physiological constraint)")
+            ecg_prominence = st.slider("Prominence", 0.1, 2.0, ecg_prominence_value, 0.1, 
+                                    key="ecg_prominence_slider",
+                                    help="Peak prominence (auto-scaled to 25% of signal range)")
+
+        # BP Parameters (with auto-scaled defaults if available)  
         with st.expander("🩸 BP Systolic Detection", expanded=True):
-            bp_height = st.slider("BP Height (mmHg)", 80, 150, 110, 5, help="Min systolic pressure")
-            bp_distance = st.slider("BP Min Distance", 50, 200, 100, 10, help="Min samples between peaks")
-            bp_prominence = st.slider("BP Prominence", 1, 10, 5, 1, help="Peak prominence")
-        
+            # Use session state values if they exist, otherwise use defaults
+            bp_height_value = st.session_state.get('bp_height', 110)
+            bp_distance_value = st.session_state.get('bp_distance', 100) 
+            bp_prominence_value = st.session_state.get('bp_prominence', 5)
+            
+            bp_height = st.slider("BP Height (mmHg)", 60, 180, bp_height_value, 5, 
+                                key="bp_height_slider",
+                                help="Min systolic pressure (auto-scaled based on signal characteristics)")
+            bp_distance = st.slider("BP Min Distance", 50, 200, bp_distance_value, 10, 
+                                key="bp_distance_slider",
+                                help="Min samples between peaks")
+            bp_prominence = st.slider("BP Prominence", 1, 15, bp_prominence_value, 1, 
+                                    key="bp_prominence_slider",
+                                    help="Peak prominence (auto-scaled to 15% of signal range)")
+
+        # Store parameters 
         st.session_state.peak_params = {
             'ecg_height': ecg_height,
             'ecg_distance': ecg_distance,
@@ -712,8 +851,8 @@ with st.sidebar:
             'bp_distance': bp_distance,
             'bp_prominence': bp_prominence
         }
-        
-        # Preview button with enhanced styling
+
+        # Enhanced preview button
         if st.button("🔍 Preview Detection", use_container_width=True, type="secondary"):
             with st.spinner("Updating peak detection..."):
                 try:
@@ -723,7 +862,7 @@ with st.sidebar:
                     st.rerun()
                 except Exception as e:
                     st.error(f"❌ Preview failed: {str(e)}")
-        
+
         st.markdown('</div>', unsafe_allow_html=True)
     
     # Plot Selection (only if analyzed)
