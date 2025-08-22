@@ -1,47 +1,39 @@
-# PhysioKit - Open Source Heart Rate Variability Analysis Platform
+# PhysioKit - Open Source HRV Analysis Platform
 
-**A comprehensive, validated HRV analysis toolkit designed to democratize cardiovascular research**
+A validated heart rate variability analysis toolkit for cardiovascular research and education.
 
-PhysioKit provides accessible, cost-effective heart rate variability (HRV) analysis for researchers, clinicians, and educators. Developed as a free alternative to expensive commercial software, PhysioKit delivers research-grade cardiovascular analysis with user-friendly interfaces and transparent, literature-based methodology.
+PhysioKit provides accessible HRV analysis for researchers, clinicians, and educators. Developed as a free alternative to commercial software, it delivers research-grade cardiovascular analysis with transparent, literature-based methodology.
 
-## 🏆 Validation & Scientific Rigor
+## Validation
 
-PhysioKit has been rigorously validated against NeuroKit2 using 100 synthetic ECG recordings, demonstrating:
-- **Excellent agreement** for core HRV metrics (ICC ≥ 0.90)
-- **Publication-quality validation** following established guidelines
-- **Literature-based methodology** adhering to Task Force standards
-- **Open methodology** for reproducible research
+PhysioKit has been validated against NeuroKit2 using 100 synthetic ECG recordings, demonstrating excellent agreement for core HRV metrics (ICC ≥ 0.90). The validation follows established guidelines with publication-quality statistical analysis.
 
 *Validation study manuscript in preparation - see `/validation_study/` for complete analysis.*
 
-## ✨ Key Features
+## Features
 
-### 📊 **Comprehensive HRV Analysis**
-- **Time Domain**: RMSSD, SDNN, pNN50, and more
-- **Frequency Domain**: LF/HF power 
-- **Nonlinear Metrics**: Poincaré plot analysis (SD1, SD2)
-- **Sample Entropy**: Signal complexity analysis
+**HRV Analysis**
+- Time Domain: RMSSD, SDNN, pNN50, heart rate metrics
+- Frequency Domain: LF/HF power analysis with Task Force compliance
+- Nonlinear Metrics: Poincaré plot analysis (SD1, SD2)
+- Sample Entropy: Signal complexity quantification
 
-### 🔧 **User-Friendly Interface**
-- **GUI Application**: Streamlit-based interface for easy analysis
-- **Flexible File Support**: `.acq` (BIOPAC) and `.edf` files
-- **Manual Parameter Control**: Adjustable peak detection for optimal results
-- **Real-time Visualization**: Interactive plots and immediate feedback
+**Interface Options**
+- GUI application using Streamlit for easy analysis
+- Command-line interface for batch processing
+- Flexible file support: `.acq` (BIOPAC) and `.edf` formats
+- Manual parameter adjustment for optimal peak detection
 
-### 🎯 **Research-Grade Accuracy**
-- **Physics-based peak detection** with physiological constraints
-- **Task Force compliant** frequency domain analysis
-- **Validated algorithms** with excellent agreement to established software
-- **Transparent methodology** following published guidelines
+**Methodology**
+- Physics-based peak detection with physiological constraints
+- Task Force compliant frequency domain analysis (4 Hz interpolation, VLF-excluded normalization)
+- Literature-based calculations following established guidelines
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Installation
 ```bash
-# Install dependencies
 pip install -r requirements.txt
-
-# Launch GUI interface
 streamlit run simple_gui.py
 ```
 
@@ -49,104 +41,77 @@ streamlit run simple_gui.py
 ```python
 from analyzer import CardiovascularAnalyzer
 
-# Initialize analyzer
 analyzer = CardiovascularAnalyzer()
-
-# Load and configure your data
 analyzer.load_file_and_detect_channels("your_file.edf")
 analyzer.configure_channels(ecg_channel_idx=0)
-
-# Run complete analysis
 analyzer.analyze_all()
-
-# Get results
 results = analyzer.get_validation_metrics()
 ```
 
-## 📁 Repository Structure
+## Repository Structure
 
 ```
 ├── analyzer.py           # Core HRV analysis engine
-├── simple_gui.py         # Streamlit GUI interface  
+├── simple_gui.py         # GUI interface  
 ├── main.py              # Command-line interface
-├── functions.py         # Supporting analysis functions
-├── README.md            # This file
-├── requirements.txt     # Dependencies
+├── functions.py         # Supporting functions
 └── validation_study/    # Validation analysis & results
 ```
 
-## 📋 Input Requirements
+## Requirements
 
-- **ECG signal**: Minimum one ECG channel for HRV analysis
-- **File formats**: `.acq` (BIOPAC) or `.edf` (European Data Format)
-- **Optional**: Blood pressure channel for baroreflex sensitivity analysis
-- **Duration**: Recommend ≥2 minutes for reliable frequency domain analysis
+- ECG signal (minimum one channel)
+- File formats: `.acq` or `.edf`
+- Recommended duration: ≥2 minutes for frequency domain analysis
+- Optional: Blood pressure channel for baroreflex analysis
 
-## 📈 Key Outputs
+## Output Metrics
 
-### Time Domain Metrics
-- **RMSSD**: Root mean square of successive differences
-- **SDNN**: Standard deviation of normal-to-normal intervals  
-- **pNN50**: Percentage of successive NN intervals >50ms
-- **Sample Entropy**: Signal regularity measure
+**Time Domain**
+- RMSSD: Root mean square of successive differences
+- SDNN: Standard deviation of normal-to-normal intervals  
+- pNN50: Percentage of successive intervals >50ms
 
-### Frequency Domain Metrics  
-- **LF Power**: Low frequency power (0.04-0.15 Hz)
-- **HF Power**: High frequency power (0.15-0.40 Hz)
-- **LF/HF Ratio**: Autonomic balance indicator
-- **Normalized Units**: Task Force compliant calculations
+**Frequency Domain**  
+- LF Power: Low frequency power (0.04-0.15 Hz)
+- HF Power: High frequency power (0.15-0.40 Hz)
+- LF/HF Ratio: Autonomic balance measure
 
-### Nonlinear Analysis
-- **SD1**: Short-term variability (Poincaré plot)
-- **SD2**: Long-term variability (Poincaré plot)
-- **Poincaré Visualization**: Interactive ellipse fitting
+**Nonlinear Analysis**
+- SD1/SD2: Poincaré plot short and long-term variability
+- Sample Entropy: Signal regularity quantification
 
-## 🎓 Educational Use
+## Scientific Approach
 
-PhysioKit is designed for:
-- **Research laboratories** needing cost-effective HRV analysis
-- **Educational institutions** teaching cardiovascular physiology
-- **Clinical applications** requiring validated HRV assessment
-- **Student projects** with hands-on physiological signal analysis
+PhysioKit implements established cardiovascular analysis standards:
+- Task Force 1996 guidelines for frequency domain analysis
+- Validated peak detection algorithms
+- Literature-based parameter selection
+- Open methodology for reproducible research
 
-## 🔬 Scientific Methodology
+The platform addresses cost barriers in cardiovascular research by providing free, validated analysis tools that match commercial software performance while maintaining full methodological transparency.
 
-PhysioKit implements established HRV analysis guidelines:
-- **Task Force 1996** standards for frequency domain analysis
-- **4 Hz interpolation** for spectral analysis
-- **VLF-excluded normalization** following literature recommendations
-- **Sample standard deviation** for time domain calculations
+## Usage Applications
 
-## 🎯 Mission Statement
+- Research laboratories requiring validated HRV analysis
+- Educational settings for cardiovascular physiology instruction  
+- Clinical applications needing reliable HRV assessment
+- Student research projects involving physiological signal analysis
 
-**Democratizing cardiovascular research through accessible, validated analysis tools.**
+## Validation Study
 
-Many researchers face barriers accessing expensive HRV software. PhysioKit removes these obstacles by providing free, open-source analysis that matches commercial software performance while maintaining full methodological transparency.
-
-## 🤝 Contributing
-
-We welcome contributions! Whether you're:
-- 🐛 **Reporting bugs**
-- 💡 **Suggesting features** 
-- 📖 **Improving documentation**
-- 🔬 **Adding analysis methods**
-
-See our contribution guidelines and open an issue or pull request.
-
-## For Researchers & Developers
 See `/validation_study/` for:
-- Validation methodology and results
-- Batch processing tools for large datasets
-- Comparison scripts and statistical analysis
+- Complete validation methodology and statistical results
+- Batch processing scripts for large datasets
+- Comparison analysis with established software
 
-## 📧 Contact & Support
+## Contact
 
 **Anthony G. Pinzone, Ph.D., CSCS*D**  
-📧 [apinzone10@gmail.com](mailto:apinzone10@gmail.com)  
-🔗 [GitHub](https://github.com/apinzone) | [Website](https://apinzone.github.io/) | [Google Scholar](https://scholar.google.com/citations?user=GMi1gHsAAAAJ&hl=en)
+Email: apinzone10@gmail.com  
+GitHub: https://github.com/apinzone  
+Website: https://apinzone.github.io/
 
-## 📄 License
+## License
 
-Open-source under the MIT License. Free for academic, research, and educational use.
-
----
+MIT License - Free for academic, research, and educational use.
