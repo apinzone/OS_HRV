@@ -775,18 +775,10 @@ class CardiovascularAnalyzer:
         NN50 = NNCounter(Successive_time_diff, 50)  # Your function
         pNN50 = (NN50/len(td_peaks))*100 if len(td_peaks) > 0 else 0
         # Add this in calculate_time_domain() right before RMSSD calculation
-        print(f"ANALYSIS DEBUG: First 10 RR intervals being analyzed: {RRDistance_ms[:10]}")
-        print(f"ANALYSIS DEBUG: Total RR intervals: {len(RRDistance_ms)}")
-        print(f"ANALYSIS DEBUG: ALL RR INTERVALS: {(RRDistance_ms)}")
         RMSSD = np.sqrt(np.average(rms(Successive_time_diff)))  # Your function
         SD1 = SDSD / np.sqrt(2)
         SD2 = np.sqrt((2*math.pow(SDNN,2) - (0.5*math.pow(SDSD,2))))
         S = math.pi * SD1 * SD2
-        print(f"RMSSD: {RMSSD}")
-        print(f"SDNN {SDNN}")
-        print(f"pnn50: {pNN50}")
-        print(f"SD1: {SD1}")
-        print(f"SD2: {SD2}")
         if len(td_peaks) > 0:
             Sampling_Time = max(td_peaks) - min(td_peaks) if self.time_window else max(td_peaks)
         else:
@@ -832,7 +824,7 @@ class CardiovascularAnalyzer:
             }
             return
         
-        # IMPORTANT: Reset time to start from 0 for windowed data
+      # Reset time to start from 0 for windowed data
         if len(td_peaks) > 1:
             # Shift time to start from 0
             time_offset = td_peaks[0]
@@ -878,8 +870,6 @@ class CardiovascularAnalyzer:
         # Interpolate RR intervals to uniform time grid
         rr_interp_func = interp1d(time_for_interp, RRDistance_ms, kind='cubic', fill_value="extrapolate")
         rr_fft = rr_interp_func(uniform_time)
-        
-        # CRITICAL FIX 1: Remove mean (detrend) before PSD calculation
         rr_fft_detrended = rr_fft - np.mean(rr_fft)
         
         # Use nperseg that's appropriate for the data length
@@ -900,7 +890,6 @@ class CardiovascularAnalyzer:
         lf_band = (frequencies >= 0.04) & (frequencies < 0.15)
         hf_band = (frequencies >= 0.15) & (frequencies < 0.4)
         
-        # CRITICAL FIX 2: Proper power calculation with correct units
         # Welch returns PSD in (ms²)/Hz, trapezoid integration gives ms²*Hz
         # Need to multiply by frequency resolution to get proper ms² units
         df = frequencies[1] - frequencies[0]  # Frequency resolution
@@ -909,33 +898,14 @@ class CardiovascularAnalyzer:
         lf_power = np.trapezoid(psd[lf_band], frequencies[lf_band]) if np.any(lf_band) else 0
         hf_power = np.trapezoid(psd[hf_band], frequencies[hf_band]) if np.any(hf_band) else 0
         
-        # Alternative calculation method (sometimes more accurate):
-        # vlf_power = np.sum(psd[vlf_band]) * df
-        # lf_power = np.sum(psd[lf_band]) * df  
-        # hf_power = np.sum(psd[hf_band]) * df
-        
         # Calculate ratios and total power
         lf_hf_ratio = lf_power / hf_power if hf_power > 0 else 0
         total_power = vlf_power + lf_power + hf_power
-        
-        # CRITICAL FIX 3: Correct normalized units calculation
-        # Per gold standard: "proportion to the total power minus the VLF component"
         total_power_no_vlf = lf_power + hf_power
         lf_nu = (lf_power / total_power_no_vlf) * 100 if total_power_no_vlf > 0 else 0
         hf_nu = (hf_power / total_power_no_vlf) * 100 if total_power_no_vlf > 0 else 0
         
-        # Debug output
-        print(f"🔍 FREQUENCY DOMAIN DEBUG:")
-        print(f"   Sampling rate: {interp_fs} Hz")
-        print(f"   Data points: {len(rr_fft_detrended)}")
-        print(f"   Frequency resolution: {df:.6f} Hz")
-        print(f"   VLF Power: {vlf_power:.3f} ms²")
-        print(f"   LF Power: {lf_power:.3f} ms²")
-        print(f"   HF Power: {hf_power:.3f} ms²")
-        print(f"   LF/HF Ratio: {lf_hf_ratio:.3f}")
-        print(f"   LF (n.u.): {lf_nu:.1f}%")
-        print(f"   HF (n.u.): {hf_nu:.1f}%")
-        
+
         self.results['frequency_domain'] = {
             'vlf_power': vlf_power,
             'lf_power': lf_power,
@@ -1305,11 +1275,6 @@ class CardiovascularAnalyzer:
             import traceback
             traceback.print_exc()
             return None
-
-# Add this to your Streamlit interface (simple_gui.py) in the results section:
-# if st.button("🔍 Export Debug Data"):
-#     debug_data = st.session_state.analyzer.debug_export_peaks("validation_debug")
-#     st.success("Debug data exported! Check the text file.")
         
         # Channel configuration info
         summary.append("=== CHANNEL CONFIGURATION ===")
@@ -1369,7 +1334,7 @@ class CardiovascularAnalyzer:
             summary.append(f"{len(windowed_data['bp_systolic'])} pressure waves are included in the analysis")
             summary.append("")
         
-        # Frequency domain (matching your original print format)
+        # Frequency domain 
         if 'frequency_domain' in self.results:
             fd = self.results['frequency_domain']
             if 'error' in fd:
@@ -1386,7 +1351,7 @@ class CardiovascularAnalyzer:
                 summary.append(f"HF Power: {fd['hf_nu']:.2f} n.u.")
                 summary.append("")
         
-        # BRS sequence (matching your original print format)
+        # BRS sequence 
         if 'brs_sequence' in self.results:
             brs = self.results['brs_sequence']
             if 'error' in brs:

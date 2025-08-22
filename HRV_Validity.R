@@ -18,10 +18,39 @@ library(gridExtra)
 library(corrplot)
 library(extrafont)
 
-# Load the Excel file
-data <- read_excel("C:/Users/Anthony/Desktop/peak_detector/Validation Study/Final_Validity.xlsx")
+# =============================================================================
+# 1. LOAD AND PREPARE DATA
+# =============================================================================
 
-#ICC Analysis
+# Load the Excel file
+data <- read_excel("Final_Validity.xlsx")
+
+# Display basic info
+cat("Dataset loaded successfully!\n")
+cat("Number of files analyzed:", nrow(data), "\n")
+cat("Columns:", ncol(data), "\n\n")
+
+# Check for any missing values
+missing_summary <- sapply(data, function(x) sum(is.na(x)))
+if(any(missing_summary > 0)) {
+  cat("Missing values found:\n")
+  print(missing_summary[missing_summary > 0])
+} else {
+  cat("No missing values found - excellent!\n\n")
+}
+
+# Check for any non-finite values (Inf, -Inf, NaN)
+infinite_summary <- sapply(data, function(x) sum(!is.finite(x)))
+if(any(infinite_summary > 0)) {
+  cat("Non-finite values (Inf/NaN) found:\n")
+  print(infinite_summary[infinite_summary > 0])
+  cat("\n")
+}
+
+# =============================================================================
+# 2. ICC ANALYSIS FOR ALL METRICS
+# =============================================================================
+
 cat("=== INTRACLASS CORRELATION COEFFICIENT (ICC) ANALYSIS ===\n\n")
 
 # Define metric pairs for ICC analysis
@@ -108,7 +137,9 @@ for(metric_name in names(metrics)) {
 
 cat("\n")
 
-#Correlation Analysis 
+# =============================================================================
+# 3. CORRELATION ANALYSIS
+# =============================================================================
 
 cat("=== PEARSON CORRELATION ANALYSIS ===\n\n")
 
@@ -148,7 +179,9 @@ for(metric_name in names(metrics)) {
 
 cat("\n")
 
-#Bland Altman Analysis  
+# =============================================================================
+# 4. BLAND-ALTMAN ANALYSIS
+# =============================================================================
 
 cat("=== BLAND-ALTMAN ANALYSIS ===\n\n")
 
@@ -249,7 +282,9 @@ ggsave("Bland_Altman_Publication.tiff",
        bg = "white",
        units = "in")        
 
-#Summary Stats 
+# =============================================================================
+# 5. SUMMARY STATISTICS
+# =============================================================================
 
 cat("=== VALIDATION SUMMARY ===\n\n")
 
@@ -262,10 +297,23 @@ for(interp in names(icc_summary)) {
 
 cat("\n")
 
+# Overall assessment
+excellent_count <- sum(icc_results$ICC_Value >= 0.90, na.rm = TRUE)
+good_count <- sum(icc_results$ICC_Value >= 0.75 & icc_results$ICC_Value < 0.90, na.rm = TRUE)
+total_metrics <- nrow(icc_results)
 
-#Save Results
+cat("Overall Validation Assessment:\n")
+cat(sprintf("  Total metrics analyzed: %d\n", total_metrics))
+cat(sprintf("  Excellent agreement (ICC ≥ 0.90): %d (%.1f%%)\n", 
+            excellent_count, 100 * excellent_count / total_metrics))
+cat(sprintf("  Good agreement (ICC ≥ 0.75): %d (%.1f%%)\n", 
+            good_count, 100 * good_count / total_metrics))
 
-# Display plots
+# =============================================================================
+# 6. SAVE RESULTS AND PLOTS
+# =============================================================================
+
+# Display the plots
 if(length(ba_plots) > 0) {
   grid.arrange(grobs = ba_plots, ncol = 2)
 }
@@ -280,4 +328,11 @@ cat("  - ICC_Results.csv\n")
 cat("  - Bland_Altman_Statistics.csv\n")
 cat("  - Correlation_Results.csv\n")
 
+# Save high-quality plots
+ggsave("Bland_Altman_Plots.png", 
+       arrangeGrob(grobs = ba_plots, ncol = 2), 
+       width = 12, height = 10, dpi = 300)
 
+cat("  - Bland_Altman_Plots.png\n\n")
+
+cat("=== ANALYSIS COMPLETE ===\n")

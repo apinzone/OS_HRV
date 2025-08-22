@@ -38,25 +38,22 @@ class NeuroKitHarmonizedBatchProcessor:
                 return ecg_signal, self.sampling_rate
                 
         except Exception as e:
-            print(f"❌ Error loading {filepath}: {e}")
+            print(f"Error loading {filepath}: {e}")
             return None, None
     
     def analyze_hrv_harmonized(self, ecg_signal, sampling_rate):
-        """
-        Perform HRV analysis using NeuroKit2 with HARMONIZED parameters
-        """
         try:
-            # Find R-peaks WITHOUT cleaning (to match PhysioKit approach)
+            # Find peaks without cleaning 
             _, r_peaks = nk.ecg_peaks(ecg_signal, sampling_rate=sampling_rate)
             
-            # Check if we have enough peaks
+            # Ensure min number of peaks for HRV analysis
             if len(r_peaks['ECG_R_Peaks']) < 5:
                 return None
                 
             # Calculate time domain metrics
             time_domain = nk.hrv_time(r_peaks, sampling_rate=sampling_rate, show=False)
             
-            # Calculate frequency domain metrics with HARMONIZED parameters
+            # Calculate frequency domain metrics 
             frequency_domain = nk.hrv_frequency(
                 r_peaks, 
                 sampling_rate=sampling_rate, 
@@ -69,7 +66,7 @@ class NeuroKitHarmonizedBatchProcessor:
             # Calculate nonlinear metrics
             nonlinear = nk.hrv_nonlinear(r_peaks, sampling_rate=sampling_rate, show=False)
             
-            # Extract specific metrics with harmonized calculations
+            # Extract specific metrics 
             results = self._extract_harmonized_metrics(
                 r_peaks, time_domain, frequency_domain, nonlinear, sampling_rate
             )
@@ -81,9 +78,6 @@ class NeuroKitHarmonizedBatchProcessor:
             return None
     
     def _extract_harmonized_metrics(self, r_peaks, time_domain, frequency_domain, nonlinear, sampling_rate):
-        """
-        Extract metrics with HARMONIZED calculations to match PhysioKit
-        """
         # Calculate RR intervals manually
         rr_times = r_peaks['ECG_R_Peaks'] / sampling_rate
         rr_intervals_sec = np.diff(rr_times)
@@ -102,12 +96,12 @@ class NeuroKitHarmonizedBatchProcessor:
         sdnn = time_domain['HRV_SDNN'].iloc[0] if 'HRV_SDNN' in time_domain.columns else np.nan
         pnn50 = time_domain['HRV_pNN50'].iloc[0] if 'HRV_pNN50' in time_domain.columns else np.nan
 
-        # Nonlinear metrics (NeuroKit2 uses geometric approach)
+        # Nonlinear metrics 
         sd1 = nonlinear['HRV_SD1'].iloc[0] if 'HRV_SD1' in nonlinear.columns else np.nan
         sd2 = nonlinear['HRV_SD2'].iloc[0] if 'HRV_SD2' in nonlinear.columns else np.nan
         sd1_sd2_ratio = sd1 / sd2 if (sd2 > 0 and not np.isnan(sd1) and not np.isnan(sd2)) else np.nan
 
-        # Frequency domain metrics (NOW in absolute ms² units due to normalize=False)
+        # Frequency domain metrics 
         vlf_power = frequency_domain['HRV_VLF'].iloc[0] if 'HRV_VLF' in frequency_domain.columns else np.nan
         lf_power = frequency_domain['HRV_LF'].iloc[0] if 'HRV_LF' in frequency_domain.columns else np.nan
         hf_power = frequency_domain['HRV_HF'].iloc[0] if 'HRV_HF' in frequency_domain.columns else np.nan
@@ -116,13 +110,11 @@ class NeuroKitHarmonizedBatchProcessor:
         # LF/HF ratio
         lf_hf_ratio = lf_power / hf_power if (hf_power > 0 and not np.isnan(lf_power) and not np.isnan(hf_power)) else np.nan
 
-        # HARMONIZED normalized units calculation (VLF-excluded like PhysioKit)
-        # Following Task Force guidelines: n.u. = component / (total_power - VLF) * 100
         total_power_no_vlf = lf_power + hf_power if (not np.isnan(lf_power) and not np.isnan(hf_power)) else np.nan
         lf_nu = (lf_power / total_power_no_vlf) * 100 if (total_power_no_vlf > 0 and not np.isnan(total_power_no_vlf)) else np.nan
         hf_nu = (hf_power / total_power_no_vlf) * 100 if (total_power_no_vlf > 0 and not np.isnan(total_power_no_vlf)) else np.nan
 
-        # Compile results - using harmonized calculations
+        # Compile results 
         results = {
             # Basic metrics
             'nk_num_beats': num_beats,
@@ -135,7 +127,7 @@ class NeuroKitHarmonizedBatchProcessor:
             'nk_sdnn_ms': sdnn,
             'nk_pnn50_percent': pnn50,
             
-            # Nonlinear (Poincaré) - NeuroKit2 geometric approach
+            # Nonlinear (Poincaré) 
             'nk_sd1_ms': sd1,
             'nk_sd2_ms': sd2,
             'nk_sd1_sd2_ratio': sd1_sd2_ratio,
@@ -199,11 +191,9 @@ class NeuroKitHarmonizedBatchProcessor:
     
     def batch_process_directory(self):
         """
-        Process all EDF files in the directory with harmonized parameters
+        Process all EDF files in the directory 
         """
-        print("🚀 NeuroKit2 HARMONIZED Batch Processor")
-        print("🎯 Using PhysioKit-matched parameters: 4Hz, Welch, absolute ms², VLF-excluded n.u.")
-        print("=" * 80)
+        print("NeuroKit2 Batch Processor")
         
         # Check dependencies
         try:
@@ -279,7 +269,7 @@ class NeuroKitHarmonizedBatchProcessor:
         
         # Summary
         print()
-        print("📊 HARMONIZED BATCH PROCESSING COMPLETE!")
+        print("📊 BATCH PROCESSING COMPLETE!")
         print("=" * 80)
         print(f"✅ Successful: {successful}/{len(edf_files)} files")
         print(f"❌ Failed: {failed}/{len(edf_files)} files")

@@ -1,5 +1,5 @@
 # neurokit_validation_analysis.py
-# NeuroKit2 HRV analysis script for validation against your pipeline
+#standalone test validation script for nk on raw ecg files
 
 import neurokit2 as nk
 import numpy as np
@@ -11,7 +11,6 @@ from pathlib import Path
 class NeuroKitValidator:
     """
     NeuroKit2-based HRV analysis for validation studies
-    Matches the exact metrics from your pipeline
     """
     
     def __init__(self):
@@ -74,7 +73,7 @@ class NeuroKitValidator:
             # Calculate nonlinear metrics (for SD1, SD2)
             nonlinear = nk.hrv_nonlinear(r_peaks, sampling_rate=sampling_rate, show=False)
             
-            # Extract specific metrics to match your pipeline
+            # Extract specific metrics 
             results = self._extract_matching_metrics(
                 r_peaks, time_domain, frequency_domain, nonlinear, sampling_rate
             )
@@ -87,9 +86,6 @@ class NeuroKitValidator:
             return None
     
     def _extract_matching_metrics(self, r_peaks, time_domain, frequency_domain, nonlinear, sampling_rate):
-        """
-        Extract metrics that match your pipeline exactly
-        """
         # Calculate RR intervals manually for some metrics
         rr_times = r_peaks['ECG_R_Peaks'] / sampling_rate
         rr_intervals_sec = np.diff(rr_times)
