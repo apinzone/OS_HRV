@@ -758,6 +758,8 @@ with st.sidebar:
 # MAIN CONTENT AREA
 # ============================================================================
 
+# Replace the results display section (around line 1000+) with this clean version:
+
 # Case 1: Analysis Complete - Show Results
 if st.session_state.analyzed and st.session_state.channels_configured:
     # Results Header with scale info and file type
@@ -790,17 +792,49 @@ if st.session_state.analyzed and st.session_state.channels_configured:
     col1, col2 = st.columns([1, 2])
     
     with col1:
-        st.markdown("### 📋 Analysis Summary")
+        st.markdown("### 📋 HRV Analysis Results")
         
-        # Enhanced metrics display
+        # Clean metrics display - all metrics you requested
         if 'time_domain' in st.session_state.analyzer.results:
-            show_enhanced_metrics(
-                st.session_state.analyzer.results['time_domain'], 
-                "Time Domain Analysis", 
-                "⏱️"
-            )
+            td_results = st.session_state.analyzer.results['time_domain']
+            if 'error' not in td_results:
+                
+                # Time Domain Metrics
+                st.markdown(f"""
+                <div class="metric-card">
+                    <h4>⏱️ Time Domain Metrics</h4>
+                    <p><strong>RMSSD:</strong> {td_results.get('rmssd', 'N/A'):.1f} ms</p>
+                    <p><strong>SDNN:</strong> {td_results.get('sdnn', 'N/A'):.1f} ms</p>
+                    <p><strong>Sample Entropy:</strong> {td_results.get('sample_entropy', 'N/A'):.3f}</p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Nonlinear Metrics
+                st.markdown(f"""
+                <div class="metric-card">
+                    <h4>🔄 Nonlinear Metrics</h4>
+                    <p><strong>SD1:</strong> {td_results.get('sd1', 'N/A'):.1f} ms</p>
+                    <p><strong>SD2:</strong> {td_results.get('sd2', 'N/A'):.1f} ms</p>
+                    <p><strong>SD1/SD2:</strong> {td_results.get('sd1_sd2_ratio', 'N/A'):.3f}</p>
+                </div>
+                """, unsafe_allow_html=True)
         
-        # BRS Results
+        # Frequency Domain Metrics
+        if 'frequency_domain' in st.session_state.analyzer.results:
+            freq_results = st.session_state.analyzer.results['frequency_domain']
+            if 'error' not in freq_results:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <h4>📊 Frequency Domain Metrics</h4>
+                    <p><strong>VLF Power:</strong> {freq_results.get('vlf_power', 'N/A'):.2f} ms²</p>
+                    <p><strong>LF Power:</strong> {freq_results.get('lf_power', 'N/A'):.2f} ms²</p>
+                    <p><strong>HF Power:</strong> {freq_results.get('hf_power', 'N/A'):.2f} ms²</p>
+                    <p><strong>Total Power:</strong> {freq_results.get('total_power', 'N/A'):.2f} ms²</p>
+                    <p><strong>LF/HF Ratio:</strong> {freq_results.get('lf_hf_ratio', 'N/A'):.2f}</p>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        # BRS Results (keep this if you want it)
         if 'brs_sequence' in st.session_state.analyzer.results:
             brs_data = st.session_state.analyzer.results['brs_sequence']
             if 'error' not in brs_data:
@@ -812,58 +846,108 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                     <p><strong>Valid Sequences:</strong> {brs_data.get('num_sequences', 'N/A')}</p>
                 </div>
                 """, unsafe_allow_html=True)
-        
-        # Download results
-        if st.session_state.analyzer:
+
+        # Simple download button for complete report
+        st.markdown("### 📄 Export Results")
+
+        if hasattr(st.session_state, 'analyzer') and st.session_state.analyzer:
             try:
-                results_text = st.session_state.analyzer.get_summary()
-                if results_text:  # Make sure we have results
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                # Create comprehensive summary manually
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                
+                summary_lines = []
+                summary_lines.append("=== PHYSIOKIT HRV ANALYSIS REPORT ===")
+                summary_lines.append(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                summary_lines.append("")
+                
+                # Channel info
+                summary_lines.append("=== CHANNEL CONFIGURATION ===")
+                summary_lines.append(f"File Type: {getattr(st.session_state.analyzer, 'file_type', 'Unknown').upper()}")
+                if st.session_state.analyzer.ecg_data:
+                    summary_lines.append(f"ECG Channel: {st.session_state.analyzer.ecg_channel} ({st.session_state.analyzer.ecg_data['channel_name']})")
+                    summary_lines.append(f"ECG Scale: {st.session_state.analyzer.ecg_data.get('detected_scale', 'Unknown')}")
+                if st.session_state.analyzer.bp_data:
+                    summary_lines.append(f"BP Channel: {st.session_state.analyzer.bp_channel} ({st.session_state.analyzer.bp_data['channel_name']})")
+                summary_lines.append("")
+                
+                # Time window info
+                if 'time_window' in st.session_state:
+                    tw = st.session_state.time_window
+                    summary_lines.append("=== ANALYSIS WINDOW ===")
+                    summary_lines.append(f"Start Time: {tw['start_time']:.1f} seconds")
+                    summary_lines.append(f"End Time: {tw['end_time']:.1f} seconds")
+                    summary_lines.append(f"Duration: {tw['duration']:.1f} seconds ({tw['duration']/60:.1f} minutes)")
+                    summary_lines.append("")
+                
+                # HRV Results
+                if hasattr(st.session_state.analyzer, 'results'):
+                    results = st.session_state.analyzer.results
                     
+                    # Time Domain
+                    if 'time_domain' in results and 'error' not in results['time_domain']:
+                        td = results['time_domain']
+                        summary_lines.append("=== TIME DOMAIN HRV METRICS ===")
+                        summary_lines.append(f"Number of Beats: {td.get('num_beats', 'N/A')}")
+                        summary_lines.append(f"Heart Rate: {td.get('hr', 'N/A'):.1f} BPM")
+                        summary_lines.append(f"Mean RR: {td.get('mean_rr', 'N/A'):.1f} ms")
+                        summary_lines.append(f"RMSSD: {td.get('rmssd', 'N/A'):.1f} ms")
+                        summary_lines.append(f"SDNN: {td.get('sdnn', 'N/A'):.1f} ms")
+                        summary_lines.append(f"pNN50: {td.get('pnn50', 'N/A'):.1f} %")
+                        summary_lines.append(f"Sample Entropy: {td.get('sample_entropy', 'N/A'):.3f}")
+                        summary_lines.append("")
+                        
+                        summary_lines.append("=== NONLINEAR HRV METRICS ===")
+                        summary_lines.append(f"SD1: {td.get('sd1', 'N/A'):.1f} ms")
+                        summary_lines.append(f"SD2: {td.get('sd2', 'N/A'):.1f} ms")
+                        summary_lines.append(f"SD1/SD2 Ratio: {td.get('sd1_sd2_ratio', 'N/A'):.3f}")
+                        summary_lines.append(f"Ellipse Area: {td.get('ellipse_area', 'N/A'):.1f} ms²")
+                        summary_lines.append("")
+                    
+                    # Frequency Domain
+                    if 'frequency_domain' in results and 'error' not in results['frequency_domain']:
+                        fd = results['frequency_domain']
+                        summary_lines.append("=== FREQUENCY DOMAIN HRV METRICS ===")
+                        summary_lines.append(f"VLF Power: {fd.get('vlf_power', 'N/A'):.2f} ms²")
+                        summary_lines.append(f"LF Power: {fd.get('lf_power', 'N/A'):.2f} ms²")
+                        summary_lines.append(f"HF Power: {fd.get('hf_power', 'N/A'):.2f} ms²")
+                        summary_lines.append(f"Total Power: {fd.get('total_power', 'N/A'):.2f} ms²")
+                        summary_lines.append(f"LF/HF Ratio: {fd.get('lf_hf_ratio', 'N/A'):.2f}")
+                        summary_lines.append(f"LF n.u.: {fd.get('lf_nu', 'N/A'):.2f}")
+                        summary_lines.append(f"HF n.u.: {fd.get('hf_nu', 'N/A'):.2f}")
+                        summary_lines.append("")
+                    
+                    # BRS Results
+                    if 'brs_sequence' in results and 'error' not in results['brs_sequence']:
+                        brs = results['brs_sequence']
+                        summary_lines.append("=== BAROREFLEX SENSITIVITY (SEQUENCE METHOD) ===")
+                        summary_lines.append(f"BRS Mean: {brs.get('BRS_mean', 'N/A'):.2f} ms/mmHg")
+                        summary_lines.append(f"BEI: {brs.get('BEI', 'N/A'):.2f}")
+                        summary_lines.append(f"Valid Sequences: {brs.get('num_sequences', 'N/A')}")
+                        summary_lines.append(f"Up Sequences: {brs.get('n_up', 'N/A')}")
+                        summary_lines.append(f"Down Sequences: {brs.get('n_down', 'N/A')}")
+                        summary_lines.append("")
+                
+                # Join all lines
+                complete_summary = "\n".join(summary_lines)
+                
+                if len(complete_summary.strip()) > 100:  # Make sure we have real content
                     st.download_button(
                         label="⬇️ Download Complete Report",
-                        data=str(results_text),  # Ensure it's a string
-                        file_name=f"cardio_analysis_{timestamp}.txt",
+                        data=complete_summary,
+                        file_name=f"hrv_analysis_{timestamp}.txt",
                         mime="text/plain",
-                        use_container_width=True
+                        use_container_width=True,
+                        help="Download comprehensive HRV analysis results"
                     )
+                    st.success("✅ Complete analysis report ready for download!")
+                else:
+                    st.warning("⚠️ Analysis results not complete. Run analysis first.")
+                    
             except Exception as e:
-                st.error(f"Download failed: {str(e)}")
-            # Clean validation export button
-            if hasattr(st.session_state.analyzer, 'results') and st.session_state.analyzer.results:
-                if st.button("📊 Export Validation Data", use_container_width=True):
-                    try:
-                        # Get the core metrics for validation
-                        validation_data = st.session_state.analyzer.get_validation_metrics()
-                        
-                        if validation_data:
-                            # Create filename with timestamp
-                            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                            filename = f"validation_data_{timestamp}.csv"
-                            
-                            # Convert to CSV format
-                            import pandas as pd
-                            df = pd.DataFrame([validation_data])
-                            csv_data = df.to_csv(index=False)
-                            
-                            # Download button
-                            st.download_button(
-                                label="⬇️ Download Validation CSV",
-                                data=csv_data,
-                                file_name=filename,
-                                mime="text/csv",
-                                use_container_width=True
-                            )
-                            
-                            # Show preview
-                            st.success("✅ Validation data ready for download!")
-                            with st.expander("Preview Validation Data", expanded=False):
-                                st.dataframe(df)
-                        else:
-                            st.error("No analysis results available for export")
-                            
-                    except Exception as e:
-                        st.error(f"Export failed: {str(e)}")
+                st.error(f"❌ Export failed: {str(e)}")
+        else:
+            st.info("ℹ️ Complete analysis first to enable download")
+
     
     with col2:
         st.markdown("### 📊 Interactive Visualizations")
