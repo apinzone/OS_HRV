@@ -23,7 +23,7 @@ library(extrafont)
 # =============================================================================
 
 # Load the Excel file
-data <- read_excel("Final_Validity.xlsx")
+data <- read_excel("C:/Users/Anthony/Desktop/peak_detector/Validation Study/Final_Validity.xlsx")
 
 # Display basic info
 cat("Dataset loaded successfully!\n")
@@ -65,8 +65,8 @@ metrics <- list(
   "SD2 (ms)" = c("SD2_Neuro", "SD2_PhysioKit"),
   "SD1/SD2 Ratio" = c("SD1_SD2_Neuro", "SD1_SD2_PhysioKit"),
   "LF/HF Ratio" = c("LF_HF_Neuro", "LF_HF_PhysioKit"),
-  "LF (n.u.)" = c("lf_nu_Neuro", "lf_nu_PhysioKit"),
-  "HF (n.u.)" = c("hf_nu_neuro", "hf_nu_PhysioKit")
+  "LF" = c("lf_neuro", "lf_PhysioKit"),
+  "HF" = c("hf_neuro", "hf_PhysioKit")
 )
 
 # Calculate ICC for each metric
@@ -187,7 +187,7 @@ cat("=== BLAND-ALTMAN ANALYSIS ===\n\n")
 
 # Key metrics for Bland-Altman plots (core HRV metrics)
 key_metrics <- list(
-  "Heart Rate (BPM)" = c("HR_Neuro", "HR_PhysioKit"),
+  "Mean R-R (ms)" = c("MeanRR_Neuro", "MeanRR_PhysioKit"),
   "RMSSD (ms)" = c("RMSSD_Neuro", "RMSSD_PhysioKit"),
   "SDNN (ms)" = c("SDNN_Neuro", "SDNN_PhysioKIt"),
   "LF/HF Ratio" = c("LF_HF_Neuro", "LF_HF_PhysioKit")
