@@ -388,12 +388,23 @@ if 'channels_configured' not in st.session_state:
 # ============================================================================
 
 def show_professional_header():
-    """Display the professional header with branding"""
+    """Display the professional header with custom logo"""
     st.markdown("""
     <div class="main-header">
-        <h1>🫀 PhysioKit</h1>
+        <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
+            <div style="width: 50px; height: 50px; border-radius: 50%; 
+                        background: white;
+                        display: flex; align-items: center; justify-content: center;
+                        margin-right: 15px; box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
+                        border: 2px solid rgba(255,255,255,0.8);">
+                <div style="color: black; font-size: 20px; font-weight: bold; font-family: 'Inter', sans-serif;">
+                    P<sub style="font-size: 10px;">K</sub>
+                </div>
+            </div>
+            <h1 style="margin: 0;font-size: 48px;">PhysioKit</h1>
+        </div>
         <p>Professional HRV & Baroreflex Sensitivity Analysis Platform</p>
-        <div class="version-info">Version 1.1 | Advanced Peak Detection & Time Window Analysis</div>
+        <div class="version-info">Version 1.2 | Advanced Peak Detection | HRV and BRS Analysis</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -1075,7 +1086,7 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                 </div>
                 """, unsafe_allow_html=True)
         
-        # BRS Results (keep this if you want it)
+        # BRS Results 
         if 'brs_sequence' in st.session_state.analyzer.results:
             brs_data = st.session_state.analyzer.results['brs_sequence']
             if 'error' not in brs_data:
@@ -1245,7 +1256,7 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                                 line_width=1.5, opacity=0.6,
                                 annotation_text=f"-1σ: {mean_rr - std_rr:.1f}ms")
                     
-                    # Keep your existing metrics panel (unchanged)
+                    # metrics panel 
                     metrics_text = "<b>📊 HRV Metrics</b><br><br>"
                     if 'time_domain' in st.session_state.analyzer.results:
                         td = st.session_state.analyzer.results['time_domain']
@@ -1310,7 +1321,7 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                         frequencies = freq_data['frequencies']
                         psd = freq_data['psd']
                         
-                        # Professional frequency bands with better colors
+                        #frequency bands with colors
                         vlf_band = (frequencies >= 0.003) & (frequencies < 0.04)
                         lf_band = (frequencies >= 0.04) & (frequencies < 0.15)
                         hf_band = (frequencies >= 0.15) & (frequencies < 0.4)
@@ -1319,7 +1330,7 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                         ax.fill_between(frequencies[vlf_band], psd[vlf_band] * 1e6, 
                                     color='#95a5a6', alpha=0.4, label='VLF (0.003-0.04 Hz)')
                         ax.fill_between(frequencies[lf_band], psd[lf_band] * 1e6, 
-                                    color='#3498db', alpha=0.5, label='LF (0.04-0.15 Hz)')
+                                    color="#346edb", alpha=0.5, label='LF (0.04-0.15 Hz)')
                         ax.fill_between(frequencies[hf_band], psd[hf_band] * 1e6, 
                                     color='#e74c3c', alpha=0.5, label='HF (0.15-0.4 Hz)')
                         
@@ -1327,7 +1338,7 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                         ax.plot(frequencies, psd * 1e6, color='#2c3e50', linewidth=2.5, 
                                 label='PSD', alpha=0.9, zorder=10)
                         
-                        # Professional styling
+                        #Graph styling
                         ax.set_xlabel('Frequency (Hz)', fontsize=12, fontweight='500')
                         ax.set_ylabel('Power Spectral Density (ms²/Hz)', fontsize=12, fontweight='500')
                         ax.set_title('Heart Rate Variability - Frequency Domain Analysis', 
@@ -1340,7 +1351,7 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                         legend.get_frame().set_facecolor('white')
                         legend.get_frame().set_alpha(0.9)
                         
-                        # Professional grid
+                        #Grid
                         ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
                         ax.set_axisbelow(True)
                         
@@ -1350,7 +1361,7 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                         ax.spines['left'].set_linewidth(0.8)
                         ax.spines['bottom'].set_linewidth(0.8)
                         
-                        # Keep your existing power values text box (unchanged)
+                        #Print frequency domain values
                         power_text = (f"VLF: {freq_data['vlf_power']:.2f} ms²\n"
                                     f"LF: {freq_data['lf_power']:.2f} ms²\n"
                                     f"HF: {freq_data['hf_power']:.2f} ms²\n"
@@ -1378,7 +1389,6 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                         "Nonlinear analysis of heart rate variability patterns"
                     )
                     
-                    # Enhanced matplotlib styling for Poincaré
                     plt.rcParams.update({
                         'font.family': 'sans-serif',
                         'font.size': 11,
@@ -1439,7 +1449,7 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                         ax.plot(x_sd1, y_sd1, color='#27ae60', linewidth=3.5, 
                                 label='SD1 (Short-term)', alpha=0.9, zorder=9)
                         
-                        # Keep your existing text box (unchanged)
+                        #Print SD1 and 2
                         textstr = f'SD1 = {sd1:.1f} ms\nSD2 = {sd2:.1f} ms\nSD1/SD2 = {sd1/sd2:.3f}\nEllipse Area = {td_results["ellipse_area"]:.1f} ms²'
                         ax.text(0.05, 0.95, textstr, transform=ax.transAxes, 
                                 verticalalignment='top',
@@ -2446,7 +2456,7 @@ else:
     st.markdown("""
     <div class="window-info">
         <h3 style="margin: 0;">👋 Welcome to PhysioKit</h3>
-        <p style="margin: 0.5rem 0 0 0;">Upload an ACQ file using the sidebar to begin your cardiovascular analysis journey</p>
+        <p style="margin: 0.5rem 0 0 0;">Upload an ACQ or EDF file using the sidebar to begin your cardiovascular analysis journey</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -2487,13 +2497,13 @@ else:
         <div class="metric-card">
             <h3>🚀 How to Get Started</h3>
             <ol style="margin: 0; padding-left: 1.2rem;">
-                <li><strong>Upload:</strong> Select your ACQ file in the sidebar</li>
-                <li><strong>Select Channels:</strong> Choose which channels contain ECG and/or BP data</li>
-                <li><strong>Configure:</strong> Set up your analysis parameters</li>
-                <li><strong>Preview:</strong> Validate peak detection and time window</li>
+                <li><strong>Upload:</strong> Select your ACQ or EDF file in the sidebar</li>
+                <li><strong>Select Channels:</strong> Select which channels contain ECG and/or BP data</li>
+                <li><strong>Configure:</strong> Set analysis parameters (autoscale, default, or user determined)</li>
+                <li><strong>Preview:</strong> Validate peak detection and desired time window</li>
                 <li><strong>Analyze:</strong> Run comprehensive cardiovascular analysis</li>
                 <li><strong>Explore:</strong> Generate interactive visualizations</li>
-                <li><strong>Download:</strong> Export professional analysis reports</li>
+                <li><strong>Download:</strong> Export anaylsis metrics</li>
             </ol>
         </div>
         """, unsafe_allow_html=True)
@@ -2516,7 +2526,7 @@ st.markdown("""
 <div style="text-align: center; padding: 2rem; background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%); 
            border-radius: 10px; margin-top: 2rem;">
     <p style="margin: 0; color: #6c757d; font-size: 0.9rem;">
-        <strong>PhysioKit v1.0</strong> | Professional HRV & BRS Analysis Platform<br>
+        <strong>PhysioKit v1.2</strong> | Professional HRV & BRS Analysis Platform<br>
         Built with Streamlit • Enhanced User Experience • Advanced Peak Detection • Time Window Selection
     </p>
 </div>
