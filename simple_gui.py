@@ -27,6 +27,52 @@ from scipy.interpolate import interp1d
 from scipy.signal import welch
 from functions import *
 # EDF support with graceful fallback
+
+# Professional color constants
+COLORS = {
+    'primary': '#2563eb',
+    'secondary': '#64748b', 
+    'success': '#059669',
+    'warning': '#d97706',
+    'danger': '#dc2626',
+    'ecg': '#3498db',
+    'bp': '#e74c3c',
+    'rr': '#9b59b6',
+    'background': 'rgba(248,249,250,0.8)',
+    'grid': 'rgba(108,117,125,0.2)',
+    'window': 'rgba(255, 193, 7, 0.3)'
+}
+
+def apply_professional_layout(fig, title, xaxis_title, yaxis_title, height=500):
+    """Apply consistent professional styling to all plots"""
+    fig.update_layout(
+        title=dict(
+            text=title,
+            font=dict(size=16, weight=600, family="Inter"),
+            x=0.5,
+            xanchor='center'
+        ),
+        xaxis=dict(
+            title=dict(text=xaxis_title, font=dict(size=12, weight=500)),
+            gridcolor=COLORS['grid'],
+            showgrid=True,
+            zeroline=False
+        ),
+        yaxis=dict(
+            title=dict(text=yaxis_title, font=dict(size=12, weight=500)),
+            gridcolor=COLORS['grid'],
+            showgrid=True,
+            zeroline=False
+        ),
+        plot_bgcolor=COLORS['background'],
+        paper_bgcolor='white',
+        font=dict(family="Inter, sans-serif", size=11),
+        height=height,
+        margin=dict(l=60, r=60, t=60, b=60),
+        hovermode='x unified'
+    )
+    return fig
+
 try:
     import pyedflib
     EDF_AVAILABLE = True
@@ -1162,30 +1208,45 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                     rr_intervals = st.session_state.analyzer.ecg_data['rr_intervals']
                     time_points = st.session_state.analyzer.ecg_data['td_peaks'][:-1]
                     
+                    # Enhanced RR intervals trace
                     fig.add_trace(go.Scatter(
                         x=time_points,
                         y=rr_intervals,
                         mode='lines+markers',
                         name='RR Intervals',
-                        line=dict(color='#667eea', width=2),
-                        marker=dict(size=4, color='#764ba2')
+                        line=dict(color=COLORS['rr'], width=2.5),
+                        marker=dict(size=4, color=COLORS['rr'], opacity=0.8),
+                        hovertemplate='<b>Time:</b> %{x:.1f}s<br><b>RR:</b> %{y:.1f}ms<extra></extra>'
                     ))
                     
-                    # Highlight analysis window
+                    # Highlight analysis window with professional styling
                     if 'time_window' in st.session_state:
                         tw = st.session_state.time_window
                         fig.add_vrect(
                             x0=tw['start_time'], x1=tw['end_time'],
-                            fillcolor="rgba(255, 193, 7, 0.3)", opacity=0.8,
-                            annotation_text="Analysis Window", annotation_position="top left"
+                            fillcolor=COLORS['window'], opacity=0.6,
+                            line=dict(color=COLORS['warning'], width=2),
+                            annotation_text="Analysis Window", 
+                            annotation_position="top left",
+                            annotation=dict(font=dict(size=12, color=COLORS['warning']))
                         )
                     
-                    # Enhanced metrics panel
+                    # Enhanced statistics reference lines
                     mean_rr = np.mean(rr_intervals)
                     std_rr = np.std(rr_intervals)
                     
-                    metrics_text = "<b>📊 HRV Metrics</b><br><br>"
+                    fig.add_hline(y=mean_rr, line_dash="dash", line_color=COLORS['success'], 
+                                line_width=2, opacity=0.8,
+                                annotation_text=f"Mean: {mean_rr:.1f}ms")
+                    fig.add_hline(y=mean_rr + std_rr, line_dash="dot", line_color=COLORS['secondary'], 
+                                line_width=1.5, opacity=0.6,
+                                annotation_text=f"+1σ: {mean_rr + std_rr:.1f}ms")
+                    fig.add_hline(y=mean_rr - std_rr, line_dash="dot", line_color=COLORS['secondary'], 
+                                line_width=1.5, opacity=0.6,
+                                annotation_text=f"-1σ: {mean_rr - std_rr:.1f}ms")
                     
+                    # Keep your existing metrics panel (unchanged)
+                    metrics_text = "<b>📊 HRV Metrics</b><br><br>"
                     if 'time_domain' in st.session_state.analyzer.results:
                         td = st.session_state.analyzer.results['time_domain']
                         if 'error' not in td:
@@ -1203,18 +1264,21 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                     fig.add_annotation(
                         x=1.02, y=1.0, xref="paper", yref="paper",
                         text=metrics_text, showarrow=False,
-                        font=dict(family="Arial", size=11, color="black"),
-                        align="left", bgcolor="rgba(248, 249, 250, 0.95)",
-                        bordercolor="rgba(108, 117, 125, 0.5)", borderwidth=1, borderpad=10,
+                        font=dict(family="Inter", size=11, color="#1e293b"),
+                        align="left", bgcolor="rgba(255, 255, 255, 0.95)",
+                        bordercolor="rgba(108, 117, 125, 0.3)", borderwidth=1, borderpad=15,
                         xanchor="left", yanchor="top"
                     )
                     
-                    fig.update_layout(
-                        title=f'Heart Rate Variability Analysis (Mean: {mean_rr:.1f}±{std_rr:.1f} ms)',
-                        xaxis_title='Time (s)', yaxis_title='RR Interval (ms)',
-                        hovermode='x unified', height=600, margin=dict(r=250),
-                        plot_bgcolor='rgba(248,249,250,0.8)'
+                    # Apply professional layout
+                    fig = apply_professional_layout(
+                        fig, 
+                        f'Heart Rate Variability Analysis (μ={mean_rr:.1f}±{std_rr:.1f}ms)',
+                        'Time (seconds)', 
+                        'RR Interval (ms)', 
+                        height=600
                     )
+                    fig.update_layout(margin=dict(r=280))  # Space for metrics panel
                     
                     st.plotly_chart(fig, use_container_width=True)
                     close_plot_section()
@@ -1228,34 +1292,65 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                     freq_data = st.session_state.analyzer.results['frequency_domain']
                     
                     if 'error' not in freq_data:
-                        fig, ax = plt.subplots(figsize=(12, 6))
+                        # Enhanced matplotlib styling
+                        plt.style.use('default')
+                        plt.rcParams.update({
+                            'font.family': 'sans-serif',
+                            'font.size': 11,
+                            'axes.titlesize': 16,
+                            'axes.titleweight': 'bold',
+                            'axes.labelsize': 12,
+                            'axes.labelweight': '500',
+                            'axes.facecolor': '#f8f9fa',
+                            'figure.facecolor': 'white'
+                        })
+                        
+                        fig, ax = plt.subplots(figsize=(14, 7))
                         
                         frequencies = freq_data['frequencies']
                         psd = freq_data['psd']
                         
-                        ax.plot(frequencies, psd * 1e6, 'b-', linewidth=2, label='PSD', color='#667eea')
-                        
-                        # Highlight frequency bands with better colors
+                        # Professional frequency bands with better colors
+                        vlf_band = (frequencies >= 0.003) & (frequencies < 0.04)
                         lf_band = (frequencies >= 0.04) & (frequencies < 0.15)
                         hf_band = (frequencies >= 0.15) & (frequencies < 0.4)
-                        vlf_band = (frequencies >= 0.003) & (frequencies < 0.04)
                         
+                        # Fill frequency bands first
                         ax.fill_between(frequencies[vlf_band], psd[vlf_band] * 1e6, 
-                                       color='#95a5a6', alpha=0.4, label='VLF (0.003-0.04 Hz)')
+                                    color='#95a5a6', alpha=0.4, label='VLF (0.003-0.04 Hz)')
                         ax.fill_between(frequencies[lf_band], psd[lf_band] * 1e6, 
-                                       color='#3498db', alpha=0.5, label='LF (0.04-0.15 Hz)')
+                                    color='#3498db', alpha=0.5, label='LF (0.04-0.15 Hz)')
                         ax.fill_between(frequencies[hf_band], psd[hf_band] * 1e6, 
-                                       color='#e74c3c', alpha=0.5, label='HF (0.15-0.4 Hz)')
+                                    color='#e74c3c', alpha=0.5, label='HF (0.15-0.4 Hz)')
                         
-                        ax.set_xlabel('Frequency (Hz)', fontsize=12, fontweight='bold')
-                        ax.set_ylabel('Power Spectral Density (ms²/Hz)', fontsize=12, fontweight='bold')
-                        ax.set_title('HRV Frequency Domain Analysis', fontsize=14, fontweight='bold')
+                        # Main PSD line on top
+                        ax.plot(frequencies, psd * 1e6, color='#2c3e50', linewidth=2.5, 
+                                label='PSD', alpha=0.9, zorder=10)
+                        
+                        # Professional styling
+                        ax.set_xlabel('Frequency (Hz)', fontsize=12, fontweight='500')
+                        ax.set_ylabel('Power Spectral Density (ms²/Hz)', fontsize=12, fontweight='500')
+                        ax.set_title('Heart Rate Variability - Frequency Domain Analysis', 
+                                    fontsize=16, fontweight='bold', pad=20)
                         ax.set_xlim(0, 0.5)
-                        ax.legend(loc='center right')
-                        ax.grid(True, alpha=0.3)
-                        ax.set_facecolor('#f8f9fa')
                         
-                        # Enhanced power values text box
+                        # Enhanced legend
+                        legend = ax.legend(loc='upper right', frameon=True, fancybox=True, 
+                                        shadow=True, fontsize=10)
+                        legend.get_frame().set_facecolor('white')
+                        legend.get_frame().set_alpha(0.9)
+                        
+                        # Professional grid
+                        ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
+                        ax.set_axisbelow(True)
+                        
+                        # Remove top and right spines
+                        ax.spines['top'].set_visible(False)
+                        ax.spines['right'].set_visible(False)
+                        ax.spines['left'].set_linewidth(0.8)
+                        ax.spines['bottom'].set_linewidth(0.8)
+                        
+                        # Keep your existing power values text box (unchanged)
                         power_text = (f"VLF: {freq_data['vlf_power']:.2f} ms²\n"
                                     f"LF: {freq_data['lf_power']:.2f} ms²\n"
                                     f"HF: {freq_data['hf_power']:.2f} ms²\n"
@@ -1264,9 +1359,11 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                                     f"LF n.u.: {freq_data['lf_nu']:.2f}\n"
                                     f"HF n.u.: {freq_data['hf_nu']:.2f}")
                         
-                        ax.text(0.98, 0.98, power_text, transform=ax.transAxes, 
-                               verticalalignment='top', horizontalalignment='right',
-                               bbox=dict(boxstyle='round,pad=0.5', facecolor='white', alpha=0.9, edgecolor='#dee2e6'))
+                        ax.text(0.02, 0.98, power_text, transform=ax.transAxes, 
+                            verticalalignment='top', horizontalalignment='left',
+                            bbox=dict(boxstyle='round,pad=0.8', facecolor='white', 
+                                        alpha=0.95, edgecolor='#dee2e6', linewidth=1),
+                            fontsize=11, fontweight='500')
                         
                         plt.tight_layout()
                         st.pyplot(fig)
@@ -1281,7 +1378,19 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                         "Nonlinear analysis of heart rate variability patterns"
                     )
                     
-                    fig, ax = plt.subplots(figsize=(10, 8))
+                    # Enhanced matplotlib styling for Poincaré
+                    plt.rcParams.update({
+                        'font.family': 'sans-serif',
+                        'font.size': 11,
+                        'axes.titlesize': 16,
+                        'axes.titleweight': 'bold',
+                        'axes.labelsize': 12,
+                        'axes.labelweight': '500',
+                        'axes.facecolor': '#f8f9fa',
+                        'figure.facecolor': 'white'
+                    })
+                    
+                    fig, ax = plt.subplots(figsize=(11, 9))
                     
                     RRDistance_ms = st.session_state.analyzer.ecg_data['rr_intervals']
                     RRIplusOne = Poincare(RRDistance_ms)
@@ -1296,47 +1405,72 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                     theta = np.degrees(np.arctan(slope))
                     theta_rad = np.radians(theta)
                     
-                    # Enhanced scatter plot
-                    ax.scatter(np.delete(RRDistance_ms, -1), RRIplusOne, 
-                              alpha=0.7, s=25, color='#667eea', edgecolors='white', linewidth=0.5)
+                    # Enhanced scatter plot with better styling
+                    scatter = ax.scatter(np.delete(RRDistance_ms, -1), RRIplusOne, 
+                                        alpha=0.7, s=30, c='#667eea', edgecolors='white', 
+                                        linewidth=0.5, zorder=5)
                     
-                    # Enhanced regression line
+                    # Professional identity line
                     ax.plot(np.delete(RRDistance_ms, -1), p(np.delete(RRDistance_ms, -1)), 
-                           color="#e74c3c", linewidth=3, label='Identity Line', alpha=0.8)
+                        color="#e74c3c", linewidth=3, label='Identity Line', 
+                        alpha=0.9, zorder=10)
                     
-                    # Get SD values
+                    # Get SD values and draw enhanced ellipse
                     if 'time_domain' in st.session_state.analyzer.results:
                         td_results = st.session_state.analyzer.results['time_domain']
                         sd1 = td_results['sd1']
                         sd2 = td_results['sd2']
                         
-                        # Enhanced ellipse
+                        # Enhanced ellipse with professional styling
                         from matplotlib.patches import Ellipse
                         e = Ellipse(xy=Center_coords, width=sd2*2, height=sd1*2, angle=theta,
-                                    edgecolor='#2c3e50', facecolor='none', linewidth=2, alpha=0.8)
+                                    edgecolor='#2c3e50', facecolor='none', linewidth=2.5, 
+                                    alpha=0.8, linestyle='-', zorder=8)
                         ax.add_patch(e)
                         
-                        # Enhanced axis lines
+                        # Enhanced axis lines with better colors
                         x_sd2 = [EllipseCenterX, EllipseCenterX + sd2 * np.cos(theta_rad)]
                         y_sd2 = [EllipseCenterY, EllipseCenterY + sd2 * np.sin(theta_rad)]
-                        ax.plot(x_sd2, y_sd2, color='#3498db', linewidth=3, label='SD2 (Long-term)', alpha=0.9)
+                        ax.plot(x_sd2, y_sd2, color='#3498db', linewidth=3.5, 
+                                label='SD2 (Long-term)', alpha=0.9, zorder=9)
                         
                         x_sd1 = [EllipseCenterX, EllipseCenterX - sd1 * np.sin(theta_rad)]
                         y_sd1 = [EllipseCenterY, EllipseCenterY + sd1 * np.cos(theta_rad)]
-                        ax.plot(x_sd1, y_sd1, color='#27ae60', linewidth=3, label='SD1 (Short-term)', alpha=0.9)
+                        ax.plot(x_sd1, y_sd1, color='#27ae60', linewidth=3.5, 
+                                label='SD1 (Short-term)', alpha=0.9, zorder=9)
                         
-                        # Enhanced text box
+                        # Keep your existing text box (unchanged)
                         textstr = f'SD1 = {sd1:.1f} ms\nSD2 = {sd2:.1f} ms\nSD1/SD2 = {sd1/sd2:.3f}\nEllipse Area = {td_results["ellipse_area"]:.1f} ms²'
-                        ax.text(0.05, 0.95, textstr, transform=ax.transAxes, verticalalignment='top',
-                                bbox=dict(boxstyle='round,pad=0.5', facecolor='white', alpha=0.9, edgecolor='#dee2e6'),
-                                fontsize=11, fontweight='bold')
+                        ax.text(0.05, 0.95, textstr, transform=ax.transAxes, 
+                                verticalalignment='top',
+                                bbox=dict(boxstyle='round,pad=0.8', facecolor='white', 
+                                        alpha=0.95, edgecolor='#dee2e6', linewidth=1),
+                                fontsize=12, fontweight='500')
                     
-                    ax.set_xlabel("RR Interval (ms)", fontsize=12, fontweight='bold')
-                    ax.set_ylabel("RR Interval + 1 (ms)", fontsize=12, fontweight='bold')
-                    ax.set_title('Poincaré Plot - Nonlinear HRV Analysis', fontsize=14, fontweight='bold')
-                    ax.grid(True, alpha=0.3)
-                    ax.legend(loc='upper right')
-                    ax.set_facecolor('#f8f9fa')
+                    # Professional styling
+                    ax.set_xlabel("RR Interval (ms)", fontsize=12, fontweight='500')
+                    ax.set_ylabel("RR Interval + 1 (ms)", fontsize=12, fontweight='500')
+                    ax.set_title('Poincaré Plot - Nonlinear HRV Analysis', 
+                                fontsize=16, fontweight='bold', pad=20)
+                    
+                    # Enhanced grid and spines
+                    ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
+                    ax.set_axisbelow(True)
+                    
+                    # Remove top and right spines
+                    ax.spines['top'].set_visible(False)
+                    ax.spines['right'].set_visible(False)
+                    ax.spines['left'].set_linewidth(0.8)
+                    ax.spines['bottom'].set_linewidth(0.8)
+                    
+                    # Enhanced legend
+                    legend = ax.legend(loc='upper right', frameon=True, fancybox=True, 
+                                    shadow=True, fontsize=11)
+                    legend.get_frame().set_facecolor('white')
+                    legend.get_frame().set_alpha(0.9)
+                    
+                    # Equal aspect ratio for proper ellipse display
+                    ax.set_aspect('equal', adjustable='box')
                     
                     plt.tight_layout()
                     st.pyplot(fig)
