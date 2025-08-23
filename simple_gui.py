@@ -48,18 +48,90 @@ st.set_page_config(
 # Professional CSS styling
 st.markdown("""
 <style>
-    /* Main header styling */
+    /* Import professional font */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    /* Root variables for consistent theming */
+    :root {
+        --primary: #2563eb;
+        --primary-dark: #1d4ed8;
+        --secondary: #64748b;
+        --success: #059669;
+        --warning: #d97706;
+        --danger: #dc2626;
+        --surface: #ffffff;
+        --surface-alt: #f8fafc;
+        --border: #e2e8f0;
+        --text: #1e293b;
+        --text-muted: #64748b;
+        --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+        --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    }
+    
+    /* FORCE LIGHT MODE - NUCLEAR OPTION */
+    *, *::before, *::after {
+        color-scheme: light !important;
+    }
+    
+    html[data-theme="dark"], 
+    body[data-theme="dark"],
+    .stApp[data-theme="dark"] {
+        color-scheme: light !important;
+        background-color: var(--surface) !important;
+        color: var(--text) !important;
+    }
+    
+    /* Force sidebar to light theme */
+    .css-1d391kg, .css-17eq0hr, .css-1lcbmhc, .css-1cypcdb,
+    [data-testid="stSidebar"], [data-testid="stSidebar"] > div,
+    .css-1544g2n, .sidebar .sidebar-content,
+    section[data-testid="stSidebar"] {
+        background-color: var(--surface-alt) !important;
+        color: var(--text) !important;
+    }
+    
+    /* Force ALL text elements */
+    [data-testid="stSidebar"] *, 
+    .css-1d391kg *,
+    .sidebar-section *,
+    .stSelectbox *,
+    .stSlider *,
+    .stExpander *,
+    .stMarkdown * {
+        color: var(--text) !important;
+        background-color: transparent !important;
+    }
+    
+    /* Force input elements */
+    input, textarea, select, option {
+        background-color: var(--surface) !important;
+        color: var(--text) !important;
+        border-color: var(--border) !important;
+    }
+    
+    /* Override Streamlit app defaults */
+    .stApp {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%) !important;
+        color: var(--text) !important;
+        color-scheme: light !important;
+    }
+
+    /* Professional glassmorphism header */
     .main-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 2rem;
-        border-radius: 15px;
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.95) 0%, rgba(79, 70, 229, 0.95) 100%) !important;
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: white !important;
+        padding: 2.5rem;
+        border-radius: 16px;
         margin-bottom: 2rem;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        box-shadow: var(--shadow-lg);
         text-align: center;
     }
     
     .main-header h1 {
-        color: white;
+        color: white !important;
         margin: 0;
         font-size: 2.5rem;
         font-weight: 700;
@@ -67,154 +139,182 @@ st.markdown("""
     }
     
     .main-header p {
-        color: #f0f0f0;
+        color: rgba(255, 255, 255, 0.9) !important;
         margin: 0.5rem 0 0 0;
         font-size: 1.2rem;
-        opacity: 0.9;
     }
     
     .version-info {
-        color: #d0d0d0;
+        color: rgba(255, 255, 255, 0.8) !important;
         font-size: 0.9rem;
         margin-top: 0.5rem;
-        opacity: 0.8;
     }
     
-    /* Status indicator styling */
+    /* Clean status container */
     .status-container {
-        background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);
-        padding: 1rem;
-        border-radius: 10px;
-        margin: 1rem 0;
-        border: 1px solid #dee2e6;
+        background: var(--surface);
+        padding: 1.5rem;
+        border-radius: 12px;
+        margin: 1.5rem 0;
+        border: 1px solid var(--border);
+        box-shadow: var(--shadow);
     }
     
     .status-item {
         text-align: center;
-        padding: 0.5rem;
+        padding: 1rem;
+        background: var(--surface-alt);
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        transition: all 0.2s ease;
     }
     
-    .status-success {
-        color: #28a745;
-        font-weight: bold;
-        font-size: 0.9rem;
+    .status-item:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow);
     }
     
-    .status-warning {
-        color: #fd7e14;
-        font-weight: bold;
-        font-size: 0.9rem;
-    }
+    .status-success { color: var(--success); font-weight: 600; font-size: 0.9rem; }
+    .status-warning { color: var(--warning); font-weight: 600; font-size: 0.9rem; }
+    .status-info { color: var(--primary); font-weight: 600; font-size: 0.9rem; }
+    .status-pending { color: var(--secondary); font-weight: 600; font-size: 0.9rem; }
     
-    .status-info {
-        color: #17a2b8;
-        font-weight: bold;
-        font-size: 0.9rem;
-    }
-    
-    .status-pending {
-        color: #6c757d;
-        font-weight: bold;
-        font-size: 0.9rem;
-    }
-    
-    /* Enhanced metric cards */
+    /* Kubios-style metric cards */
     .metric-card {
-        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        background: var(--surface);
         padding: 1.5rem;
         border-radius: 12px;
-        border-left: 5px solid #007bff;
-        margin: 0.5rem 0;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
-        transition: transform 0.2s ease;
+        border-left: 4px solid var(--primary);
+        margin: 1rem 0;
+        box-shadow: var(--shadow);
+        transition: all 0.2s ease;
+        border: 1px solid var(--border);
     }
     
     .metric-card:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        box-shadow: var(--shadow-lg);
+        border-left-color: var(--primary-dark);
     }
     
-    /* Sidebar styling */
+    .metric-card h4 {
+        color: var(--text);
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+    
+    .metric-card p {
+        color: var(--text);
+        margin: 0.5rem 0;
+        font-weight: 500;
+    }
+    
+    /* Professional sidebar */
     .sidebar-section {
-        background: #f8f9fa;
-        padding: 1rem;
-        border-radius: 8px;
-        margin: 1rem 0;
-        border: 1px solid #e9ecef;
-    }
-    
-    /* Progress styling */
-    .progress-container {
-        background: white;
-        padding: 1.5rem;
+        background: var(--surface);
+        padding: 1.25rem;
         border-radius: 10px;
-        border: 1px solid #e9ecef;
         margin: 1rem 0;
+        border: 1px solid var(--border);
+        box-shadow: var(--shadow);
     }
     
-    /* Analysis window highlight */
+    /* Clean progress styling */
+    .progress-container {
+        background: var(--surface);
+        padding: 2rem;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        margin: 1.5rem 0;
+        box-shadow: var(--shadow);
+    }
+    
+    /* Professional info boxes */
     .window-info {
-        background: linear-gradient(90deg, #fff3cd 0%, #ffeaa7 100%);
-        padding: 1rem;
-        border-radius: 8px;
-        border-left: 4px solid #ffc107;
+        background: linear-gradient(90deg, rgba(234, 179, 8, 0.1) 0%, rgba(251, 191, 36, 0.1) 100%);
+        padding: 1.25rem;
+        border-radius: 10px;
+        border-left: 4px solid var(--warning);
         margin: 1rem 0;
+        border: 1px solid rgba(234, 179, 8, 0.2);
     }
     
-    /* Button styling */
+    /* Clean button styling */
     .stButton > button {
         border-radius: 8px;
-        border: none;
-        padding: 0.5rem 1rem;
+        border: 1px solid var(--border);
+        padding: 0.75rem 1.5rem;
         font-weight: 600;
-        transition: all 0.3s ease;
+        font-family: 'Inter', sans-serif;
+        transition: all 0.2s ease;
+        background: var(--surface);
+        color: var(--text);
     }
     
     .stButton > button:hover {
         transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        box-shadow: var(--shadow);
+        background: var(--primary);
+        color: white;
+        border-color: var(--primary);
     }
     
-    /* Results area styling */
+    /* Professional results header */
     .results-header {
-        background: linear-gradient(90deg, #e8f5e8 0%, #d4edda 100%);
-        padding: 1rem;
-        border-radius: 8px;
-        border-left: 4px solid #28a745;
-        margin-bottom: 1rem;
-    }
-    
-    /* Plot section styling */
-    .plot-section {
-        background: white;
+        background: linear-gradient(90deg, rgba(5, 150, 105, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%);
         padding: 1.5rem;
         border-radius: 12px;
-        border: 1px solid #e9ecef;
-        margin: 1rem 0;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        border-left: 4px solid var(--success);
+        margin-bottom: 1.5rem;
+        border: 1px solid rgba(5, 150, 105, 0.2);
+        box-shadow: var(--shadow);
     }
     
-    /* Error/warning styling */
-    .error-box {
-        background: linear-gradient(90deg, #f8d7da 0%, #f5c6cb 100%);
-        padding: 1rem;
-        border-radius: 8px;
-        border-left: 4px solid #dc3545;
+    /* Clean plot sections */
+    .plot-section {
+        background: var(--surface);
+        padding: 1.5rem;
+        border-radius: 12px;
+        border: 1px solid var(--border);
         margin: 1rem 0;
+        box-shadow: var(--shadow);
+    }
+    
+    .plot-section h3 {
+        color: var(--text);
+        font-weight: 600;
+        margin-top: 0;
+    }
+    
+    /* Professional error/warning styling */
+    .error-box {
+        background: linear-gradient(90deg, rgba(220, 38, 38, 0.1) 0%, rgba(239, 68, 68, 0.1) 100%);
+        padding: 1.25rem;
+        border-radius: 10px;
+        border-left: 4px solid var(--danger);
+        margin: 1rem 0;
+        border: 1px solid rgba(220, 38, 38, 0.2);
+        color: var(--text);
     }
     
     .warning-box {
-        background: linear-gradient(90deg, #fff3cd 0%, #ffeaa7 100%);
-        padding: 1rem;
-        border-radius: 8px;
-        border-left: 4px solid #ffc107;
+        background: linear-gradient(90deg, rgba(234, 179, 8, 0.1) 0%, rgba(251, 191, 36, 0.1) 100%);
+        padding: 1.25rem;
+        border-radius: 10px;
+        border-left: 4px solid var(--warning);
         margin: 1rem 0;
+        border: 1px solid rgba(234, 179, 8, 0.2);
+        color: var(--text);
     }
     
     /* Hide streamlit branding */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
+    
+    /* Force all text to use our color scheme */
+    h1, h2, h3, h4, h5, h6 { color: var(--text) !important; }
+    p, span, div, label { color: var(--text) !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -428,6 +528,47 @@ def close_plot_section():
     """Close the plot section div"""
     st.markdown('</div>', unsafe_allow_html=True)
 
+def auto_scale_peak_parameters(analyzer):
+    """Automatically calculate optimal peak detection parameters"""
+    auto_params = {}
+    
+    try:
+        # ECG Auto-scaling
+        if hasattr(analyzer, 'ecg_data') and analyzer.ecg_data and 'raw' in analyzer.ecg_data:
+            ecg_signal = analyzer.ecg_data['raw']
+            ecg_max = np.max(ecg_signal)
+            ecg_range = ecg_max - np.min(ecg_signal)
+            
+            auto_params['ecg_height'] = max(0.1, ecg_max * 0.8)
+            auto_params['ecg_prominence'] = max(0.1, ecg_range * 0.25)
+            auto_params['ecg_distance'] = 100
+        else:
+            auto_params['ecg_height'] = 0.8
+            auto_params['ecg_prominence'] = 0.7
+            auto_params['ecg_distance'] = 100
+        
+        # BP Auto-scaling 
+        if hasattr(analyzer, 'bp_data') and analyzer.bp_data and 'raw' in analyzer.bp_data:
+            bp_signal = analyzer.bp_data['raw']
+            bp_max = np.max(bp_signal)
+            bp_range = bp_max - np.min(bp_signal)
+            bp_mean = np.mean(bp_signal)
+            
+            auto_params['bp_height'] = max(80, bp_mean + (bp_range * 0.3))
+            auto_params['bp_prominence'] = max(1, bp_range * 0.15)
+            auto_params['bp_distance'] = 100
+        else:
+            auto_params['bp_height'] = 110
+            auto_params['bp_prominence'] = 5
+            auto_params['bp_distance'] = 100
+        
+        return auto_params, True, "Auto-scale successful"
+        
+    except Exception as e:
+        return {
+            'ecg_height': 0.8, 'ecg_prominence': 0.7, 'ecg_distance': 100,
+            'bp_height': 110, 'bp_prominence': 5, 'bp_distance': 100
+        }, False, f"Auto-scale failed: {str(e)}"
 # ============================================================================
 # MAIN APPLICATION
 # ============================================================================
@@ -691,19 +832,68 @@ with st.sidebar:
         # Peak Detection Parameters
         st.markdown("## 🎛️ Peak Detection")
         st.markdown('<div class="sidebar-section">', unsafe_allow_html=True)
-        
+
+        # Auto-scale button
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            st.markdown("**Parameter Settings:**")
+        with col2:
+            if st.button("🎯 Auto-Scale", help="Automatically calculate optimal parameters based on your signals", use_container_width=True):
+                with st.spinner("Calculating optimal parameters..."):
+                    auto_params, success, message = auto_scale_peak_parameters(st.session_state.analyzer)
+                    
+                    if success:
+                        # Force update session state
+                        st.session_state.ecg_height = auto_params['ecg_height']
+                        st.session_state.ecg_prominence = auto_params['ecg_prominence'] 
+                        st.session_state.ecg_distance = auto_params['ecg_distance']
+                        st.session_state.bp_height = auto_params['bp_height']
+                        st.session_state.bp_prominence = auto_params['bp_prominence']
+                        st.session_state.bp_distance = auto_params['bp_distance']
+                        #Force Reset
+                        st.session_state.force_slider_reset = True
+                    
+                        st.success(f"✅ {message}")
+                        st.info(f"📊 **Auto-calculated parameters:**\n"
+                            f"• ECG Height: {auto_params['ecg_height']:.2f}\n" 
+                            f"• ECG Prominence: {auto_params['ecg_prominence']:.2f}\n"
+                            f"• BP Height: {auto_params['bp_height']:.1f} mmHg\n"
+                            f"• BP Prominence: {auto_params['bp_prominence']:.1f}")
+                        st.rerun()
+                    else:
+                        st.warning(f"⚠️ {message}")
+
         # ECG Parameters
         with st.expander("⚡ ECG R-peak Detection", expanded=True):
-            ecg_height = st.slider("Height Threshold", 0.1, 2.0, 0.8, 0.1, help="Minimum R-peak amplitude")
-            ecg_distance = st.slider("Min Distance", 50, 200, 100, 10, help="Min samples between peaks")
-            ecg_prominence = st.slider("Prominence", 0.1, 1.5, 0.7, 0.1, help="Peak prominence")
-        
+            #Check for reset
+            if st.session_state.get('force_slider_reset', False):
+                ecg_height_default = st.session_state.get('ecg_height', 0.8)
+                ecg_distance_default = st.session_state.get('ecg_distance', 100)
+                ecg_prominence_default = st.session_state.get('ecg_prominence', 0.7)
+            else:
+                ecg_height_default = st.session_state.get('ecg_height', 0.8)
+                ecg_distance_default = st.session_state.get('ecg_distance', 100)
+                ecg_prominence_default = st.session_state.get('ecg_prominence', 0.7)
+
+            ecg_height = st.slider("Height Threshold", 0.1, 2.0, ecg_height_default, 0.1, help="Minimum R-peak amplitude")
+            ecg_distance = st.slider("Min Distance", 50, 200, ecg_distance_default, 10, help="Min samples between peaks")
+            ecg_prominence = st.slider("Prominence", 0.1, 1.5, ecg_prominence_default, 0.1, help="Peak prominence")
+    
         # BP Parameters
         with st.expander("🩸 BP Systolic Detection", expanded=True):
-            bp_height = st.slider("BP Height (mmHg)", 80, 150, 110, 5, help="Min systolic pressure")
-            bp_distance = st.slider("BP Min Distance", 50, 200, 100, 10, help="Min samples between peaks")
-            bp_prominence = st.slider("BP Prominence", 1, 10, 5, 1, help="Peak prominence")
-        
+            if st.session_state.get('force_slider_reset', False):
+                bp_height_default = st.session_state.get('bp_height', 110)
+                bp_distance_default = st.session_state.get('bp_distance', 100)
+                bp_prominence_default = st.session_state.get('bp_prominence', 5)
+            else:
+                bp_height_default = st.session_state.get('bp_height', 110)
+                bp_distance_default = st.session_state.get('bp_distance', 100)
+                bp_prominence_default = st.session_state.get('bp_prominence', 5)
+                
+            bp_height = st.slider("BP Height (mmHg)", 80, 150, bp_height_default, 5, help="Min systolic pressure")
+            bp_distance = st.slider("BP Min Distance", 50, 200, bp_distance_default, 10, help="Min samples between peaks")
+            bp_prominence = st.slider("BP Prominence", 1, 10, bp_prominence_default, 1, help="Peak prominence")
+                
         st.session_state.peak_params = {
             'ecg_height': ecg_height,
             'ecg_distance': ecg_distance,
