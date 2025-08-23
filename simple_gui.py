@@ -2470,7 +2470,7 @@ else:
                 <div class="metric-card">
                     <h3>🎛️ Advanced Features</h3>
                     <ul style="margin: 0; padding-left: 1.2rem;">
-                        <li><strong>Multi-Format Support:</strong> {'ACQ, EDF, and BDF files' if EDF_AVAILABLE else 'ACQ files (EDF/BDF support available with pyedflib)'}</li>
+                        <li><strong>Multi-Format Support:</strong> 'ACQ and EDF files'</li>
                         <li><strong>Flexible Channel Selection:</strong> Choose ECG and BP from any channel order</li>
                         <li><strong>Smart Channel Detection:</strong> Automatic suggestions based on signal characteristics</li>
                         <li><strong>Single-Channel Analysis:</strong> ECG-only or BP-only analysis support</li>
