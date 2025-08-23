@@ -539,7 +539,7 @@ def auto_scale_peak_parameters(analyzer):
             ecg_max = np.max(ecg_signal)
             ecg_range = ecg_max - np.min(ecg_signal)
             
-            auto_params['ecg_height'] = max(0.1, ecg_max * 0.8)
+            auto_params['ecg_height'] = max(0.1, ecg_max * 0.7)
             auto_params['ecg_prominence'] = max(0.1, ecg_range * 0.25)
             auto_params['ecg_distance'] = 100
         else:
@@ -850,7 +850,9 @@ with st.sidebar:
                         st.session_state.bp_height = auto_params['bp_height']
                         st.session_state.bp_prominence = auto_params['bp_prominence']
                         st.session_state.bp_distance = auto_params['bp_distance']
-                        #Force Reset
+                        
+                        # Force slider reset by incrementing counter
+                        st.session_state.reset_counter = st.session_state.get('reset_counter', 0) + 1
                         st.session_state.force_slider_reset = True
                     
                         st.success(f"✅ {message}")
@@ -865,35 +867,38 @@ with st.sidebar:
 
         # ECG Parameters
         with st.expander("⚡ ECG R-peak Detection", expanded=True):
-            #Check for reset
+            # Check for reset and clear flag
             if st.session_state.get('force_slider_reset', False):
-                ecg_height_default = st.session_state.get('ecg_height', 0.8)
-                ecg_distance_default = st.session_state.get('ecg_distance', 100)
-                ecg_prominence_default = st.session_state.get('ecg_prominence', 0.7)
-            else:
-                ecg_height_default = st.session_state.get('ecg_height', 0.8)
-                ecg_distance_default = st.session_state.get('ecg_distance', 100)
-                ecg_prominence_default = st.session_state.get('ecg_prominence', 0.7)
+                st.session_state.force_slider_reset = False  # Clear the flag immediately
+            
+            ecg_height_default = st.session_state.get('ecg_height', 0.8)
+            ecg_distance_default = st.session_state.get('ecg_distance', 100)
+            ecg_prominence_default = st.session_state.get('ecg_prominence', 0.7)
 
-            ecg_height = st.slider("Height Threshold", 0.1, 2.0, ecg_height_default, 0.1, help="Minimum R-peak amplitude")
-            ecg_distance = st.slider("Min Distance", 50, 200, ecg_distance_default, 10, help="Min samples between peaks")
-            ecg_prominence = st.slider("Prominence", 0.1, 1.5, ecg_prominence_default, 0.1, help="Peak prominence")
-    
+            # Force unique keys when resetting
+            reset_key = st.session_state.get('reset_counter', 0)
+            
+            ecg_height = st.slider("Height Threshold", 0.1, 2.0, ecg_height_default, 0.1, 
+                                key=f"ecg_height_{reset_key}", help="Minimum R-peak amplitude")
+            ecg_distance = st.slider("Min Distance", 50, 200, ecg_distance_default, 10, 
+                                    key=f"ecg_distance_{reset_key}", help="Min samples between peaks")
+            ecg_prominence = st.slider("Prominence", 0.1, 1.5, ecg_prominence_default, 0.1, 
+                                    key=f"ecg_prominence_{reset_key}", help="Peak prominence")
+
         # BP Parameters
         with st.expander("🩸 BP Systolic Detection", expanded=True):
-            if st.session_state.get('force_slider_reset', False):
-                bp_height_default = st.session_state.get('bp_height', 110)
-                bp_distance_default = st.session_state.get('bp_distance', 100)
-                bp_prominence_default = st.session_state.get('bp_prominence', 5)
-            else:
-                bp_height_default = st.session_state.get('bp_height', 110)
-                bp_distance_default = st.session_state.get('bp_distance', 100)
-                bp_prominence_default = st.session_state.get('bp_prominence', 5)
-                
-            bp_height = st.slider("BP Height (mmHg)", 80, 150, bp_height_default, 5, help="Min systolic pressure")
-            bp_distance = st.slider("BP Min Distance", 50, 200, bp_distance_default, 10, help="Min samples between peaks")
-            bp_prominence = st.slider("BP Prominence", 1, 10, bp_prominence_default, 1, help="Peak prominence")
-                
+            bp_height_default = st.session_state.get('bp_height', 110)
+            bp_distance_default = st.session_state.get('bp_distance', 100)
+            bp_prominence_default = st.session_state.get('bp_prominence', 5)
+            
+            reset_key = st.session_state.get('reset_counter', 0)
+            
+            bp_height = st.slider("BP Height (mmHg)", 80, 150, bp_height_default, 5, 
+                                key=f"bp_height_{reset_key}", help="Min systolic pressure")
+            bp_distance = st.slider("BP Min Distance", 50, 200, bp_distance_default, 10, 
+                                key=f"bp_distance_{reset_key}", help="Min samples between peaks")
+            bp_prominence = st.slider("BP Prominence", 1, 10, bp_prominence_default, 1, 
+                                    key=f"bp_prominence_{reset_key}", help="Peak prominence")
         st.session_state.peak_params = {
             'ecg_height': ecg_height,
             'ecg_distance': ecg_distance,
@@ -902,8 +907,8 @@ with st.sidebar:
             'bp_distance': bp_distance,
             'bp_prominence': bp_prominence
         }
-        
-        # Preview button with enhanced styling
+
+        # Enhanced preview button
         if st.button("🔍 Preview Detection", use_container_width=True, type="secondary"):
             with st.spinner("Updating peak detection..."):
                 try:
@@ -913,7 +918,7 @@ with st.sidebar:
                     st.rerun()
                 except Exception as e:
                     st.error(f"❌ Preview failed: {str(e)}")
-        
+
         st.markdown('</div>', unsafe_allow_html=True)
     
     # Plot Selection (only if analyzed)
