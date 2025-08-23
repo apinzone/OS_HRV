@@ -86,7 +86,7 @@ except ImportError:
 
 st.set_page_config(
     page_title="PhysioKit - HRV & BRS Analysis",
-    page_icon="🫀",
+    page_icon="⚡",  
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -610,9 +610,11 @@ def auto_scale_peak_parameters(analyzer):
             bp_max = np.max(bp_signal)
             bp_range = bp_max - np.min(bp_signal)
             bp_mean = np.mean(bp_signal)
+            bp_std = np.std(bp_signal, ddof=1)
             
-            auto_params['bp_height'] = max(80, bp_mean + (bp_range * 0.3))
-            auto_params['bp_prominence'] = max(1, bp_range * 0.15)
+            auto_params['bp_height'] = int(max(80, bp_max * 0.6))  
+            calculated_prominence = max(2, bp_std * 0.5)
+            auto_params['bp_prominence'] = int(min(8, calculated_prominence))        
             auto_params['bp_distance'] = 100
         else:
             auto_params['bp_height'] = 110
@@ -1244,7 +1246,7 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                     
                     # Enhanced statistics reference lines
                     mean_rr = np.mean(rr_intervals)
-                    std_rr = np.std(rr_intervals)
+                    std_rr = np.std(rr_intervals,ddof=1)
                     
                     fig.add_hline(y=mean_rr, line_dash="dash", line_color=COLORS['success'], 
                                 line_width=2, opacity=0.8,
@@ -2295,7 +2297,7 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
         
         # Enhanced statistics
         mean_rr = np.mean(rr_intervals)
-        std_rr = np.std(rr_intervals)
+        std_rr = np.std(rr_intervals, ddof=1)
         min_rr = np.min(rr_intervals)
         max_rr = np.max(rr_intervals)
         
