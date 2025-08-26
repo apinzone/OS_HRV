@@ -100,6 +100,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
 # Professional CSS styling
 st.markdown("""
 <style>
@@ -396,28 +397,47 @@ if 'channels_configured' not in st.session_state:
 # HELPER FUNCTIONS
 # ============================================================================
 
+def get_base64_of_image(path):
+    """Convert image to base64 string for embedding in HTML"""
+    import base64
+    import os
+    
+    try:
+        # Check if file exists first
+        if not os.path.exists(path):
+            print(f"File not found: {path}")
+            print(f"Current working directory: {os.getcwd()}")
+            print(f"Files in directory: {os.listdir('.')}")
+            return ""
+            
+        with open(path, "rb") as img_file:
+            return base64.b64encode(img_file.read()).decode()
+    except Exception as e:
+        print(f"Error loading image {path}: {e}")
+        return ""
+
 def show_professional_header():
     """Display header with PNG logo"""
-    st.markdown("""
+    logo_b64 = get_base64_of_image("logo.png")
+    
+    if logo_b64:
+        logo_html = f'<img src="data:image/png;base64,{logo_b64}" style="width: 100%; height: 100%; object-fit: contain;" alt="ChronOS Logo"/>'
+    else:
+        # Fallback to clock emoji if image fails
+        logo_html = '<div style="font-size: 80px; color: white;">⏰</div>'
+    
+    st.markdown(f"""
     <div class="main-header">
         <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
             <div style="width: 115px; height: 115px; margin-right: 10px;">
-                <img src="data:image/png;base64,{}" 
-                     style="width: 100%; height: 100%; object-fit: contain;" 
-                     alt="ChronOS Logo"/>
+                {logo_html}
             </div>
             <h1 style="margin: 0; font-size: 48px;">ChronOS</h1>
         </div>
         <p>Professional HRV & Baroreflex Sensitivity Analysis Platform</p>
         <div class="version-info">Version 1.2 | Advanced Peak Detection | HRV and BRS Analysis</div>
     </div>
-    """.format(get_base64_of_image("logo.png")), unsafe_allow_html=True)
-
-def get_base64_of_image(path):
-    """Convert image to base64 string for embedding in HTML"""
-    import base64
-    with open(path, "rb") as img_file:
-        return base64.b64encode(img_file.read()).decode()
+    """, unsafe_allow_html=True)
     
 def show_analysis_status():
     """Display current analysis status with professional indicators"""
