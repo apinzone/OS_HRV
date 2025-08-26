@@ -84,13 +84,22 @@ except ImportError:
 # PAGE CONFIGURATION & STYLING
 # ============================================================================
 
+import base64
+
+def get_page_icon():
+    try:
+        with open("logo.png", "rb") as f:
+            data = base64.b64encode(f.read()).decode()
+        return f"data:image/png;base64,{data}"
+    except:
+        return "⚡"  
+
 st.set_page_config(
-    page_title="ChronOS - HRV & BRS Analysis",
-    page_icon="⚡",  
+    page_title="ChronOS - HRV & BRS Analysis", 
+    page_icon=get_page_icon(),
     layout="wide",
     initial_sidebar_state="expanded"
 )
-
 # Professional CSS styling
 st.markdown("""
 <style>
