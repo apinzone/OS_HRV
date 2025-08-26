@@ -200,7 +200,7 @@ st.markdown("""
     
     .version-info {
         color: rgba(255, 255, 255, 0.8) !important;
-        font-size: 0.9rem;
+        font-size: 1.1rem;
         margin-top: 0.5rem;
     }
     
