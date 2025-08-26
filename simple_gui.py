@@ -2472,63 +2472,57 @@ else:
     </div>
     """, unsafe_allow_html=True)
     
+    # Dark mode compatibility note
+    st.markdown("""
+    <div class="warning-box">
+        <strong>💡 Display Compatibility:</strong> For optimal viewing of dropdown menus and interactive elements, 
+        temporarily switch your system to light mode if text or plots appear unreadable.
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Add after the dark mode note in welcome screen
+
+
     # Enhanced feature showcase
     col1, col2 = st.columns([1, 1])
-    
+
     with col1:
         st.markdown("""
-                <div class="metric-card">
-                    <h3>🎛️ Advanced Features</h3>
-                    <ul style="margin: 0; padding-left: 1.2rem;">
-                        <li><strong>Multi-Format Support:</strong> 'ACQ and EDF files'</li>
-                        <li><strong>Flexible Channel Selection:</strong> Choose ECG and BP from any channel order</li>
-                        <li><strong>Smart Channel Detection:</strong> Automatic suggestions based on signal characteristics</li>
-                        <li><strong>Single-Channel Analysis:</strong> ECG-only or BP-only analysis support</li>
-                        <li><strong>Time Window Selection:</strong> Focus analysis on specific recording segments</li>
-                        <li><strong>Adjustable Peak Detection:</strong> Fine-tune ECG and BP peak identification</li>
-                        <li><strong>Real-time Preview:</strong> Validate settings before full analysis</li>
-                        <li><strong>Interactive Visualizations:</strong> Explore results with dynamic plots</li>
-                    </ul>
-                </div>
-                """, unsafe_allow_html=True)
-        
-        st.markdown("""
         <div class="metric-card">
-            <h3>📊 Analysis Capabilities</h3>
-            <ul style="margin: 0; padding-left: 1.2rem;">
-                <li><strong>Time Domain HRV:</strong> RMSSD, SDNN, pNN50, Poincaré analysis</li>
-                <li><strong>Frequency Domain:</strong> VLF, LF, HF power analysis</li>
-                <li><strong>Baroreflex Sensitivity:</strong> Sequence and spectral methods</li>
-                <li><strong>Professional Reports:</strong> Comprehensive analysis summaries</li>
+            <h3>Platform Capabilities</h3>
+            <ul style="margin: 0; padding-left: 1.2rem; line-height: 1.6;">
+                <li><strong>File Format Support:</strong> ACQ (AcqKnowledge) and EDF files</li>
+                <li><strong>Channel Configuration:</strong> Flexible ECG and BP channel selection</li>
+                <li><strong>Analysis Window:</strong> Customizable time segments for focused analysis</li>
+                <li><strong>Peak Detection:</strong> Adaptive parameter scaling with options for manual user adjustment</li>
             </ul>
         </div>
         """, unsafe_allow_html=True)
-    
+        
+        st.markdown("""
+        <div class="metric-card">
+            <h3>Analysis Methods</h3>
+            <ul style="margin: 0; padding-left: 1.2rem; line-height: 1.6;">
+                <li><strong>Time Domain:</strong> RMSSD, SDNN, pNN50</li>
+                <li><strong>Nonlinear:</strong> Poincaré analysis (SD1 and SD2), Sample Entropy</li>
+                <li><strong>Frequency Domain:</strong> VLF, LF, HF power spectral analysis</li>
+                <li><strong>Baroreflex Sensitivity:</strong> Sequence and spectral methods</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+
     with col2:
         st.markdown("""
         <div class="metric-card">
-            <h3>🚀 How to Get Started</h3>
-            <ol style="margin: 0; padding-left: 1.2rem;">
-                <li><strong>Upload:</strong> Select your ACQ or EDF file in the sidebar</li>
-                <li><strong>Select Channels:</strong> Select which channels contain ECG and/or BP data</li>
-                <li><strong>Configure:</strong> Set analysis parameters (autoscale, default, or user determined)</li>
-                <li><strong>Preview:</strong> Validate peak detection and desired time window</li>
-                <li><strong>Analyze:</strong> Run comprehensive cardiovascular analysis</li>
-                <li><strong>Explore:</strong> Generate interactive visualizations</li>
-                <li><strong>Download:</strong> Export anaylsis metrics</li>
+            <h3>Quick Start</h3>
+            <ol style="margin: 0; padding-left: 1.2rem; line-height: 1.6;">
+                <li>Upload ACQ or EDF file</li>
+                <li>Select ECG and BP channels</li>
+                <li>Configure analysis parameters</li>
+                <li>Preview peak detection</li>
+                <li>Run comprehensive analysis</li>
+                <li>Generate visualizations and export results</li>
             </ol>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div class="metric-card">
-            <h3>⏱️ Time Window Benefits</h3>
-            <ul style="margin: 0; padding-left: 1.2rem;">
-                <li><strong>Quality Control:</strong> Exclude artifacts and movement periods</li>
-                <li><strong>Focused Analysis:</strong> Analyze specific conditions or timeframes</li>
-                <li><strong>Reproducibility:</strong> Standardize analysis windows</li>
-                <li><strong>Efficiency:</strong> Process relevant data segments only</li>
-            </ul>
         </div>
         """, unsafe_allow_html=True)
 
