@@ -114,7 +114,7 @@ st.markdown("""
         --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
     }
     
-    /* FORCE LIGHT MODE - NUCLEAR OPTION */
+    /* FORCE LIGHT MODE */
     *, *::before, *::after {
         color-scheme: light !important;
     }
@@ -396,9 +396,9 @@ def show_professional_header():
                         background: white;
                         display: flex; align-items: center; justify-content: center;
                         margin-right: 15px; box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
-                        border: 2px solid rgba(255,255,255,0.8);">
+                        border: 2px solid rgba(0, 0, 0, 1);">
                 <div style="color: black; font-size: 20px; font-weight: bold; font-family: 'Inter', sans-serif;">
-                    P<sub style="font-size: 10px;">K</sub>
+                    c<sub style="font-size: 10px;">OS</sub>
                 </div>
             </div>
             <h1 style="margin: 0;font-size: 48px;">ChronOS</h1>
