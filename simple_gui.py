@@ -388,26 +388,28 @@ if 'channels_configured' not in st.session_state:
 # ============================================================================
 
 def show_professional_header():
-    """Display the professional header with custom logo"""
+    """Display header with PNG logo"""
     st.markdown("""
     <div class="main-header">
         <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
-            <div style="width: 50px; height: 50px; border-radius: 50%; 
-                        background: white;
-                        display: flex; align-items: center; justify-content: center;
-                        margin-right: 15px; box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
-                        border: 2px solid rgba(0, 0, 0, 1);">
-                <div style="color: black; font-size: 20px; font-weight: bold; font-family: 'Inter', sans-serif;">
-                    c<sub style="font-size: 10px;">OS</sub>
-                </div>
+            <div style="width: 115px; height: 115px; margin-right: 10px;">
+                <img src="data:image/png;base64,{}" 
+                     style="width: 100%; height: 100%; object-fit: contain;" 
+                     alt="ChronOS Logo"/>
             </div>
-            <h1 style="margin: 0;font-size: 48px;">ChronOS</h1>
+            <h1 style="margin: 0; font-size: 48px;">ChronOS</h1>
         </div>
         <p>Professional HRV & Baroreflex Sensitivity Analysis Platform</p>
         <div class="version-info">Version 1.2 | Advanced Peak Detection | HRV and BRS Analysis</div>
     </div>
-    """, unsafe_allow_html=True)
+    """.format(get_base64_of_image("logo.png")), unsafe_allow_html=True)
 
+def get_base64_of_image(path):
+    """Convert image to base64 string for embedding in HTML"""
+    import base64
+    with open(path, "rb") as img_file:
+        return base64.b64encode(img_file.read()).decode()
+    
 def show_analysis_status():
     """Display current analysis status with professional indicators"""
     st.markdown('<div class="status-container">', unsafe_allow_html=True)
