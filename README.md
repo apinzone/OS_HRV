@@ -1,12 +1,12 @@
-# PhysioKit - Open Source HRV Analysis Platform
+# ChronOS - Open Source HRV Analysis Platform
 
 A validated heart rate variability analysis toolkit for cardiovascular research and education.
 
-PhysioKit provides accessible HRV analysis for researchers, clinicians, and educators. Developed as a free alternative to commercial software, it delivers research-grade cardiovascular analysis with transparent, literature-based methodology.
+ChronOS provides accessible HRV analysis for researchers, clinicians, and educators. Developed as a free alternative to commercial software, it delivers research-grade cardiovascular analysis with transparent, literature-based methodology.
 
 ## Validation
 
-PhysioKit has been validated against NeuroKit2 using 100 synthetic ECG recordings, demonstrating excellent agreement for core HRV metrics (ICC ≥ 0.90). The validation follows established guidelines with publication-quality statistical analysis.
+ChronOS has been validated against NeuroKit2 using 100 synthetic ECG recordings, demonstrating excellent agreement for core HRV metrics (ICC ≥ 0.90). The validation follows established guidelines with publication-quality statistical analysis.
 
 *Validation study manuscript in preparation - see `/validation_study/` for complete analysis.*
 
@@ -83,7 +83,7 @@ results = analyzer.get_validation_metrics()
 
 ## Scientific Approach
 
-PhysioKit implements established cardiovascular analysis standards:
+ChronOS implements established cardiovascular analysis standards:
 - Task Force 1996 guidelines for frequency domain analysis
 - Validated peak detection algorithms
 - Literature-based parameter selection

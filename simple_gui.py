@@ -85,7 +85,7 @@ except ImportError:
 # ============================================================================
 
 st.set_page_config(
-    page_title="PhysioKit - HRV & BRS Analysis",
+    page_title="ChronOS - HRV & BRS Analysis",
     page_icon="⚡",  
     layout="wide",
     initial_sidebar_state="expanded"
@@ -401,7 +401,7 @@ def show_professional_header():
                     P<sub style="font-size: 10px;">K</sub>
                 </div>
             </div>
-            <h1 style="margin: 0;font-size: 48px;">PhysioKit</h1>
+            <h1 style="margin: 0;font-size: 48px;">ChronOS</h1>
         </div>
         <p>Professional HRV & Baroreflex Sensitivity Analysis Platform</p>
         <div class="version-info">Version 1.2 | Advanced Peak Detection | HRV and BRS Analysis</div>
@@ -2457,7 +2457,7 @@ else:
     # Professional welcome message
     st.markdown("""
     <div class="window-info">
-        <h3 style="margin: 0;">👋 Welcome to PhysioKit</h3>
+        <h3 style="margin: 0;">⌚ Welcome to ChronOS</h3>
         <p style="margin: 0.5rem 0 0 0;">Upload an ACQ or EDF file using the sidebar to begin your cardiovascular analysis journey</p>
     </div>
     """, unsafe_allow_html=True)
@@ -2528,7 +2528,7 @@ st.markdown("""
 <div style="text-align: center; padding: 2rem; background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%); 
            border-radius: 10px; margin-top: 2rem;">
     <p style="margin: 0; color: #6c757d; font-size: 0.9rem;">
-        <strong>PhysioKit v1.2</strong> | Professional HRV & BRS Analysis Platform<br>
+        <strong>ChronOS v1.2</strong> | Professional HRV & BRS Analysis Platform<br>
         Built with Streamlit • Enhanced User Experience • Advanced Peak Detection • Time Window Selection
     </p>
 </div>
