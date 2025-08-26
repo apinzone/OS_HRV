@@ -2534,12 +2534,19 @@ else:
 
 # Professional footer
 st.markdown("---")
-st.markdown("""
+st.markdown(f"""
 <div style="text-align: center; padding: 2rem; background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%); 
-           border-radius: 10px; margin-top: 2rem;">
-    <p style="margin: 0; color: #6c757d; font-size: 0.9rem;">
-        <strong>ChronOS v1.2</strong> | Professional HRV & BRS Analysis Platform<br>
-        Built with Streamlit • Enhanced User Experience • Advanced Peak Detection • Time Window Selection
-    </p>
+           border-radius: 10px; margin-top: 2rem; display: flex; align-items: center; justify-content: center;">
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <img src="data:image/png;base64,{get_base64_of_image("logo.png")}" 
+             style="width: 40px; height: 40px; object-fit: contain;" 
+             alt="ChronOS Logo"/>
+        <div>
+            <p style="margin: 0; color: #6c757d; font-size: 0.9rem;">
+                <strong>ChronOS v1.2</strong> | Professional HRV & BRS Analysis Platform<br>
+                Built with Streamlit • Enhanced User Experience • Advanced Peak Detection • Time Window Selection
+            </p>
+        </div>
+    </div>
 </div>
 """, unsafe_allow_html=True)
