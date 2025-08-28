@@ -106,7 +106,7 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
     
     /* Root variables for consistent theming */
-    /* These are just variables that get substituted throughout the CSS, Ideally its just the color information and not the size */
+    /* These are just variables that get substituted throughout the CSS */
     :root {
         --primary: #2563eb;
         --primary-dark: #1d4ed8;
