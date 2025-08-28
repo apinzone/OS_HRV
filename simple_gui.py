@@ -2132,10 +2132,7 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
     peaks = st.session_state.analyzer.ecg_data.get('peaks', [])
     time_data = st.session_state.analyzer.ecg_data.get('time', [])
     
-    # Enhanced preview plots
-    col1, col2 = st.columns(2)
-    
-    with col1:
+    if (len(peaks) > 1 and len(time_data) > 0) or (len(time_data) > 0):
         create_professional_plot_header("⚡ ECG Peak Detection Preview")
         
         # Peak detection stats
@@ -2203,12 +2200,12 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
         
         close_plot_section()
     
-    with col2:
+    # BP peak detection stats
+    bp_peaks = st.session_state.analyzer.bp_data.get('peaks', [])
+    bp_time_data = st.session_state.analyzer.bp_data.get('time', [])
+
+    if (len(bp_peaks) > 1) or (len(bp_time_data) > 0):
         create_professional_plot_header("🩸 BP Peak Detection Preview")
-        
-        # BP peak detection stats
-        bp_peaks = st.session_state.analyzer.bp_data.get('peaks', [])
-        bp_time_data = st.session_state.analyzer.bp_data.get('time', [])
         
         if len(bp_peaks) > 1:
             systolic_values = st.session_state.analyzer.bp_data.get('systolic', [])
