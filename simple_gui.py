@@ -106,6 +106,7 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
     
     /* Root variables for consistent theming */
+    /* These are just variables that get substituted throughout the CSS, Ideally its just the color information and not the size */
     :root {
         --primary: #2563eb;
         --primary-dark: #1d4ed8;
@@ -113,13 +114,15 @@ st.markdown("""
         --success: #059669;
         --warning: #d97706;
         --danger: #dc2626;
+        --notification-color: 
         --surface: #ffffff;
         --surface-alt: #f8fafc;
-        --border: #e2e8f0;
+        --border: rgba(0, 0, 0, 0.7);
         --text: #1e293b;
         --text-muted: #64748b;
         --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
         --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        --border-opacity: 0.5;
     }
     
     /* FORCE LIGHT MODE */
@@ -175,7 +178,7 @@ st.markdown("""
     .main-header {
         background: linear-gradient(135deg, rgba(37, 99, 235, 0.95) 0%, rgba(79, 70, 229, 0.95) 100%) !important;
         backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.2);
+        border: 1px solid var(--border);
         color: white !important;
         padding: 2.5rem;
         border-radius: 16px;
@@ -242,7 +245,7 @@ st.markdown("""
         margin: 1rem 0;
         box-shadow: var(--shadow);
         transition: all 0.2s ease;
-        border: 1px solid var(--border);
+        border: 1px solid var(--border, var(--border-opacity));
     }
     
     .metric-card:hover {
@@ -290,19 +293,20 @@ st.markdown("""
         border-radius: 10px;
         border-left: 4px solid var(--warning);
         margin: 1rem 0;
-        border: 1px solid rgba(234, 179, 8, 0.2);
+        border: 1px solid rgba(234, 179, 8, var(--border-opacity));
     }
     
     /* Clean button styling */
     .stButton > button {
         border-radius: 8px;
-        border: 1px solid var(--border);
+        # border: 1px solid var(--border);
         padding: 0.75rem 1.5rem;
         font-weight: 600;
         font-family: 'Inter', sans-serif;
         transition: all 0.2s ease;
         background: var(--surface);
         color: var(--text);
+        # border-color: var(--border);
     }
     
     .stButton > button:hover {
@@ -357,7 +361,7 @@ st.markdown("""
         border-radius: 10px;
         border-left: 4px solid var(--warning);
         margin: 1rem 0;
-        border: 1px solid rgba(234, 179, 8, 0.2);
+        border: 1px solid rgba(234, 179, 8, var(--border-opacity));
         color: var(--text);
     }
     
@@ -420,7 +424,6 @@ def get_base64_of_image(path):
     
 def show_analysis_status():
     """Display current analysis status with professional indicators"""
-    st.markdown('<div class="status-container">', unsafe_allow_html=True)
     
     col1, col2, col3, col4 = st.columns(4)
     
@@ -654,7 +657,6 @@ show_analysis_status()
 
 with st.sidebar:
     st.markdown("## 📁 File Upload")
-    st.markdown('<div class="sidebar-section">', unsafe_allow_html=True)
     
     # Enhanced file upload with EDF support (CHANGE 2)
     if EDF_AVAILABLE:
@@ -718,7 +720,6 @@ with st.sidebar:
     # Channel Selection Interface
     if st.session_state.file_loaded and not st.session_state.channels_configured:
         st.markdown("## 🔧 Channel Configuration")
-        st.markdown('<div class="sidebar-section">', unsafe_allow_html=True)
         
         # Show file type information (CHANGE 7)
         file_type = getattr(st.session_state.analyzer, 'file_type', 'unknown').upper()
@@ -842,7 +843,6 @@ with st.sidebar:
         analyzer = st.session_state.analyzer
         
         st.markdown("## 📋 Current Configuration")
-        st.markdown('<div class="sidebar-section">', unsafe_allow_html=True)
 
         config_info = f"**📁 File Type:** {getattr(analyzer, 'file_type', 'Unknown').upper()}\n\n"
         if analyzer.ecg_data:
@@ -857,7 +857,6 @@ with st.sidebar:
         # Time Window Selection (only if file is loaded)
         if not st.session_state.analyzed:
             st.markdown("## ⏱️ Analysis Window")
-            st.markdown('<div class="sidebar-section">', unsafe_allow_html=True)
             
             if hasattr(st.session_state.analyzer, 'ecg_data') and 'time' in st.session_state.analyzer.ecg_data:
                 max_time = max(st.session_state.analyzer.ecg_data['time'])
@@ -900,7 +899,6 @@ with st.sidebar:
         
         # Peak Detection Parameters
         st.markdown("## 🎛️ Peak Detection")
-        st.markdown('<div class="sidebar-section">', unsafe_allow_html=True)
 
         # Auto-scale button
         col1, col2 = st.columns([2, 1])
