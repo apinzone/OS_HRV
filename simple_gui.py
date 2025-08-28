@@ -2466,17 +2466,6 @@ else:
         <p style="margin: 0.5rem 0 0 0;">Upload an ACQ or EDF file using the sidebar to begin your cardiovascular analysis journey</p>
     </div>
     """, unsafe_allow_html=True)
-    
-    # Dark mode compatibility note
-    st.markdown("""
-    <div class="warning-box">
-        <strong>💡 Display Compatibility:</strong> For optimal viewing of dropdown menus and interactive elements, 
-        temporarily switch your system to light mode if text or plots appear unreadable.
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Add after the dark mode note in welcome screen
-
 
     # Enhanced feature showcase
     col1, col2 = st.columns([1, 1])
