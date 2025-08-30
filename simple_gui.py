@@ -995,6 +995,7 @@ with st.sidebar:
         
         plot_options = [
             "🔍 Interactive Tachogram",
+            "📈 RRI Histogram",
             "📊 Frequency Domain",
             "🔄 Poincaré Plot",
             "🌊 Spectral BRS Analysis",  # ← ADD THIS NEW OPTION
@@ -1005,7 +1006,7 @@ with st.sidebar:
         selected_plots = st.multiselect(
             "Select visualizations:",
             plot_options,
-            default=plot_options[:3],
+            default=plot_options[:4],
             help="Choose which plots to generate"
         )
 
@@ -1304,6 +1305,77 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                     fig.update_layout(margin=dict(r=280))  # Space for metrics panel
                     
                     st.plotly_chart(fig, use_container_width=True)
+                    close_plot_section()
+                
+                elif "RRI Histogram" in plot_type:
+                    create_professional_plot_header(
+                        "📈 RRI Histogram",
+                        "Distribution of RR intervals"
+                    )
+                    
+                    if hasattr(st.session_state.analyzer, 'ecg_data') and 'rr_intervals' in st.session_state.analyzer.ecg_data:
+                        rr_intervals = st.session_state.analyzer.ecg_data['rr_intervals']
+                        
+                        # Calculate basic statistics
+                        rr_mean = np.mean(rr_intervals)
+                        rr_std = np.std(rr_intervals, ddof=1)
+                        
+                        # Create histogram using matplotlib (matching your existing style)
+                        plt.rcParams.update({
+                            'font.family': 'sans-serif',
+                            'font.size': 11,
+                            'axes.titlesize': 16,
+                            'axes.titleweight': 'bold',
+                            'axes.labelsize': 12,
+                            'axes.labelweight': '500',
+                            'axes.facecolor': '#f8f9fa',
+                            'figure.facecolor': 'white'
+                        })
+                        
+                        fig, ax = plt.subplots(figsize=(12, 6))
+                        
+                        # Create histogram
+                        counts, bins, patches = ax.hist(rr_intervals, bins=30, 
+                                                    color='#3498db', alpha=0.7, 
+                                                    edgecolor='#2980b9', linewidth=0.5)
+                        
+                        # Add mean line
+                        ax.axvline(rr_mean, color='#e74c3c', linestyle='--', linewidth=2,
+                                label=f'Mean: {rr_mean:.1f} ms')
+                        
+                        # Styling
+                        ax.set_xlabel('RR Interval (ms)', fontsize=12, fontweight='500')
+                        ax.set_ylabel('Frequency', fontsize=12, fontweight='500')
+                        ax.set_title(f'RR Interval Distribution (n={len(rr_intervals)})', 
+                                    fontsize=16, fontweight='bold', pad=20)
+                        
+                        # Add statistics text box
+                        stats_text = f'Mean: {rr_mean:.1f} ms\nStd: {rr_std:.1f} ms\nCount: {len(rr_intervals)}'
+                        ax.text(0.02, 0.98, stats_text, transform=ax.transAxes,
+                                verticalalignment='top', horizontalalignment='left',
+                                bbox=dict(boxstyle='round,pad=0.8', facecolor='white', 
+                                        alpha=0.95, edgecolor='#dee2e6', linewidth=1),
+                                fontsize=11, fontweight='500')
+                        
+                        # Grid and spines
+                        ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
+                        ax.set_axisbelow(True)
+                        ax.spines['top'].set_visible(False)
+                        ax.spines['right'].set_visible(False)
+                        ax.spines['left'].set_linewidth(0.8)
+                        ax.spines['bottom'].set_linewidth(0.8)
+                        
+                        # Legend
+                        legend = ax.legend(loc='upper right', frameon=True, fancybox=True, shadow=True)
+                        legend.get_frame().set_facecolor('white')
+                        legend.get_frame().set_alpha(0.9)
+                        
+                        plt.tight_layout()
+                        st.pyplot(fig)
+                        
+                    else:
+                        st.error("❌ No RR interval data available. Complete peak detection analysis first.")
+                    
                     close_plot_section()
                 
                 elif "Frequency Domain" in plot_type:
