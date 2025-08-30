@@ -1067,7 +1067,8 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                     <h4>⏱️ Time Domain Metrics</h4>
                     <p><strong>RMSSD:</strong> {td_results.get('rmssd', 'N/A'):.1f} ms</p>
                     <p><strong>SDNN:</strong> {td_results.get('sdnn', 'N/A'):.1f} ms</p>
-                    <p><strong>Sample Entropy:</strong> {td_results.get('sample_entropy', 'N/A'):.3f}</p>
+                    <p><strong>SDSD:</strong> {td_results.get('sdsd', 'N/A'):.1f} ms</p>
+                    <p><strong>pNN50:</strong> {td_results.get('pnn50', 'N/A'):.1f} ms</p>
                 </div>
                 """, unsafe_allow_html=True)
                 
@@ -1078,6 +1079,7 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                     <p><strong>SD1:</strong> {td_results.get('sd1', 'N/A'):.1f} ms</p>
                     <p><strong>SD2:</strong> {td_results.get('sd2', 'N/A'):.1f} ms</p>
                     <p><strong>SD1/SD2:</strong> {td_results.get('sd1_sd2_ratio', 'N/A'):.3f}</p>
+                    <p><strong>Sample Entropy:</strong> {td_results.get('sample_entropy', 'N/A'):.3f}</p>
                 </div>
                 """, unsafe_allow_html=True)
         
