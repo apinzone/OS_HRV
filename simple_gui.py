@@ -26,6 +26,11 @@ from analyzer import CardiovascularAnalyzer
 from scipy.interpolate import interp1d  
 from scipy.signal import welch
 from functions import *
+from matplotlib.patches import Polygon
+from matplotlib.legend_handler import HandlerPatch
+from matplotlib.patches import Patch
+from matplotlib.lines import Line2D
+
 # EDF support with graceful fallback
 
 # Professional color constants
@@ -398,6 +403,70 @@ if 'channels_configured' not in st.session_state:
 # ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
+
+def _contiguous_runs(mask):
+    """Return (start_idx, end_idx) for True runs in a boolean mask (end exclusive)."""
+    if mask.size == 0: 
+        return []
+    m = mask.astype(int)
+    dm = np.diff(np.r_[0, m, 0])
+    starts = np.where(dm == 1)[0]
+    ends   = np.where(dm == -1)[0]
+    return list(zip(starts, ends))
+
+def _band_fill(ax, f, y, lo, hi, *, scale=1.0, facecolor="#cccccc", alpha=0.4, label=None, zorder=2):
+    """
+    Fill area under y between lo..hi with vertical edges and no diagonal bridges.
+    Handles internal NaNs by splitting into contiguous segments.
+    """
+    f = np.asarray(f, float)
+    y = np.asarray(y, float)
+
+    # Clean & sort
+    good = np.isfinite(f) & np.isfinite(y) & (f > 0)
+    f, y = f[good], y[good]
+    order = np.argsort(f)
+    f, y = f[order], y[order]
+    f, uniq_idx = np.unique(f, return_index=True)
+    y = y[uniq_idx]
+
+    if f.size == 0 or hi <= f[0] or lo >= f[-1]:
+        return None
+
+    lo_c = max(lo, f[0])
+    hi_c = min(hi, f[-1])
+    if lo_c >= hi_c:
+        return None
+
+    # In-band mask and split into contiguous runs (avoids NaN gaps)
+    inside = (f > lo_c) & (f < hi_c)
+    runs = _contiguous_runs(inside)
+    legend_patch = None
+
+    for s, e in runs:
+        fx = f[s:e]
+        yx = y[s:e]
+
+        # Interpolate values at exact band edges for vertical sides
+        y_lo = float(np.interp(lo_c, f, y))
+        y_hi = float(np.interp(hi_c, f, y))
+
+        # Build polygon: (lo,0) -> (lo,ylo) -> (fx,yx) -> (hi,yhi) -> (hi,0)
+        x_poly = np.concatenate([[lo_c], [lo_c], fx, [hi_c], [hi_c]])
+        y_poly = np.concatenate([[0.0], [y_lo], yx, [y_hi], [0.0]]) * scale
+
+        patch = Polygon(np.column_stack([x_poly, y_poly]),
+                        closed=True, facecolor=facecolor, edgecolor='none',
+                        alpha=alpha, zorder=zorder)
+        ax.add_patch(patch)
+        if legend_patch is None and label:
+            # one invisible patch for legend entry
+            legend_patch = Polygon([[0,0],[1,0],[1,1]], closed=True,
+                                   facecolor=facecolor, edgecolor='none', alpha=alpha, label=label)
+            ax.add_patch(legend_patch)
+            legend_patch.set_visible(False)
+
+    return legend_patch
 
 def show_professional_header():
     """Display header with PNG logo"""
@@ -998,7 +1067,7 @@ with st.sidebar:
             "📈 RRI Histogram",
             "📊 Frequency Domain",
             "🔄 Poincaré Plot",
-            "🌊 Spectral BRS Analysis",  # ← ADD THIS NEW OPTION
+            "🌊 Spectral BRS Analysis", 
             "🩺 BRS Sequence Analysis",
             "🩺 BRS Time Domain Visualization"
         ]
@@ -1020,8 +1089,6 @@ with st.sidebar:
 # ============================================================================
 # MAIN CONTENT AREA
 # ============================================================================
-
-# Replace the results display section (around line 1000+) with this clean version:
 
 # Case 1: Analysis Complete - Show Results
 if st.session_state.analyzed and st.session_state.channels_configured:
@@ -1066,6 +1133,7 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                 st.markdown(f"""
                 <div class="metric-card">
                     <h4>⏱️ Time Domain Metrics</h4>
+                    <p><strong>Mean RR:</strong> {td_results.get('mean_rr', 'N/A'):.1f} ms</p>
                     <p><strong>RMSSD:</strong> {td_results.get('rmssd', 'N/A'):.1f} ms</p>
                     <p><strong>SDNN:</strong> {td_results.get('sdnn', 'N/A'):.1f} ms</p>
                     <p><strong>SDSD:</strong> {td_results.get('sdsd', 'N/A'):.1f} ms</p>
@@ -1282,8 +1350,9 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                             metrics_text += f"<b>🔢 Time Domain</b><br>"
                             metrics_text += f"RMSSD: {td['rmssd']:.1f} ms<br>"
                             metrics_text += f"SDNN: {td['sdnn']:.1f} ms<br>"
+                            metrics_text += f"SDNN: {td['sdsd']:.1f} ms<br>"
                             metrics_text += f"pNN50: {td['pnn50']:.1f}%<br>"
-                            metrics_text += f"SampEn: {td['sample_entropy']:.3f}"
+                           
                     
                     fig.add_annotation(
                         x=1.02, y=1.0, xref="paper", yref="paper",
@@ -1320,7 +1389,7 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                         rr_mean = np.mean(rr_intervals)
                         rr_std = np.std(rr_intervals, ddof=1)
                         
-                        # Create histogram using matplotlib (matching your existing style)
+                        # Create histogram 
                         plt.rcParams.update({
                             'font.family': 'sans-serif',
                             'font.size': 11,
@@ -1377,6 +1446,7 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                         st.error("❌ No RR interval data available. Complete peak detection analysis first.")
                     
                     close_plot_section()
+
                 
                 elif "Frequency Domain" in plot_type:
                     create_professional_plot_header(
@@ -1401,26 +1471,37 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                         })
                         
                         fig, ax = plt.subplots(figsize=(14, 7))
-                        
-                        frequencies = freq_data['frequencies']
-                        psd = freq_data['psd']
-                        
-                        #frequency bands with colors
-                        vlf_band = (frequencies >= 0.003) & (frequencies < 0.04)
-                        lf_band = (frequencies >= 0.04) & (frequencies < 0.15)
-                        hf_band = (frequencies >= 0.15) & (frequencies < 0.4)
-                        
-                        # Fill frequency bands first
-                        ax.fill_between(frequencies[vlf_band], psd[vlf_band] * 1e6, 
-                                    color='#95a5a6', alpha=0.4, label='VLF (0.003-0.04 Hz)')
-                        ax.fill_between(frequencies[lf_band], psd[lf_band] * 1e6, 
-                                    color="#346edb", alpha=0.5, label='LF (0.04-0.15 Hz)')
-                        ax.fill_between(frequencies[hf_band], psd[hf_band] * 1e6, 
-                                    color='#e74c3c', alpha=0.5, label='HF (0.15-0.4 Hz)')
-                        
-                        # Main PSD line on top
-                        ax.plot(frequencies, psd * 1e6, color='#2c3e50', linewidth=2.5, 
-                                label='PSD', alpha=0.9, zorder=10)
+                        frequencies = np.asarray(freq_data['frequencies'], dtype=float)
+                        psd = np.asarray(freq_data['psd'], dtype=float)
+
+                        # Clean + strictly increasing + unique x
+                        good = np.isfinite(frequencies) & np.isfinite(psd) & (frequencies > 0)
+                        frequencies, psd = frequencies[good], psd[good]
+                        order = np.argsort(frequencies)
+                        frequencies, psd = frequencies[order], psd[order]
+                        frequencies, uniq_idx = np.unique(frequencies, return_index=True)
+                        psd = psd[uniq_idx]
+
+                        # Band masks with epsilon ~ half a bin to "touch" edges
+                        df = np.median(np.diff(frequencies))
+                        eps = float(df) * 0.51 if np.isfinite(df) and df > 0 else 1e-12
+
+                        vlf_mask = (frequencies >= (0.003 - eps)) & (frequencies <= (0.04 + eps))
+                        lf_mask  = (frequencies >= (0.04  - eps)) & (frequencies <= (0.15 + eps))
+                        hf_mask  = (frequencies >= (0.15  - eps)) & (frequencies <= (0.40 + eps))
+
+                        scale = 1e6
+                        baseline = np.zeros_like(psd)
+
+                        p_vlf = _band_fill(ax, frequencies, psd, 0.003, 0.04, scale=scale,
+                                        facecolor='#95a5a6', alpha=0.4, label='VLF (0.003–0.04 Hz)')
+                        p_lf  = _band_fill(ax, frequencies, psd, 0.04,  0.15, scale=scale,
+                                        facecolor='#346edb', alpha=0.5, label='LF (0.04–0.15 Hz)')
+                        p_hf  = _band_fill(ax, frequencies, psd, 0.15,  0.40, scale=scale,
+                                        facecolor='#e74c3c', alpha=0.5, label='HF (0.15–0.40 Hz)')
+
+                        # PSD curve 
+                        ax.plot(frequencies, psd*scale, color='#2c3e50', linewidth=2.5, label='PSD', zorder=5)
                         
                         #Graph styling
                         ax.set_xlabel('Frequency (Hz)', fontsize=12, fontweight='500')
@@ -1429,11 +1510,27 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                                     fontsize=16, fontweight='bold', pad=20)
                         ax.set_xlim(0, 0.5)
                         
-                        # Enhanced legend
-                        legend = ax.legend(loc='upper right', frameon=True, fancybox=True, 
-                                        shadow=True, fontsize=10)
+                        # Legend
+                        legend_handles = [
+                            Patch(facecolor='#95a5a6', edgecolor='none', alpha=0.4, label='VLF (0.003–0.04 Hz)'),
+                            Patch(facecolor='#346edb', edgecolor='none', alpha=0.5, label='LF (0.04–0.15 Hz)'),
+                            Patch(facecolor='#e74c3c', edgecolor='none', alpha=0.5, label='HF (0.15–0.40 Hz)'),
+                            Line2D([0], [0], color='#2c3e50', linewidth=2.5, label='PSD')
+                        ]
+
+                        legend = ax.legend(
+                            handles=legend_handles,
+                            loc='upper right',
+                            frameon=True,
+                            fancybox=True,
+                            shadow=True,
+                            fontsize=10,
+                            handlelength=1.8,
+                            borderaxespad=0.8
+                        )
                         legend.get_frame().set_facecolor('white')
                         legend.get_frame().set_alpha(0.9)
+
                         
                         #Grid
                         ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
