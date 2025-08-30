@@ -1631,7 +1631,7 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                                 label='SD1 (Short-term)', alpha=0.9, zorder=9)
                         
                         #Print SD1 and 2
-                        textstr = f'SD1 = {sd1:.1f} ms\nSD2 = {sd2:.1f} ms\nSD1/SD2 = {sd1/sd2:.3f}\nEllipse Area = {td_results["ellipse_area"]:.1f} ms²'
+                        textstr = f'SD1 = {sd1:.1f} ms\nSD2 = {sd2:.1f} ms\nSD1/SD2 = {sd1/sd2:.3f}\nEllipse Area = {td_results["ellipse_area"]:.1f} ms²\nSample Entropy = {td_results["sample_entropy"]:.3f}'
                         ax.text(0.05, 0.95, textstr, transform=ax.transAxes, 
                                 verticalalignment='top',
                                 bbox=dict(boxstyle='round,pad=0.8', facecolor='white', 
