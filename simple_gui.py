@@ -481,7 +481,7 @@ def show_professional_header():
             <h1 style="margin: 0; font-size: 48px;">ChronOS</h1>
         </div>
         <p>Professional HRV & Baroreflex Sensitivity Analysis Platform</p>
-        <div class="version-info">Version 1.2 | Advanced Peak Detection | HRV and BRS Analysis</div>
+        <div class="version-info">Version 1.3 | Advanced Peak Detection | HRV and BRS Analysis</div>
     </div>
     """.format(get_base64_of_image("logo.png")), unsafe_allow_html=True)
 
@@ -2692,7 +2692,7 @@ st.markdown(f"""
              alt="ChronOS Logo"/>
         <div>
             <p style="margin: 0; color: #6c757d; font-size: 0.9rem;">
-                <strong>ChronOS v1.2</strong> | Professional HRV & BRS Analysis Platform<br>
+                <strong>ChronOS v1.3</strong> | Professional HRV & BRS Analysis Platform<br>
                 Built with Streamlit • Enhanced User Experience • Advanced Peak Detection • Time Window Selection
             </p>
         </div>
