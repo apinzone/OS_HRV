@@ -660,8 +660,8 @@ with st.sidebar:
     
     # Enhanced file upload with EDF support (CHANGE 2)
     if EDF_AVAILABLE:
-        file_types = ["acq", "edf", "bdf"]
-        help_text = "Upload your ACQ file (AcqKnowledge) or EDF/BDF file (European Data Format) containing ECG and blood pressure data"
+        file_types = ["acq", "edf"]
+        help_text = "Upload your ACQ file (AcqKnowledge) or EDF file (European Data Format) containing ECG and blood pressure data"
     else:
         file_types = ["acq"]
         help_text = "Upload your ACQ file containing ECG and blood pressure data. For EDF support, install pyedflib: pip install pyedflib"
@@ -675,8 +675,8 @@ with st.sidebar:
     if uploaded_file is not None:
         file_ext = uploaded_file.name.split('.')[-1].lower()  # CHANGE 3
         
-        if file_ext in ['edf', 'bdf'] and not EDF_AVAILABLE:  # CHANGE 3
-            st.error("❌ EDF/BDF files require pyedflib. Install with: pip install pyedflib")
+        if file_ext in ['edf'] and not EDF_AVAILABLE:  # CHANGE 3
+            st.error("❌ EDF files require pyedflib. Install with: pip install pyedflib")
         else:
             file_info = f"**File:** {uploaded_file.name}\n\n**Size:** {uploaded_file.size / 1024:.1f} KB\n\n**Type:** {file_ext.upper()}"  # CHANGE 3
             st.info(file_info)
