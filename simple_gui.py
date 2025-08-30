@@ -1546,7 +1546,7 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                         power_text = (f"VLF: {freq_data['vlf_power']:.2f} ms²\n"
                                     f"LF: {freq_data['lf_power']:.2f} ms²\n"
                                     f"HF: {freq_data['hf_power']:.2f} ms²\n"
-                                    f"Total: {freq_data['total_power']:.2f} ms²\n"
+                                    f"Total Power: {freq_data['total_power']:.2f} ms²\n"
                                     f"LF/HF: {freq_data['lf_hf_ratio']:.2f}\n"
                                     f"LF n.u.: {freq_data['lf_nu']:.2f}\n"
                                     f"HF n.u.: {freq_data['hf_nu']:.2f}")
