@@ -123,6 +123,7 @@ st.markdown("""
         --surface: #ffffff;
         --surface-alt: #f8fafc;
         --border: rgba(0, 0, 0, 0.7);
+        --highlight-border: rgb(255, 75, 25);
         --text: #1e293b;
         --text-muted: #64748b;
         --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
@@ -231,11 +232,6 @@ st.markdown("""
         transition: all 0.2s ease;
     }
     
-    .status-item:hover {
-        transform: translateY(-1px);
-        box-shadow: var(--shadow);
-    }
-    
     .status-success { color: var(--success); font-weight: 600; font-size: 0.9rem; }
     .status-warning { color: var(--warning); font-weight: 600; font-size: 0.9rem; }
     .status-info { color: var(--primary); font-weight: 600; font-size: 0.9rem; }
@@ -249,14 +245,7 @@ st.markdown("""
         border-left: 4px solid var(--primary);
         margin: 1rem 0;
         box-shadow: var(--shadow);
-        transition: all 0.2s ease;
         border: 1px solid var(--border, var(--border-opacity));
-    }
-    
-    .metric-card:hover {
-        transform: translateY(-2px);
-        box-shadow: var(--shadow-lg);
-        border-left-color: var(--primary-dark);
     }
     
     .metric-card h4 {
@@ -304,14 +293,13 @@ st.markdown("""
     /* Clean button styling */
     .stButton > button {
         border-radius: 8px;
-        # border: 1px solid var(--border);
+        border: 1px solid var(--border);
         padding: 0.75rem 1.5rem;
         font-weight: 600;
         font-family: 'Inter', sans-serif;
         transition: all 0.2s ease;
         background: var(--surface);
         color: var(--text);
-        # border-color: var(--border);
     }
     
     .stButton > button:hover {
@@ -319,7 +307,7 @@ st.markdown("""
         box-shadow: var(--shadow);
         background: var(--primary);
         color: white;
-        border-color: var(--primary);
+        border-color: var(--highlight-border);
     }
     
     /* Professional results header */
@@ -500,15 +488,15 @@ def show_analysis_status():
         if st.session_state.file_loaded:
             st.markdown('<div class="status-item"><div class="status-success">✅ File Loaded</div></div>', unsafe_allow_html=True)
         else:
-            st.markdown('<div class="status-item"><div class="status-pending">📁 No File</div></div>', unsafe_allow_html=True)
+            st.markdown('<div class="status-item"><div class="status-pending">📁 Upload File</div></div>', unsafe_allow_html=True)
     
     with col2:
         if st.session_state.channels_configured:
             st.markdown('<div class="status-item"><div class="status-success">✅ Channels Set</div></div>', unsafe_allow_html=True)
         elif st.session_state.file_loaded:
-            st.markdown('<div class="status-item"><div class="status-warning">🔧 Configure</div></div>', unsafe_allow_html=True)
+            st.markdown('<div class="status-item"><div class="status-warning">🔧 Configure Channels</div></div>', unsafe_allow_html=True)
         else:
-            st.markdown('<div class="status-item"><div class="status-pending">🔧 Waiting</div></div>', unsafe_allow_html=True)
+            st.markdown('<div class="status-item"><div class="status-pending">🔧 Channels Not Set</div></div>', unsafe_allow_html=True)
     
     with col3:
         if st.session_state.analyzed:
@@ -516,15 +504,15 @@ def show_analysis_status():
         elif st.session_state.analysis_started:
             st.markdown('<div class="status-item"><div class="status-warning">⏳ Processing</div></div>', unsafe_allow_html=True)
         elif st.session_state.preview_mode:
-            st.markdown('<div class="status-item"><div class="status-info">🔍 Preview</div></div>', unsafe_allow_html=True)
+            st.markdown('<div class="status-item"><div class="status-info">🔍 Analysis Preview</div></div>', unsafe_allow_html=True)
         else:
-            st.markdown('<div class="status-item"><div class="status-pending">⏳ Pending</div></div>', unsafe_allow_html=True)
+            st.markdown('<div class="status-item"><div class="status-pending">⏳ Analysis Pending</div></div>', unsafe_allow_html=True)
     
     with col4:
         if 'selected_plots' in st.session_state and st.session_state.selected_plots:
             st.markdown('<div class="status-item"><div class="status-success">📊 Plots Ready</div></div>', unsafe_allow_html=True)
         else:
-            st.markdown('<div class="status-item"><div class="status-pending">📈 No Plots</div></div>', unsafe_allow_html=True)
+            st.markdown('<div class="status-item"><div class="status-pending">📈 No Plots Generated</div></div>', unsafe_allow_html=True)
     
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -853,17 +841,17 @@ with st.sidebar:
         st.markdown("### 📊 Available Analyses:")
         available_analyses = []
         if ecg_selected:
-            available_analyses.extend(["✅ Time Domain HRV", "✅ Frequency Domain HRV"])
+            available_analyses.extend(["Time Domain HRV", "Frequency Domain HRV"])
         if ecg_selected and bp_selected:
-            available_analyses.extend(["✅ BRS Sequence Method", "✅ BRS Spectral Method"])
+            available_analyses.extend(["BRS Sequence Method", "BRS Spectral Method"])
         elif bp_selected and not ecg_selected:
-            available_analyses.append("✅ Blood Pressure Analysis")
+            available_analyses.append("Blood Pressure Analysis")
         
         for analysis in available_analyses:
             st.markdown(f"- {analysis}")
     
     # Configure button
-    if st.button("✅ Configure Channels", type="primary", use_container_width=True):
+    if st.button("Configure Channels", type="primary", use_container_width=True):
         try:
             # Parse selections
             ecg_idx = None if ecg_selection == "None" else int(ecg_selection.split(":")[0].replace("Channel ", ""))
@@ -911,7 +899,7 @@ with st.sidebar:
         # Show current channel configuration
         analyzer = st.session_state.analyzer
         
-        st.markdown("## 📋 Current Configuration")
+        st.markdown("## Current Configuration")
 
         config_info = f"**📁 File Type:** {getattr(analyzer, 'file_type', 'Unknown').upper()}\n\n"
         if analyzer.ecg_data:
@@ -931,7 +919,7 @@ with st.sidebar:
                 max_time = max(st.session_state.analyzer.ecg_data['time'])
                 max_time_min = max_time / 60
                 
-                st.info(f"📊 **Recording:** {max_time:.1f}s ({max_time_min:.1f} min)")
+                st.info(f"**Recording:** {max_time:.1f}s ({max_time_min:.1f} min)")
                 
                 # Time window sliders with better styling
                 start_time = st.slider(
@@ -956,7 +944,7 @@ with st.sidebar:
                 window_duration = end_time - start_time
                 window_duration_min = window_duration / 60
                 
-                st.success(f"📐 **Window:** {window_duration:.0f}s ({window_duration_min:.1f} min)")
+                st.success(f"**Window:** {window_duration:.0f}s ({window_duration_min:.1f} min)")
                 
                 st.session_state.time_window = {
                     'start_time': start_time,
@@ -967,39 +955,37 @@ with st.sidebar:
         st.markdown('</div>', unsafe_allow_html=True)
         
         # Peak Detection Parameters
-        st.markdown("## 🎛️ Peak Detection")
+        st.markdown("## Peak Detection")
 
         # Auto-scale button
-        col1, col2 = st.columns([2, 1])
-        with col1:
-            st.markdown("**Parameter Settings:**")
-        with col2:
-            if st.button("🎯 Auto-Scale", help="Automatically calculate optimal parameters based on your signals", use_container_width=True):
-                with st.spinner("Calculating optimal parameters..."):
-                    auto_params, success, message = auto_scale_peak_parameters(st.session_state.analyzer)
+        if st.button("🎯 Auto-Scale", help="Automatically calculate optimal parameters based on your signals", use_container_width=True):
+            with st.spinner("Calculating optimal parameters..."):
+                auto_params, success, message = auto_scale_peak_parameters(st.session_state.analyzer)
+                
+                if success:
+                    # Force update session state
+                    st.session_state.ecg_height = auto_params['ecg_height']
+                    st.session_state.ecg_prominence = auto_params['ecg_prominence'] 
+                    st.session_state.ecg_distance = auto_params['ecg_distance']
+                    st.session_state.bp_height = auto_params['bp_height']
+                    st.session_state.bp_prominence = auto_params['bp_prominence']
+                    st.session_state.bp_distance = auto_params['bp_distance']
                     
-                    if success:
-                        # Force update session state
-                        st.session_state.ecg_height = auto_params['ecg_height']
-                        st.session_state.ecg_prominence = auto_params['ecg_prominence'] 
-                        st.session_state.ecg_distance = auto_params['ecg_distance']
-                        st.session_state.bp_height = auto_params['bp_height']
-                        st.session_state.bp_prominence = auto_params['bp_prominence']
-                        st.session_state.bp_distance = auto_params['bp_distance']
-                        
-                        # Force slider reset by incrementing counter
-                        st.session_state.reset_counter = st.session_state.get('reset_counter', 0) + 1
-                        st.session_state.force_slider_reset = True
-                    
-                        st.success(f"✅ {message}")
-                        st.info(f"📊 **Auto-calculated parameters:**\n"
-                            f"• ECG Height: {auto_params['ecg_height']:.2f}\n" 
-                            f"• ECG Prominence: {auto_params['ecg_prominence']:.2f}\n"
-                            f"• BP Height: {auto_params['bp_height']:.1f} mmHg\n"
-                            f"• BP Prominence: {auto_params['bp_prominence']:.1f}")
-                        st.rerun()
-                    else:
-                        st.warning(f"⚠️ {message}")
+                    # Force slider reset by incrementing counter
+                    st.session_state.reset_counter = st.session_state.get('reset_counter', 0) + 1
+                    st.session_state.force_slider_reset = True
+                
+                    st.success(f"✅ {message}")
+                    st.info(f"📊 **Auto-calculated parameters:**\n"
+                        f"• ECG Height: {auto_params['ecg_height']:.2f}\n" 
+                        f"• ECG Prominence: {auto_params['ecg_prominence']:.2f}\n"
+                        f"• BP Height: {auto_params['bp_height']:.1f} mmHg\n"
+                        f"• BP Prominence: {auto_params['bp_prominence']:.1f}")
+                    st.rerun()
+                else:
+                    st.warning(f"⚠️ {message}")
+
+        st.markdown("**Parameter Settings:**")
 
         # ECG Parameters
         with st.expander("⚡ ECG R-peak Detection", expanded=True):
@@ -1060,16 +1046,15 @@ with st.sidebar:
     # Plot Selection (only if analyzed)
     if st.session_state.analyzed:
         st.markdown("## 📊 Visualizations")
-        st.markdown('<div class="sidebar-section">', unsafe_allow_html=True)
         
         plot_options = [
-            "🔍 Interactive Tachogram",
-            "📈 RRI Histogram",
-            "📊 Frequency Domain",
-            "🔄 Poincaré Plot",
-            "🌊 Spectral BRS Analysis", 
-            "🩺 BRS Sequence Analysis",
-            "🩺 BRS Time Domain Visualization"
+            "Interactive Tachogram",
+            "RRI Histogram",
+            "Frequency Domain",
+            "Poincaré Plot",
+            "Spectral BRS Analysis", 
+            "BRS Sequence Analysis",
+            "BRS Time Domain Visualization"
         ]
 
         selected_plots = st.multiselect(
@@ -1132,7 +1117,7 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                 # Time Domain Metrics
                 st.markdown(f"""
                 <div class="metric-card">
-                    <h4>⏱️ Time Domain Metrics</h4>
+                    <h4>Time Domain Metrics</h4>
                     <p><strong>Mean RR:</strong> {td_results.get('mean_rr', 'N/A'):.1f} ms</p>
                     <p><strong>RMSSD:</strong> {td_results.get('rmssd', 'N/A'):.1f} ms</p>
                     <p><strong>SDNN:</strong> {td_results.get('sdnn', 'N/A'):.1f} ms</p>
@@ -1144,7 +1129,7 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                 # Nonlinear Metrics
                 st.markdown(f"""
                 <div class="metric-card">
-                    <h4>🔄 Nonlinear Metrics</h4>
+                    <h4>Nonlinear Metrics</h4>
                     <p><strong>SD1:</strong> {td_results.get('sd1', 'N/A'):.1f} ms</p>
                     <p><strong>SD2:</strong> {td_results.get('sd2', 'N/A'):.1f} ms</p>
                     <p><strong>SD1/SD2:</strong> {td_results.get('sd1_sd2_ratio', 'N/A'):.3f}</p>
@@ -1158,7 +1143,7 @@ if st.session_state.analyzed and st.session_state.channels_configured:
             if 'error' not in freq_results:
                 st.markdown(f"""
                 <div class="metric-card">
-                    <h4>📊 Frequency Domain Metrics</h4>
+                    <h4>Frequency Domain Metrics</h4>
                     <p><strong>VLF Power:</strong> {freq_results.get('vlf_power', 'N/A'):.2f} ms²</p>
                     <p><strong>LF Power:</strong> {freq_results.get('lf_power', 'N/A'):.2f} ms²</p>
                     <p><strong>HF Power:</strong> {freq_results.get('hf_power', 'N/A'):.2f} ms²</p>
@@ -1291,7 +1276,7 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                 
                 if "Interactive Tachogram" in plot_type:
                     create_professional_plot_header(
-                        "🔍 Heart Rate Variability Tachogram",
+                        "Heart Rate Variability Tachogram",
                         "Interactive visualization of RR interval variations over time"
                     )
                     
@@ -1342,12 +1327,12 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                     if 'time_domain' in st.session_state.analyzer.results:
                         td = st.session_state.analyzer.results['time_domain']
                         if 'error' not in td:
-                            metrics_text += f"<b>📈 Basic Measures</b><br>"
+                            metrics_text += f"<b>Basic Measures</b><br>"
                             metrics_text += f"Beats: {td['num_beats']}<br>"
                             metrics_text += f"Mean RR: {td['mean_rr']:.1f} ms<br>"
                             metrics_text += f"HR: {td['hr']:.1f} BPM<br><br>"
                             
-                            metrics_text += f"<b>🔢 Time Domain</b><br>"
+                            metrics_text += f"<b>Time Domain</b><br>"
                             metrics_text += f"RMSSD: {td['rmssd']:.1f} ms<br>"
                             metrics_text += f"SDNN: {td['sdnn']:.1f} ms<br>"
                             metrics_text += f"SDNN: {td['sdsd']:.1f} ms<br>"
@@ -1378,7 +1363,7 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                 
                 elif "RRI Histogram" in plot_type:
                     create_professional_plot_header(
-                        "📈 RRI Histogram",
+                        "RRI Histogram",
                         "Distribution of RR intervals"
                     )
                     
@@ -1450,7 +1435,7 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                 
                 elif "Frequency Domain" in plot_type:
                     create_professional_plot_header(
-                        "📊 Frequency Domain Analysis",
+                        "Frequency Domain Analysis",
                         "Power spectral density analysis of heart rate variability"
                     )
                     
@@ -1566,7 +1551,7 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                 
                 elif "Poincaré Plot" in plot_type:
                     create_professional_plot_header(
-                        "🔄 Poincaré Plot Analysis",
+                        "Poincaré Plot Analysis",
                         "Nonlinear analysis of heart rate variability patterns"
                     )
                     
@@ -2256,6 +2241,8 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                             """, unsafe_allow_html=True)
                     
                     close_plot_section()
+        else:
+            st.info("Select one or more plots from the sidebar to visualize analysis results.")
 
 # Case 2: Preview Mode - Show Enhanced Peak Detection Preview
 elif st.session_state.file_loaded and st.session_state.channels_configured and st.session_state.preview_mode:
@@ -2270,7 +2257,7 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
     if hasattr(st.session_state.analyzer, 'ecg_data') or hasattr(st.session_state.analyzer, 'bp_data'):
         analyzer = st.session_state.analyzer
         
-        config_text = "**📋 Configured Channels:** "
+        config_text = "<strong>Configured Channels:</strong> "
         channel_parts = []
         
         if analyzer.ecg_data:
