@@ -58,20 +58,20 @@ def apply_professional_layout(fig, title, xaxis_title, yaxis_title, height=500):
             xanchor='center'
         ),
         xaxis=dict(
-            title=dict(text=xaxis_title, font=dict(size=12, weight=500)),
+            title=dict(text=xaxis_title, font=dict(size=12, weight=500, color="black")),
             gridcolor=COLORS['grid'],
             showgrid=True,
             zeroline=False
         ),
         yaxis=dict(
-            title=dict(text=yaxis_title, font=dict(size=12, weight=500)),
+            title=dict(text=yaxis_title, font=dict(size=12, weight=500, color="black")),
             gridcolor=COLORS['grid'],
             showgrid=True,
             zeroline=False
         ),
         plot_bgcolor=COLORS['background'],
         paper_bgcolor='white',
-        font=dict(family="Inter, sans-serif", size=11),
+        font=dict(family="Inter, sans-serif", size=11, color="black"),
         height=height,
         margin=dict(l=60, r=60, t=60, b=60),
         hovermode='x unified'
@@ -2554,7 +2554,7 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
     col1, col2, col3 = st.columns(3)
     
     with col1:
-            if st.button("✅ Accept & Run Full Analysis", type="primary", use_container_width=True,
+            if st.button("✅ Accept & Run Full Analysis", use_container_width=True,
                         help="Proceed with comprehensive HRV and BRS analysis using current settings"):
                 
                 # Check analysis capabilities before starting
@@ -2575,6 +2575,13 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
                                 st.session_state.analysis_started = False
                                 st.success("🎉 Complete analysis finished successfully!")
                                 st.balloons()
+                                plot_options = [
+                                    "Interactive Tachogram",
+                                    "RRI Histogram",
+                                    "Frequency Domain",
+                                    "Poincaré Plot"
+                                ]
+                                st.session_state.selected_plots = plot_options
                                 st.rerun()
                             else:
                                 st.session_state.analysis_started = False
