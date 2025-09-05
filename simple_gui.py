@@ -58,20 +58,20 @@ def apply_professional_layout(fig, title, xaxis_title, yaxis_title, height=500):
             xanchor='center'
         ),
         xaxis=dict(
-            title=dict(text=xaxis_title, font=dict(size=12, weight=500)),
+            title=dict(text=xaxis_title, font=dict(size=12, weight=500, color="black")),
             gridcolor=COLORS['grid'],
             showgrid=True,
             zeroline=False
         ),
         yaxis=dict(
-            title=dict(text=yaxis_title, font=dict(size=12, weight=500)),
+            title=dict(text=yaxis_title, font=dict(size=12, weight=500, color="black")),
             gridcolor=COLORS['grid'],
             showgrid=True,
             zeroline=False
         ),
         plot_bgcolor=COLORS['background'],
         paper_bgcolor='white',
-        font=dict(family="Inter, sans-serif", size=11),
+        font=dict(family="Inter, sans-serif", size=11, color="black"),
         height=height,
         margin=dict(l=60, r=60, t=60, b=60),
         hovermode='x unified'
@@ -259,6 +259,14 @@ st.markdown("""
         margin: 0.5rem 0;
         font-weight: 500;
     }
+
+    .invis-card {
+        background: var(--surface);
+        padding: 1.5rem;
+        # border-radius: 12px;
+        border: 1px solid var(--border, var(--border-opacity));
+        margin: 1rem 0;
+    }
     
     /* Professional sidebar */
     .sidebar-section {
@@ -267,16 +275,6 @@ st.markdown("""
         border-radius: 10px;
         margin: 1rem 0;
         border: 1px solid var(--border);
-        box-shadow: var(--shadow);
-    }
-    
-    /* Clean progress styling */
-    .progress-container {
-        background: var(--surface);
-        padding: 2rem;
-        border-radius: 12px;
-        border: 1px solid var(--border);
-        margin: 1.5rem 0;
         box-shadow: var(--shadow);
     }
     
@@ -325,10 +323,10 @@ st.markdown("""
     .plot-section {
         background: var(--surface);
         padding: 1.5rem;
-        border-radius: 12px;
-        border: 1px solid var(--border);
+        # border-radius: 12px;
+        # border: 1px solid var(--border);
         margin: 1rem 0;
-        box-shadow: var(--shadow);
+        # box-shadow: var(--shadow);
     }
     
     .plot-section h3 {
@@ -520,7 +518,6 @@ def run_analysis_with_progress(time_window=None):
     """Run analysis with detailed progress feedback and professional styling"""
     
     # Create progress container
-    st.markdown('<div class="progress-container">', unsafe_allow_html=True)
     st.markdown("### 🔄 Analysis in Progress")
     
     progress_bar = st.progress(0)
@@ -698,6 +695,7 @@ def auto_scale_peak_parameters(analyzer):
             'ecg_height': 0.8, 'ecg_prominence': 0.7, 'ecg_distance': 100,
             'bp_height': 110, 'bp_prominence': 5, 'bp_distance': 100
         }, False, f"Auto-scale failed: {str(e)}"
+
 # ============================================================================
 # MAIN APPLICATION
 # ============================================================================
@@ -707,7 +705,6 @@ show_professional_header()
 
 # Analysis Status Dashboard
 show_analysis_status()
-
 # ============================================================================
 # SIDEBAR CONFIGURATION
 # ============================================================================
@@ -1074,7 +1071,6 @@ with st.sidebar:
 # ============================================================================
 # MAIN CONTENT AREA
 # ============================================================================
-
 # Case 1: Analysis Complete - Show Results
 if st.session_state.analyzed and st.session_state.channels_configured:
     # Results Header with scale info and file type
@@ -1104,66 +1100,1044 @@ if st.session_state.analyzed and st.session_state.channels_configured:
         """, unsafe_allow_html=True)
     
     # Results in two columns
-    col1, col2 = st.columns([1, 2])
+    # col1, col2 = st.columns([1, 2])
     
-    with col1:
-        st.markdown("### 📋 HRV Analysis Results")
         
-        # Clean metrics display - all metrics you requested
-        if 'time_domain' in st.session_state.analyzer.results:
-            td_results = st.session_state.analyzer.results['time_domain']
-            if 'error' not in td_results:
+    #     # BRS Results 
+    #     if 'brs_sequence' in st.session_state.analyzer.results:
+    #         brs_data = st.session_state.analyzer.results['brs_sequence']
+    #         if 'error' not in brs_data:
+    #             st.markdown(f"""
+    #             <div class="metric-card">
+    #                 <h4>🩺 Baroreflex Sensitivity</h4>
+    #                 <p><strong>BRS Mean:</strong> {brs_data.get('BRS_mean', 'N/A'):.2f} ms/mmHg</p>
+    #                 <p><strong>BEI:</strong> {brs_data.get('BEI', 'N/A'):.2f}</p>
+    #                 <p><strong>Valid Sequences:</strong> {brs_data.get('num_sequences', 'N/A')}</p>
+    #             </div>
+    #             """, unsafe_allow_html=True)
+
+
+
+    
+    st.markdown("### 📊 Interactive Visualizations")
+    
+    # Display selected plots with professional styling
+    if 'selected_plots' in st.session_state:
+        if "Interactive Tachogram" in st.session_state.selected_plots:
+            with st.container(border=True, key="tachogram_container"):
+
+                create_professional_plot_header(
+                    "Heart Rate Variability Tachogram",
+                    "Interactive visualization of RR interval variations over time"
+                )
+
+                col1, col2 = st.columns([0.3, 0.7])
+                with col1:
+                    td_results = st.session_state.analyzer.results['time_domain']
+                    if 'error' not in td_results:
+                        # Time Domain Metrics
+                        st.markdown(f"""
+                        <div class="invis-card">
+                            <h2> 📊 HRV Metrics </h2>
+                            <h4>Basic Measures</h4>
+                            <p><strong>Beats:</strong> {td_results.get('num_beats', 'N/A')}</p>
+                            <p><strong>Mean RR:</strong> {td_results.get('mean_rr', 'N/A'):.1f} ms</p>
+                            <p><strong>HR:</strong> {td_results.get('hr', 'N/A'):.1f} BPM</p>
+                            <br>
+                            <h4>Time Domain Metrics</h4>
+                            <p><strong>Mean RR:</strong> {td_results.get('mean_rr', 'N/A'):.1f} ms</p>
+                            <p><strong>RMSSD:</strong> {td_results.get('rmssd', 'N/A'):.1f} ms</p>
+                            <p><strong>SDNN:</strong> {td_results.get('sdnn', 'N/A'):.1f} ms</p>
+                            <p><strong>SDSD:</strong> {td_results.get('sdsd', 'N/A'):.1f} ms</p>
+                            <p><strong>pNN50:</strong> {td_results.get('pnn50', 'N/A'):.1f} %</p>
+                        </div>
+                        """, unsafe_allow_html=True)
                 
-                # Time Domain Metrics
-                st.markdown(f"""
-                <div class="metric-card">
-                    <h4>Time Domain Metrics</h4>
-                    <p><strong>Mean RR:</strong> {td_results.get('mean_rr', 'N/A'):.1f} ms</p>
-                    <p><strong>RMSSD:</strong> {td_results.get('rmssd', 'N/A'):.1f} ms</p>
-                    <p><strong>SDNN:</strong> {td_results.get('sdnn', 'N/A'):.1f} ms</p>
-                    <p><strong>SDSD:</strong> {td_results.get('sdsd', 'N/A'):.1f} ms</p>
-                    <p><strong>pNN50:</strong> {td_results.get('pnn50', 'N/A'):.1f} ms</p>
-                </div>
-                """, unsafe_allow_html=True)
+                with col2:
+                    fig = go.Figure()
+                    
+                    rr_intervals = st.session_state.analyzer.ecg_data['rr_intervals']
+                    time_points = st.session_state.analyzer.ecg_data['td_peaks'][:-1]
+                    
+                    # Enhanced RR intervals trace
+                    fig.add_trace(go.Scatter(
+                        x=time_points,
+                        y=rr_intervals,
+                        mode='lines+markers',
+                        name='RR Intervals',
+                        line=dict(color=COLORS['rr'], width=2.5),
+                        marker=dict(size=4, color=COLORS['rr'], opacity=0.8),
+                        hovertemplate='<b>Time:</b> %{x:.1f}s<br><b>RR:</b> %{y:.1f}ms<extra></extra>'
+                    ))
+                    
+                    # Highlight analysis window with professional styling
+                    if 'time_window' in st.session_state:
+                        tw = st.session_state.time_window
+                        fig.add_vrect(
+                            x0=tw['start_time'], x1=tw['end_time'],
+                            fillcolor=COLORS['window'], opacity=0.6,
+                            line=dict(color=COLORS['warning'], width=2),
+                            annotation_text="Analysis Window", 
+                            annotation_position="top left",
+                            annotation=dict(font=dict(size=12, color=COLORS['warning']))
+                        )
+                    
+                    # Enhanced statistics reference lines
+                    mean_rr = np.mean(rr_intervals)
+                    std_rr = np.std(rr_intervals,ddof=1)
+                    
+                    fig.add_hline(y=mean_rr, line_dash="dash", line_color=COLORS['success'], 
+                                line_width=2, opacity=0.8,
+                                annotation_text=f"Mean: {mean_rr:.1f}ms")
+                    fig.add_hline(y=mean_rr + std_rr, line_dash="dot", line_color=COLORS['secondary'], 
+                                line_width=1.5, opacity=0.6,
+                                annotation_text=f"+1σ: {mean_rr + std_rr:.1f}ms")
+                    fig.add_hline(y=mean_rr - std_rr, line_dash="dot", line_color=COLORS['secondary'], 
+                                line_width=1.5, opacity=0.6,
+                                annotation_text=f"-1σ: {mean_rr - std_rr:.1f}ms")
+                    
+                    # metrics panel 
+                    # metrics_text = "<b>📊 HRV Metrics</b><br><br>"
+                    # if 'time_domain' in st.session_state.analyzer.results:
+                    #     td = st.session_state.analyzer.results['time_domain']
+                    #     if 'error' not in td:
+                    #         metrics_text += f"<b>Basic Measures</b><br>"
+                    #         metrics_text += f"Beats: {td['num_beats']}<br>"
+                    #         metrics_text += f"Mean RR: {td['mean_rr']:.1f} ms<br>"
+                    #         metrics_text += f"HR: {td['hr']:.1f} BPM<br><br>"
+                            
+                    #         metrics_text += f"<b>Time Domain</b><br>"
+                    #         metrics_text += f"RMSSD: {td['rmssd']:.1f} ms<br>"
+                    #         metrics_text += f"SDNN: {td['sdnn']:.1f} ms<br>"
+                    #         metrics_text += f"SDNN: {td['sdsd']:.1f} ms<br>"
+                    #         metrics_text += f"pNN50: {td['pnn50']:.1f}%<br>"
+                            
+                    
+                    # fig.add_annotation(
+                    #     x=1.02, y=1.0, xref="paper", yref="paper",
+                    #     text=metrics_text, showarrow=False,
+                    #     font=dict(family="Inter", size=11, color="#1e293b"),
+                    #     align="left", bgcolor="rgba(255, 255, 255, 0.95)",
+                    #     bordercolor="rgba(108, 117, 125, 0.3)", borderwidth=1, borderpad=15,
+                    #     xanchor="left", yanchor="top"
+                    # )
+                    
+                    # Apply professional layout
+                    fig = apply_professional_layout(
+                        fig, 
+                        f'Heart Rate Variability Analysis (μ={mean_rr:.1f}±{std_rr:.1f}ms)',
+                        'Time (seconds)', 
+                        'RR Interval (ms)', 
+                        height=600
+                    )
+                    fig.update_layout() 
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+                    close_plot_section()
+            
+            if "RRI Histogram" in st.session_state.selected_plots:
+                with st.container(border=True):
+                    create_professional_plot_header(
+                        "RRI Histogram",
+                        "Distribution of RR intervals"
+                    )
+                    
+                    if hasattr(st.session_state.analyzer, 'ecg_data') and 'rr_intervals' in st.session_state.analyzer.ecg_data:
+                        rr_intervals = st.session_state.analyzer.ecg_data['rr_intervals']
+                        
+                        # Calculate basic statistics
+                        rr_mean = np.mean(rr_intervals)
+                        rr_std = np.std(rr_intervals, ddof=1)
+                        
+                        # Create histogram 
+                        plt.rcParams.update({
+                            'font.family': 'sans-serif',
+                            'font.size': 11,
+                            'axes.titlesize': 16,
+                            'axes.titleweight': 'bold',
+                            'axes.labelsize': 12,
+                            'axes.labelweight': '500',
+                            'axes.facecolor': '#f8f9fa',
+                            'figure.facecolor': 'white'
+                        })
+                        
+                        fig, ax = plt.subplots(figsize=(12, 6))
+                        
+                        # Create histogram
+                        counts, bins, patches = ax.hist(rr_intervals, bins=30, 
+                                                    color='#3498db', alpha=0.7, 
+                                                    edgecolor='#2980b9', linewidth=0.5)
+                        
+                        # Add mean line
+                        ax.axvline(rr_mean, color='#e74c3c', linestyle='--', linewidth=2,
+                                label=f'Mean: {rr_mean:.1f} ms')
+                        
+                        # Styling
+                        ax.set_xlabel('RR Interval (ms)', fontsize=12, fontweight='500')
+                        ax.set_ylabel('Frequency', fontsize=12, fontweight='500')
+                        ax.set_title(f'RR Interval Distribution (n={len(rr_intervals)})', 
+                                    fontsize=16, fontweight='bold', pad=20)
+                        
+                        # Add statistics text box
+                        stats_text = f'Mean: {rr_mean:.1f} ms\nStd: {rr_std:.1f} ms\nCount: {len(rr_intervals)}'
+                        ax.text(0.02, 0.98, stats_text, transform=ax.transAxes,
+                                verticalalignment='top', horizontalalignment='left',
+                                bbox=dict(boxstyle='round,pad=0.8', facecolor='white', 
+                                        alpha=0.95, edgecolor='#dee2e6', linewidth=1),
+                                fontsize=11, fontweight='500')
+                        
+                        # Grid and spines
+                        ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
+                        ax.set_axisbelow(True)
+                        ax.spines['top'].set_visible(False)
+                        ax.spines['right'].set_visible(False)
+                        ax.spines['left'].set_linewidth(0.8)
+                        ax.spines['bottom'].set_linewidth(0.8)
+                        
+                        # Legend
+                        legend = ax.legend(loc='upper right', frameon=True, fancybox=True, shadow=True)
+                        legend.get_frame().set_facecolor('white')
+                        legend.get_frame().set_alpha(0.9)
+                        
+                        plt.tight_layout()
+                        st.pyplot(fig)
+                        
+                    else:
+                        st.error("❌ No RR interval data available. Complete peak detection analysis first.")
+                    
+                    close_plot_section()
+
+        
+        if "Frequency Domain" in st.session_state.selected_plots:
+            with st.container(border=True):
+                create_professional_plot_header(
+                    "Frequency Domain Analysis",
+                    "Power spectral density analysis of heart rate variability"
+                )
+
+                col1, col2 = st.columns([0.3, 0.7])
+                with col1:
+                    results = st.session_state.analyzer.results
+                    if 'frequency_domain' in results and 'error' not in results['frequency_domain']:
+                        fd = results['frequency_domain']
+                        # Time Domain Metrics
+                        st.markdown(f"""
+                        <div class="invis-card">
+                            <h4> 📊 Frequency Domain HRV Metrics </h4>
+                            <p><strong>VLF Power:</strong> {fd.get('vlf_power', 'N/A'):.2f} ms²</p>
+                            <p><strong>LF Power:</strong> {fd.get('lf_power', 'N/A'):.2f} ms²</p>
+                            <p><strong>HF Power:</strong> {fd.get('hf_power', 'N/A'):.2f} ms²</p>
+                            <p><strong>Total Power:</strong> {fd.get('total_power', 'N/A'):.2f} ms²</p>
+                            <p><strong>LF/HF Ratio:</strong> {fd.get('lf_hf_ratio', 'N/A'):.2f}</p>
+                            <p><strong>LF n.u.:</strong> {fd.get('lf_nu', 'N/A'):.2f}</p>
+                            <p><strong>HF n.u.:</strong> {fd.get('hf_nu', 'N/A'):.2f}</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+            
+            with col2:
+                freq_data = st.session_state.analyzer.results['frequency_domain']
+                if 'error' not in freq_data:
+                    # Enhanced matplotlib styling
+                    plt.style.use('default')
+                    plt.rcParams.update({
+                        'font.family': 'sans-serif',
+                        'font.size': 11,
+                        'axes.titlesize': 16,
+                        'axes.titleweight': 'bold',
+                        'axes.labelsize': 12,
+                        'axes.labelweight': '500',
+                        'axes.facecolor': '#f8f9fa',
+                        'figure.facecolor': 'white'
+                    })
+                    
+                    fig, ax = plt.subplots(figsize=(14, 7))
+                    frequencies = np.asarray(freq_data['frequencies'], dtype=float)
+                    psd = np.asarray(freq_data['psd'], dtype=float)
+
+                    # Clean + strictly increasing + unique x
+                    good = np.isfinite(frequencies) & np.isfinite(psd) & (frequencies > 0)
+                    frequencies, psd = frequencies[good], psd[good]
+                    order = np.argsort(frequencies)
+                    frequencies, psd = frequencies[order], psd[order]
+                    frequencies, uniq_idx = np.unique(frequencies, return_index=True)
+                    psd = psd[uniq_idx]
+
+                    # Band masks with epsilon ~ half a bin to "touch" edges
+                    df = np.median(np.diff(frequencies))
+                    eps = float(df) * 0.51 if np.isfinite(df) and df > 0 else 1e-12
+
+                    vlf_mask = (frequencies >= (0.003 - eps)) & (frequencies <= (0.04 + eps))
+                    lf_mask  = (frequencies >= (0.04  - eps)) & (frequencies <= (0.15 + eps))
+                    hf_mask  = (frequencies >= (0.15  - eps)) & (frequencies <= (0.40 + eps))
+
+                    scale = 1e6
+                    baseline = np.zeros_like(psd)
+
+                    p_vlf = _band_fill(ax, frequencies, psd, 0.003, 0.04, scale=scale,
+                                    facecolor='#95a5a6', alpha=0.4, label='VLF (0.003–0.04 Hz)')
+                    p_lf  = _band_fill(ax, frequencies, psd, 0.04,  0.15, scale=scale,
+                                    facecolor='#346edb', alpha=0.5, label='LF (0.04–0.15 Hz)')
+                    p_hf  = _band_fill(ax, frequencies, psd, 0.15,  0.40, scale=scale,
+                                    facecolor='#e74c3c', alpha=0.5, label='HF (0.15–0.40 Hz)')
+
+                    # PSD curve 
+                    ax.plot(frequencies, psd*scale, color='#2c3e50', linewidth=2.5, label='PSD', zorder=5)
+                    
+                    #Graph styling
+                    ax.set_xlabel('Frequency (Hz)', fontsize=12, fontweight='500')
+                    ax.set_ylabel('Power Spectral Density (ms²/Hz)', fontsize=12, fontweight='500')
+                    ax.set_title('Heart Rate Variability - Frequency Domain Analysis', 
+                                fontsize=16, fontweight='bold', pad=20)
+                    ax.set_xlim(0, 0.5)
+                    
+                    # Legend
+                    legend_handles = [
+                        Patch(facecolor='#95a5a6', edgecolor='none', alpha=0.4, label='VLF (0.003–0.04 Hz)'),
+                        Patch(facecolor='#346edb', edgecolor='none', alpha=0.5, label='LF (0.04–0.15 Hz)'),
+                        Patch(facecolor='#e74c3c', edgecolor='none', alpha=0.5, label='HF (0.15–0.40 Hz)'),
+                        Line2D([0], [0], color='#2c3e50', linewidth=2.5, label='PSD')
+                    ]
+
+                    legend = ax.legend(
+                        handles=legend_handles,
+                        loc='upper right',
+                        frameon=True,
+                        fancybox=True,
+                        shadow=True,
+                        fontsize=10,
+                        handlelength=1.8,
+                        borderaxespad=0.8
+                    )
+                    legend.get_frame().set_facecolor('white')
+                    legend.get_frame().set_alpha(0.9)
+
+                    
+                    #Grid
+                    ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
+                    ax.set_axisbelow(True)
+                    
+                    # Remove top and right spines
+                    ax.spines['top'].set_visible(False)
+                    ax.spines['right'].set_visible(False)
+                    ax.spines['left'].set_linewidth(0.8)
+                    ax.spines['bottom'].set_linewidth(0.8)
+                    
+                    plt.tight_layout()
+                    st.pyplot(fig)
+                else:
+                    st.error(f"Frequency domain analysis error: {freq_data['error']}")
                 
-                # Nonlinear Metrics
-                st.markdown(f"""
-                <div class="metric-card">
-                    <h4>Nonlinear Metrics</h4>
-                    <p><strong>SD1:</strong> {td_results.get('sd1', 'N/A'):.1f} ms</p>
-                    <p><strong>SD2:</strong> {td_results.get('sd2', 'N/A'):.1f} ms</p>
-                    <p><strong>SD1/SD2:</strong> {td_results.get('sd1_sd2_ratio', 'N/A'):.3f}</p>
-                    <p><strong>Sample Entropy:</strong> {td_results.get('sample_entropy', 'N/A'):.3f}</p>
-                </div>
-                """, unsafe_allow_html=True)
+                close_plot_section()
+
+
+        if "Poincaré Plot" in st.session_state.selected_plots:
+            with st.container(border=True):
+
+                create_professional_plot_header(
+                    "Poincaré Plot Analysis",
+                    "Nonlinear analysis of heart rate variability patterns"
+                )
+
+                col1, col2 = st.columns([0.3, 0.7])
+                with col1:
+                    td_results = st.session_state.analyzer.results['time_domain']
+                    if 'error' not in td_results:
+                        # Nonlinear Metrics
+                        st.markdown(f"""
+                        <div class="invis-card">
+                            <h4> 📊 Nonlinear Metrics </h4>
+                            <p><strong>SD1:</strong> {td_results.get('sd1', 'N/A'):.1f} ms</p>
+                            <p><strong>SD2:</strong> {td_results.get('sd2', 'N/A'):.1f} ms</p>
+                            <p><strong>SD1/SD2:</strong> {td_results.get('sd1_sd2_ratio', 'N/A'):.3f}</p>
+                            <p><strong>Ellipse Area:</strong> {td_results.get('ellipse_area', 'N/A'):.1f} ms²</p>
+                            <p><strong>Sample Entropy:</strong> {td_results.get('sample_entropy', 'N/A'):.3f}</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+            
+                with col2:
+                        plt.rcParams.update({
+                            'font.family': 'sans-serif',
+                            'font.size': 11,
+                            'axes.titlesize': 16,
+                            'axes.titleweight': 'bold',
+                            'axes.labelsize': 12,
+                            'axes.labelweight': '500',
+                            'axes.facecolor': '#f8f9fa',
+                            'figure.facecolor': 'white'
+                        })
+                        
+                        fig, ax = plt.subplots(figsize=(11, 9))
+                        
+                        RRDistance_ms = st.session_state.analyzer.ecg_data['rr_intervals']
+                        RRIplusOne = Poincare(RRDistance_ms)
+                        
+                        EllipseCenterX = np.average(np.delete(RRDistance_ms, -1))
+                        EllipseCenterY = np.average(RRIplusOne)
+                        Center_coords = EllipseCenterX, EllipseCenterY
+                        
+                        z = np.polyfit(np.delete(RRDistance_ms, -1), RRIplusOne, 1)
+                        p = np.poly1d(z)
+                        slope = z[0]
+                        theta = np.degrees(np.arctan(slope))
+                        theta_rad = np.radians(theta)
+                        
+                        # Enhanced scatter plot with better styling
+                        scatter = ax.scatter(np.delete(RRDistance_ms, -1), RRIplusOne, 
+                                            alpha=0.7, s=30, c='#667eea', edgecolors='white', 
+                                            linewidth=0.5, zorder=5)
+                        
+                        # Professional identity line
+                        ax.plot(np.delete(RRDistance_ms, -1), p(np.delete(RRDistance_ms, -1)), 
+                            color="#e74c3c", linewidth=3, label='Identity Line', 
+                            alpha=0.5, zorder=8)
+                        
+                        # Get SD values and draw enhanced ellipse
+                        if 'time_domain' in st.session_state.analyzer.results:
+                            td_results = st.session_state.analyzer.results['time_domain']
+                            sd1 = td_results['sd1']
+                            sd2 = td_results['sd2']
+                            
+                            # Enhanced ellipse with professional styling
+                            from matplotlib.patches import Ellipse
+                            e = Ellipse(xy=Center_coords, width=sd2*2, height=sd1*2, angle=theta,
+                                        edgecolor='#2c3e50', facecolor='none', linewidth=2.5, 
+                                        alpha=0.8, linestyle='-', zorder=10)
+                            ax.add_patch(e)
+                            
+                            # Enhanced axis lines with better colors
+                            x_sd2 = [EllipseCenterX, EllipseCenterX + sd2 * np.cos(theta_rad)]
+                            y_sd2 = [EllipseCenterY, EllipseCenterY + sd2 * np.sin(theta_rad)]
+                            ax.plot(x_sd2, y_sd2, color='#3498db', linewidth=3.5, 
+                                    label='SD2 (Long-term)', alpha=0.9, zorder=9)
+                            
+                            x_sd1 = [EllipseCenterX, EllipseCenterX - sd1 * np.sin(theta_rad)]
+                            y_sd1 = [EllipseCenterY, EllipseCenterY + sd1 * np.cos(theta_rad)]
+                            ax.plot(x_sd1, y_sd1, color='#27ae60', linewidth=3.5, 
+                                    label='SD1 (Short-term)', alpha=0.9, zorder=9)
+                        
+                        # Professional styling
+                        ax.set_xlabel("RR Interval (ms)", fontsize=12, fontweight='500')
+                        ax.set_ylabel("RR Interval + 1 (ms)", fontsize=12, fontweight='500')
+                        ax.set_title('Poincaré Plot - Nonlinear HRV Analysis', 
+                                    fontsize=16, fontweight='bold', pad=20)
+                        
+                        # Enhanced grid and spines
+                        ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
+                        ax.set_axisbelow(True)
+                        
+                        # Remove top and right spines
+                        ax.spines['top'].set_visible(False)
+                        ax.spines['right'].set_visible(False)
+                        ax.spines['left'].set_linewidth(0.8)
+                        ax.spines['bottom'].set_linewidth(0.8)
+                        
+                        # Enhanced legend
+                        legend = ax.legend(loc='upper right', frameon=True, fancybox=True, 
+                                        shadow=True, fontsize=11)
+                        legend.get_frame().set_facecolor('white')
+                        legend.get_frame().set_alpha(0.9)
+                        
+                        # Equal aspect ratio for proper ellipse display
+                        ax.set_aspect('equal', adjustable='box')
+                        
+                        plt.tight_layout()
+                        st.pyplot(fig)
+                        close_plot_section()
         
-        # Frequency Domain Metrics
-        if 'frequency_domain' in st.session_state.analyzer.results:
-            freq_results = st.session_state.analyzer.results['frequency_domain']
-            if 'error' not in freq_results:
-                st.markdown(f"""
-                <div class="metric-card">
-                    <h4>Frequency Domain Metrics</h4>
-                    <p><strong>VLF Power:</strong> {freq_results.get('vlf_power', 'N/A'):.2f} ms²</p>
-                    <p><strong>LF Power:</strong> {freq_results.get('lf_power', 'N/A'):.2f} ms²</p>
-                    <p><strong>HF Power:</strong> {freq_results.get('hf_power', 'N/A'):.2f} ms²</p>
-                    <p><strong>Total Power:</strong> {freq_results.get('total_power', 'N/A'):.2f} ms²</p>
-                    <p><strong>LF/HF Ratio:</strong> {freq_results.get('lf_hf_ratio', 'N/A'):.2f}</p>
-                </div>
-                """, unsafe_allow_html=True)
-        
-        # BRS Results 
-        if 'brs_sequence' in st.session_state.analyzer.results:
-            brs_data = st.session_state.analyzer.results['brs_sequence']
-            if 'error' not in brs_data:
-                st.markdown(f"""
-                <div class="metric-card">
-                    <h4>🩺 Baroreflex Sensitivity</h4>
-                    <p><strong>BRS Mean:</strong> {brs_data.get('BRS_mean', 'N/A'):.2f} ms/mmHg</p>
-                    <p><strong>BEI:</strong> {brs_data.get('BEI', 'N/A'):.2f}</p>
-                    <p><strong>Valid Sequences:</strong> {brs_data.get('num_sequences', 'N/A')}</p>
-                </div>
-                """, unsafe_allow_html=True)
+        if "BRS Time Domain Visualization" in st.session_state.selected_plots:
+            with st.container(border=True):
+                create_professional_plot_header(
+                    "🩺 Baroreflex Sensitivity - Time Domain Analysis",
+                    "Interactive visualization of blood pressure and RR interval sequences"
+                )
+                
+                if 'brs_sequence' in st.session_state.analyzer.results:
+                    brs_data = st.session_state.analyzer.results['brs_sequence']
+                    
+                    if 'error' in brs_data:
+                        st.markdown(f"""
+                        <div class="error-box">
+                            <strong>BRS Analysis Error:</strong> {brs_data['error']}
+                        </div>
+                        """, unsafe_allow_html=True)
+                    elif 'plotting_data' in brs_data:
+                        plot_data = brs_data['plotting_data']
+                        
+                        # Enhanced interactive BRS plot
+                        fig = make_subplots(
+                            rows=2, cols=1,
+                            subplot_titles=('Systolic Blood Pressure', 'RR Intervals'),
+                            vertical_spacing=0.1,
+                            shared_xaxes=True
+                        )
+                        
+                        # Enhanced SBP trace
+                        fig.add_trace(go.Scatter(
+                            x=plot_data['sap_times'],
+                            y=plot_data['sbp'],
+                            mode='lines+markers',
+                            name='Systolic BP',
+                            line=dict(color='#e74c3c', width=2),
+                            marker=dict(size=5, color='#c0392b'),
+                            opacity=0.8
+                        ), row=1, col=1)
+                        
+                        # Enhanced RRI trace
+                        fig.add_trace(go.Scatter(
+                            x=plot_data['rri_times'],
+                            y=plot_data['rri'],
+                            mode='lines+markers',
+                            name='RR Intervals',
+                            line=dict(color='#3498db', width=2),
+                            marker=dict(size=5, color='#2980b9'),
+                            opacity=0.8
+                        ), row=2, col=1)
+                        
+                        # Highlight valid sequences with enhanced colors
+                        from scipy.stats import linregress
+                        
+                        sbp = plot_data['sbp']
+                        rri = plot_data['rri']
+                        ramps = plot_data['ramps']
+                        delay = plot_data['best_delay']
+                        r_threshold = plot_data['r_threshold']
+                        thresh_pi = plot_data['thresh_pi']
+                        sap_times = plot_data['sap_times']
+                        rri_times = plot_data['rri_times']
+                        
+                        sequence_count = 0
+                        valid_sequences = []
+                        
+                        for i, (start, end, direction) in enumerate(ramps):
+                            if end + delay >= len(rri):
+                                continue
+                            
+                            sbp_ramp = sbp[start:end + 1]
+                            rri_ramp = rri[start + delay:end + 1 + delay]
+                            
+                            if len(sbp_ramp) != len(rri_ramp) or np.any(np.abs(np.diff(rri_ramp)) < thresh_pi):
+                                continue
+                            
+                            slope, intercept, r_value, _, _ = linregress(sbp_ramp, rri_ramp)
+                            if abs(r_value) < r_threshold or slope <= 0:
+                                continue
+                            
+                            sequence_count += 1
+                            color = '#27ae60' if direction == 'up' else '#f39c12'
+                            
+                            # Highlight sequences with enhanced styling
+                            if start < len(sap_times) and end < len(sap_times):
+                                fig.add_trace(go.Scatter(
+                                    x=sap_times[start:end + 1],
+                                    y=sbp[start:end + 1],
+                                    mode='lines+markers',
+                                    name=f'{direction.upper()} sequence' if sequence_count == 1 else None,
+                                    line=dict(color=color, width=4),
+                                    marker=dict(size=8, color=color),
+                                    showlegend=(sequence_count == 1),
+                                    legendgroup=direction
+                                ), row=1, col=1)
+                            
+                            if start + delay < len(rri_times) and end + 1 + delay <= len(rri_times):
+                                fig.add_trace(go.Scatter(
+                                    x=rri_times[start + delay:end + 1 + delay],
+                                    y=rri[start + delay:end + 1 + delay],
+                                    mode='lines+markers',
+                                    name=None,
+                                    line=dict(color=color, width=4),
+                                    marker=dict(size=8, color=color),
+                                    showlegend=False,
+                                    legendgroup=direction
+                                ), row=2, col=1)
+                            
+                            valid_sequences.append({
+                                'sequence': sequence_count,
+                                'direction': direction,
+                                'slope': slope,
+                                'r_value': r_value,
+                                'start': start,
+                                'end': end
+                            })
+                        
+                        # Highlight analysis window
+                        if 'time_window' in st.session_state:
+                            tw = st.session_state.time_window
+                            fig.add_vrect(
+                                x0=tw['start_time'], x1=tw['end_time'],
+                                fillcolor="rgba(255, 193, 7, 0.2)", opacity=0.8,
+                                annotation_text="Analysis Window", annotation_position="top left",
+                                row=1, col=1
+                            )
+                            fig.add_vrect(
+                                x0=tw['start_time'], x1=tw['end_time'],
+                                fillcolor="rgba(255, 193, 7, 0.2)", opacity=0.8,
+                                row=2, col=1
+                            )
+                        
+                        # Enhanced layout
+                        fig.update_xaxes(title_text="Time (s)", row=2, col=1)
+                        fig.update_yaxes(title_text="Systolic BP (mmHg)", row=1, col=1)
+                        fig.update_yaxes(title_text="RR Interval (ms)", row=2, col=1)
+                        
+                        fig.update_layout(
+                            title=f'Baroreflex Sensitivity Analysis - {sequence_count} Valid Sequences Found',
+                            height=700,
+                            hovermode='x unified',
+                            showlegend=True,
+                            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                            plot_bgcolor='rgba(248,249,250,0.8)'
+                        )
+                        
+                        st.plotly_chart(fig, use_container_width=True)
+                        
+                        # Enhanced BRS metrics display
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            st.metric("🎯 BRS Mean", f"{brs_data.get('BRS_mean', 0):.2f} ms/mmHg", 
+                                        help="Average baroreflex sensitivity")
+                        with col2:
+                            st.metric("📊 BEI", f"{brs_data.get('BEI', 0):.2f}", 
+                                        help="Baroreflex Effectiveness Index")
+                        with col3:
+                            st.metric("✅ Valid Sequences", sequence_count,
+                                        help="Number of valid BRS sequences detected")
+                        with col4:
+                            st.metric("⏱️ Best Delay", f"{plot_data['best_delay']} beats",
+                                        help="Optimal delay between BP and RR changes")
+                        
+                        # Enhanced sequence details table
+                        if valid_sequences:
+                            st.markdown("#### 📋 Valid BRS Sequence Details")
+                            
+                            sequence_df = pd.DataFrame(valid_sequences)
+                            sequence_df['slope'] = sequence_df['slope'].round(3)
+                            sequence_df['r_value'] = sequence_df['r_value'].round(3)
+                            
+                            st.dataframe(
+                                sequence_df,
+                                column_config={
+                                    "sequence": st.column_config.NumberColumn("Seq #", width="small"),
+                                    "direction": st.column_config.TextColumn("Direction", width="small"), 
+                                    "slope": st.column_config.NumberColumn("Slope (ms/mmHg)", format="%.3f"),
+                                    "r_value": st.column_config.NumberColumn("Correlation (r)", format="%.3f"),
+                                    "start": st.column_config.NumberColumn("Start Index", width="small"),
+                                    "end": st.column_config.NumberColumn("End Index", width="small")
+                                },
+                                hide_index=True,
+                                use_container_width=True
+                            )
+                            
+                            # Analysis parameters info
+                            st.info(f"📋 **Analysis Parameters:** delay={plot_data['best_delay']} beats, "
+                                    f"r_threshold={plot_data['r_threshold']}, thresh_pi={plot_data['thresh_pi']} ms")
+                
+                close_plot_section()
+                    # STEP 2A: Update plot options list in simple_gui.py (around line 820)
+
+        if "Spectral BRS Analysis" in st.session_state.selected_plots:
+            with st.container(border=True):
+                create_professional_plot_header(
+                    "🌊 Spectral Baroreflex Sensitivity Analysis",
+                    "Cross-spectral analysis showing RRI and SBP power spectra, coherence, and transfer function"
+                )
+                
+                # Check if we have the required spectral data
+                if 'brs_spectral' not in st.session_state.analyzer.results or 'frequency_domain' not in st.session_state.analyzer.results:
+                    st.markdown("""
+                    <div class="error-box">
+                        <strong>❌ Spectral Analysis Error:</strong> Required spectral data not available. 
+                        Please ensure frequency domain and BRS spectral analysis completed successfully.
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                else:
+                    brs_spec_data = st.session_state.analyzer.results['brs_spectral']
+                    freq_data = st.session_state.analyzer.results['frequency_domain']
+                    
+                    if 'error' in brs_spec_data:
+                        st.markdown(f"""
+                        <div class="error-box">
+                            <strong>❌ Spectral BRS Error:</strong> {brs_spec_data['error']}
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    elif 'error' in freq_data:
+                        st.markdown(f"""
+                        <div class="error-box">
+                            <strong>❌ Frequency Domain Error:</strong> {freq_data['error']}
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    else:
+                        # Create comprehensive spectral analysis plot
+                        fig = make_subplots(
+                            rows=2, cols=2,
+                            subplot_titles=(
+                                'RRI Power Spectral Density', 
+                                'SBP Power Spectral Density',
+                                'RRI-SBP Coherence', 
+                                'Transfer Function |H(f)| = |CSD|/PSD_BP'
+                            ),
+                            specs=[[{"secondary_y": False}, {"secondary_y": False}],
+                                [{"secondary_y": False}, {"secondary_y": False}]],
+                            vertical_spacing=0.12,
+                            horizontal_spacing=0.1
+                        )
+                        
+                        # Get the RRI spectral data
+                        frequencies_rr = freq_data['frequencies']
+                        psd_rr = freq_data['psd']
+                        
+                        # RRI PSD (Top Left)
+                        fig.add_trace(go.Scatter(
+                            x=frequencies_rr,
+                            y=psd_rr * 1e6,  # Convert to ms²/Hz for display
+                            mode='lines',
+                            name='RRI PSD',
+                            line=dict(color='#3498db', width=2),
+                            showlegend=False
+                        ), row=1, col=1)
+                        
+                        # Highlight frequency bands on RRI PSD
+                        lf_band = (frequencies_rr >= 0.04) & (frequencies_rr < 0.15)
+                        hf_band = (frequencies_rr >= 0.15) & (frequencies_rr < 0.4)
+                        
+                        if np.any(lf_band):
+                            fig.add_trace(go.Scatter(
+                                x=frequencies_rr[lf_band],
+                                y=psd_rr[lf_band] * 1e6,
+                                mode='lines',
+                                fill='tonexty',
+                                name='LF Band',
+                                line=dict(color='#e74c3c', width=0),
+                                fillcolor='rgba(231, 76, 60, 0.3)',
+                                showlegend=True
+                            ), row=1, col=1)
+                        
+                        if np.any(hf_band):
+                            fig.add_trace(go.Scatter(
+                                x=frequencies_rr[hf_band],
+                                y=psd_rr[hf_band] * 1e6,
+                                mode='lines',
+                                fill='tonexty',
+                                name='HF Band',
+                                line=dict(color='#27ae60', width=0),
+                                fillcolor='rgba(39, 174, 96, 0.3)',
+                                showlegend=True
+                            ), row=1, col=1)
+                        
+                        # SBP PSD (Top Right) - use the calculated data from analyzer
+                        if 'frequencies_bp' in brs_spec_data and 'psd_bp' in brs_spec_data:
+                            frequencies_bp = brs_spec_data['frequencies_bp']
+                            psd_bp = brs_spec_data['psd_bp']
+                            
+                            fig.add_trace(go.Scatter(
+                                x=frequencies_bp,
+                                y=psd_bp,
+                                mode='lines',
+                                name='SBP PSD',
+                                line=dict(color='#e74c3c', width=2),
+                                showlegend=False
+                            ), row=1, col=2)
+                            
+                            # Highlight bands on SBP
+                            lf_band_bp = (frequencies_bp >= 0.04) & (frequencies_bp < 0.15)
+                            hf_band_bp = (frequencies_bp >= 0.15) & (frequencies_bp < 0.4)
+                            
+                            if np.any(lf_band_bp):
+                                fig.add_trace(go.Scatter(
+                                    x=frequencies_bp[lf_band_bp],
+                                    y=psd_bp[lf_band_bp],
+                                    mode='lines',
+                                    fill='tonexty',
+                                    name='LF Band (BP)',
+                                    line=dict(color='#e74c3c', width=0),
+                                    fillcolor='rgba(231, 76, 60, 0.2)',
+                                    showlegend=False
+                                ), row=1, col=2)
+                            
+                            if np.any(hf_band_bp):
+                                fig.add_trace(go.Scatter(
+                                    x=frequencies_bp[hf_band_bp],
+                                    y=psd_bp[hf_band_bp],
+                                    mode='lines',
+                                    fill='tonexty',
+                                    name='HF Band (BP)',
+                                    line=dict(color='#27ae60', width=0),
+                                    fillcolor='rgba(39, 174, 96, 0.2)',
+                                    showlegend=False
+                                ), row=1, col=2)
+                        
+                        # Coherence plot (Bottom Left)
+                        if 'frequencies_coh' in brs_spec_data and 'coherence_values' in brs_spec_data:
+                            frequencies_coh = brs_spec_data['frequencies_coh']
+                            coherence_values = brs_spec_data['coherence_values']
+                            
+                            fig.add_trace(go.Scatter(
+                                x=frequencies_coh,
+                                y=coherence_values,
+                                mode='lines',
+                                name='Coherence',
+                                line=dict(color='#9b59b6', width=2),
+                                showlegend=False
+                            ), row=2, col=1)
+                            
+                            # Add coherence threshold line
+                            fig.add_hline(y=0.5, line_dash="dash", line_color="#f39c12", 
+                                        annotation_text="Threshold (0.5)", row=2, col=1)
+                            
+                            # Highlight significant coherence regions
+                            significant_mask = coherence_values >= 0.5
+                            if np.any(significant_mask):
+                                fig.add_trace(go.Scatter(
+                                    x=frequencies_coh[significant_mask],
+                                    y=coherence_values[significant_mask],
+                                    mode='markers',
+                                    name='Valid Coherence (≥0.5)',
+                                    marker=dict(color='#e74c3c', size=4),
+                                    showlegend=False
+                                ), row=2, col=1)
+                        
+                        # Transfer Function (Bottom Right) - exactly matching main.py calculations
+                        if 'transfer_gain' in brs_spec_data and 'frequencies_csd' in brs_spec_data:
+                            frequencies_csd = brs_spec_data['frequencies_csd']
+                            transfer_gain = brs_spec_data['transfer_gain']
+                            
+                            fig.add_trace(go.Scatter(
+                                x=frequencies_csd,
+                                y=transfer_gain,
+                                mode='lines',
+                                name='Transfer Function |H(f)|',
+                                line=dict(color='#2c3e50', width=2),
+                                showlegend=False
+                            ), row=2, col=2)
+                            
+                            # Add comprehensive BRS results annotation
+                            lf_coherence = brs_spec_data.get('lf_coherence', 0)
+                            hf_coherence = brs_spec_data.get('hf_coherence', 0)
+                            brs_lf_tf = brs_spec_data.get('brs_lf_tf', 0)
+                            brs_hf_tf = brs_spec_data.get('brs_hf_tf', 0)
+                            nperseg_used = brs_spec_data.get('nperseg_used', 'N/A')
+                            
+                            fig.add_annotation(
+                                x=0.98, y=0.95, xref="paper", yref="paper",
+                                text=f"<b>🔍 Spectral BRS Results</b><br><br>"
+                                    f"<b>LF Band (0.04-0.15 Hz)</b><br>"
+                                    f"BRS: {brs_lf_tf:.3f} ms/mmHg<br>"
+                                    f"Coherence: {lf_coherence:.3f} {'✅' if lf_coherence > 0.5 else '❌'}<br><br>"
+                                    f"<b>HF Band (0.15-0.4 Hz)</b><br>"
+                                    f"BRS: {brs_hf_tf:.3f} ms/mmHg<br>"
+                                    f"Coherence: {hf_coherence:.3f} {'✅' if hf_coherence > 0.5 else '❌'}<br><br>"
+                                    f"<b>Method</b><br>"
+                                    f"CSD: |csd(bp,rr)| / psd_bp<br>"
+                                    f"nperseg: {nperseg_used}<br>"
+                                    f"Interp: 4 Hz",
+                                showarrow=False,
+                                font=dict(family="Arial", size=10, color="black"),
+                                align="left", bgcolor="rgba(248, 249, 250, 0.95)",
+                                bordercolor="rgba(108, 117, 125, 0.5)", borderwidth=1, borderpad=10,
+                                xanchor="right", yanchor="top"
+                            )
+                        
+                        # Update axes labels and formatting
+                        fig.update_xaxes(title_text="Frequency (Hz)", row=1, col=1)
+                        fig.update_yaxes(title_text="PSD (ms²/Hz)", row=1, col=1)
+                        
+                        fig.update_xaxes(title_text="Frequency (Hz)", row=1, col=2)
+                        fig.update_yaxes(title_text="PSD (mmHg²/Hz)", row=1, col=2)
+                        
+                        fig.update_xaxes(title_text="Frequency (Hz)", row=2, col=1)
+                        fig.update_yaxes(title_text="Coherence", row=2, col=1)
+                        
+                        fig.update_xaxes(title_text="Frequency (Hz)", row=2, col=2)
+                        fig.update_yaxes(title_text="Transfer Gain (ms/mmHg)", row=2, col=2)
+                        
+                        # Set consistent frequency range for all subplots (focus on relevant HRV bands)
+                        for row in [1, 2]:
+                            for col in [1, 2]:
+                                fig.update_xaxes(range=[0, 0.5], row=row, col=col)
+                        
+                        # Overall layout
+                        fig.update_layout(
+                            title=f'Spectral BRS Analysis - Matches main.py Implementation',
+                            height=700,
+                            showlegend=True,
+                            legend=dict(
+                                orientation="h", 
+                                yanchor="bottom", 
+                                y=1.02, 
+                                xanchor="center", 
+                                x=0.5
+                            ),
+                            plot_bgcolor='rgba(248,249,250,0.8)',
+                            margin=dict(r=250)  # Extra space for annotations
+                        )
+                        
+                        st.plotly_chart(fig, use_container_width=True)
+                        
+                        # Enhanced summary metrics
+                        col1, col2, col3, col4 = st.columns(4)
+                        
+                        with col1:
+                            lf_valid = "✅ Valid" if brs_spec_data.get('valid_lf', False) else "❌ Invalid"
+                            st.metric(
+                                "🔵 LF BRS", 
+                                f"{brs_spec_data.get('brs_lf_tf', 0):.3f} ms/mmHg",
+                                help=f"Low frequency BRS - {lf_valid}"
+                            )
+                        
+                        with col2:
+                            hf_valid = "✅ Valid" if brs_spec_data.get('valid_hf', False) else "❌ Invalid"
+                            st.metric(
+                                "🟢 HF BRS", 
+                                f"{brs_spec_data.get('brs_hf_tf', 0):.3f} ms/mmHg",
+                                help=f"High frequency BRS - {hf_valid}"
+                            )
+                        
+                        with col3:
+                            st.metric(
+                                "🔵 LF Coherence", 
+                                f"{brs_spec_data.get('lf_coherence', 0):.3f}",
+                                help="Coherence in LF band (>0.5 required for validity)"
+                            )
+                        
+                        with col4:
+                            st.metric(
+                                "🟢 HF Coherence", 
+                                f"{brs_spec_data.get('hf_coherence', 0):.3f}",
+                                help="Coherence in HF band (>0.5 required for validity)"
+                            )
+                        
+                        # Technical details in expandable section
+                        with st.expander("📋 Technical Analysis Details (matches main.py)", expanded=False):
+                            col1, col2 = st.columns(2)
+                            
+                            with col1:
+                                st.markdown("**🔧 Analysis Parameters (matches main.py exactly):**")
+                                st.markdown(f"- Interpolation frequency: 4 Hz")
+                                st.markdown(f"- Spectral method: Welch's method") 
+                                st.markdown(f"- CSD calculation: csd(bp_fft, rr_fft)")
+                                st.markdown(f"- Transfer function: |CSD| / PSD_bp")
+                                st.markdown(f"- nperseg used: {brs_spec_data.get('nperseg_used', 'N/A')}")
+                                st.markdown(f"- Data points used: {brs_spec_data.get('data_length_used', 'N/A')}")
+                                
+                                if 'time_offset' in freq_data:
+                                    st.markdown(f"- Time normalization: {freq_data['time_offset']:.1f}s offset")
+                                
+                                if 'window_duration' in freq_data:
+                                    st.markdown(f"- Analysis duration: {freq_data['window_duration']:.1f}s")
+                            
+                            with col2:
+                                st.markdown("**📊 Frequency Bands:**")
+                                st.markdown("- VLF: 0.003 - 0.04 Hz")
+                                st.markdown("- LF: 0.04 - 0.15 Hz")
+                                st.markdown("- HF: 0.15 - 0.4 Hz")
+                                st.markdown("")
+                                st.markdown("**✅ Validity Criteria:**")
+                                st.markdown("- Coherence > 0.5 required")
+                                st.markdown("- Sufficient data length")
+                                st.markdown("- Stable spectral estimates")
+                                
+                                if 'analysis_method' in brs_spec_data:
+                                    st.markdown(f"- Method: {brs_spec_data['analysis_method']}")
+                        
+                        # Interpretation guide
+                        st.markdown("### 📚 Interpretation Guide")
+                        
+                        interpretation_col1, interpretation_col2 = st.columns(2)
+                        
+                        with interpretation_col1:
+                            st.markdown("""
+                            **🔍 Understanding the Plots:**
+                            - **Top Left:** RRI power spectral density with frequency bands
+                            - **Top Right:** SBP power spectral density with frequency bands
+                            - **Bottom Left:** Coherence shows strength of linear relationship
+                            - **Bottom Right:** Transfer function |H(f)| = |CSD|/PSD_BP quantifies BRS
+                            """)
+                            
+                            st.markdown("""
+                            **📊 Coherence Interpretation:**
+                            - **> 0.5:** Strong linear relationship (BRS values reliable)
+                            - **< 0.5:** Weak relationship (BRS values unreliable)
+                            - **Peak coherence:** Indicates dominant coupling frequencies
+                            """)
+                        
+                        with interpretation_col2:
+                            st.markdown("""
+                            **🩺 Clinical Significance:**
+                            - **Higher BRS:** Better cardiovascular regulation
+                            - **LF BRS:** Reflects sympathetic and parasympathetic modulation
+                            - **HF BRS:** Primarily reflects parasympathetic activity
+                            """)
+                            
+                            st.markdown("""
+                            **⚠️ Quality Assessment:**
+                            - Check coherence before interpreting BRS values
+                            - Look for consistent patterns across frequency bands
+                            - Consider data length and artifact presence
+                            """)
+                
+                close_plot_section()
+
+        if "BRS Sequence Analysis" in st.session_state.selected_plots:
+            with st.container(border=True):
+                create_professional_plot_header(
+                    "🩺 BRS Sequence Analysis Summary",
+                    "Comprehensive baroreflex sensitivity metrics and statistics"
+                )
+                
+                if 'brs_sequence' in st.session_state.analyzer.results:
+                    brs_data = st.session_state.analyzer.results['brs_sequence']
+                    
+                    if 'error' in brs_data:
+                        st.markdown(f"""
+                        <div class="error-box">
+                            <strong>BRS Analysis Error:</strong> {brs_data['error']}
+                        </div>
+                        """, unsafe_allow_html=True)
+                    else:
+                        # Enhanced BRS metrics display
+                        col1, col2, col3 = st.columns(3)
+                        
+                        with col1:
+                            st.markdown(f"""
+                            <div class="metric-card">
+                                <h4>🎯 Primary Metrics</h4>
+                                <p><strong>BRS Mean:</strong> {brs_data.get('BRS_mean', 0):.2f} ms/mmHg</p>
+                                <p><strong>BEI:</strong> {brs_data.get('BEI', 0):.2f}</p>
+                                <p><strong>Best Delay:</strong> {brs_data.get('best_delay', 0)} beats</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        
+                        with col2:
+                            st.markdown(f"""
+                            <div class="metric-card">
+                                <h4>📊 Sequence Counts</h4>
+                                <p><strong>Valid Sequences:</strong> {brs_data.get('num_sequences', 0)}</p>
+                                <p><strong>Total SAP Ramps:</strong> {brs_data.get('num_sbp_ramps', 0)}</p>
+                                <p><strong>Success Rate:</strong> {(brs_data.get('num_sequences', 0) / max(brs_data.get('num_sbp_ramps', 1), 1) * 100):.1f}%</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        
+                        with col3:
+                            st.markdown(f"""
+                            <div class="metric-card">
+                                <h4>🔄 Direction Analysis</h4>
+                                <p><strong>Up Sequences:</strong> {brs_data.get('n_up', 0)}</p>
+                                <p><strong>Down Sequences:</strong> {brs_data.get('n_down', 0)}</p>
+                                <p><strong>Up/Down Ratio:</strong> {(brs_data.get('n_up', 0) / max(brs_data.get('n_down', 1), 1)):.2f}</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        
+                        # Analysis parameters
+                        st.markdown("""
+                        <div class="window-info">
+                            <strong>📋 Analysis Parameters:</strong> min_len=3, delay_range=(0,4), r_threshold=0.8, thresh_sbp=1, thresh_pi=4
+                        </div>
+                        """, unsafe_allow_html=True)
+                
+                close_plot_section()
 
         # Simple download button for complete report
         st.markdown("### 📄 Export Results")
@@ -1265,984 +2239,6 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                 st.error(f"❌ Export failed: {str(e)}")
         else:
             st.info("ℹ️ Complete analysis first to enable download")
-
-    
-    with col2:
-        st.markdown("### 📊 Interactive Visualizations")
-        
-        # Display selected plots with professional styling
-        if 'selected_plots' in st.session_state:
-            for plot_type in st.session_state.selected_plots:
-                
-                if "Interactive Tachogram" in plot_type:
-                    create_professional_plot_header(
-                        "Heart Rate Variability Tachogram",
-                        "Interactive visualization of RR interval variations over time"
-                    )
-                    
-                    fig = go.Figure()
-                    
-                    rr_intervals = st.session_state.analyzer.ecg_data['rr_intervals']
-                    time_points = st.session_state.analyzer.ecg_data['td_peaks'][:-1]
-                    
-                    # Enhanced RR intervals trace
-                    fig.add_trace(go.Scatter(
-                        x=time_points,
-                        y=rr_intervals,
-                        mode='lines+markers',
-                        name='RR Intervals',
-                        line=dict(color=COLORS['rr'], width=2.5),
-                        marker=dict(size=4, color=COLORS['rr'], opacity=0.8),
-                        hovertemplate='<b>Time:</b> %{x:.1f}s<br><b>RR:</b> %{y:.1f}ms<extra></extra>'
-                    ))
-                    
-                    # Highlight analysis window with professional styling
-                    if 'time_window' in st.session_state:
-                        tw = st.session_state.time_window
-                        fig.add_vrect(
-                            x0=tw['start_time'], x1=tw['end_time'],
-                            fillcolor=COLORS['window'], opacity=0.6,
-                            line=dict(color=COLORS['warning'], width=2),
-                            annotation_text="Analysis Window", 
-                            annotation_position="top left",
-                            annotation=dict(font=dict(size=12, color=COLORS['warning']))
-                        )
-                    
-                    # Enhanced statistics reference lines
-                    mean_rr = np.mean(rr_intervals)
-                    std_rr = np.std(rr_intervals,ddof=1)
-                    
-                    fig.add_hline(y=mean_rr, line_dash="dash", line_color=COLORS['success'], 
-                                line_width=2, opacity=0.8,
-                                annotation_text=f"Mean: {mean_rr:.1f}ms")
-                    fig.add_hline(y=mean_rr + std_rr, line_dash="dot", line_color=COLORS['secondary'], 
-                                line_width=1.5, opacity=0.6,
-                                annotation_text=f"+1σ: {mean_rr + std_rr:.1f}ms")
-                    fig.add_hline(y=mean_rr - std_rr, line_dash="dot", line_color=COLORS['secondary'], 
-                                line_width=1.5, opacity=0.6,
-                                annotation_text=f"-1σ: {mean_rr - std_rr:.1f}ms")
-                    
-                    # metrics panel 
-                    metrics_text = "<b>📊 HRV Metrics</b><br><br>"
-                    if 'time_domain' in st.session_state.analyzer.results:
-                        td = st.session_state.analyzer.results['time_domain']
-                        if 'error' not in td:
-                            metrics_text += f"<b>Basic Measures</b><br>"
-                            metrics_text += f"Beats: {td['num_beats']}<br>"
-                            metrics_text += f"Mean RR: {td['mean_rr']:.1f} ms<br>"
-                            metrics_text += f"HR: {td['hr']:.1f} BPM<br><br>"
-                            
-                            metrics_text += f"<b>Time Domain</b><br>"
-                            metrics_text += f"RMSSD: {td['rmssd']:.1f} ms<br>"
-                            metrics_text += f"SDNN: {td['sdnn']:.1f} ms<br>"
-                            metrics_text += f"SDNN: {td['sdsd']:.1f} ms<br>"
-                            metrics_text += f"pNN50: {td['pnn50']:.1f}%<br>"
-                           
-                    
-                    fig.add_annotation(
-                        x=1.02, y=1.0, xref="paper", yref="paper",
-                        text=metrics_text, showarrow=False,
-                        font=dict(family="Inter", size=11, color="#1e293b"),
-                        align="left", bgcolor="rgba(255, 255, 255, 0.95)",
-                        bordercolor="rgba(108, 117, 125, 0.3)", borderwidth=1, borderpad=15,
-                        xanchor="left", yanchor="top"
-                    )
-                    
-                    # Apply professional layout
-                    fig = apply_professional_layout(
-                        fig, 
-                        f'Heart Rate Variability Analysis (μ={mean_rr:.1f}±{std_rr:.1f}ms)',
-                        'Time (seconds)', 
-                        'RR Interval (ms)', 
-                        height=600
-                    )
-                    fig.update_layout(margin=dict(r=280))  # Space for metrics panel
-                    
-                    st.plotly_chart(fig, use_container_width=True)
-                    close_plot_section()
-                
-                elif "RRI Histogram" in plot_type:
-                    create_professional_plot_header(
-                        "RRI Histogram",
-                        "Distribution of RR intervals"
-                    )
-                    
-                    if hasattr(st.session_state.analyzer, 'ecg_data') and 'rr_intervals' in st.session_state.analyzer.ecg_data:
-                        rr_intervals = st.session_state.analyzer.ecg_data['rr_intervals']
-                        
-                        # Calculate basic statistics
-                        rr_mean = np.mean(rr_intervals)
-                        rr_std = np.std(rr_intervals, ddof=1)
-                        
-                        # Create histogram 
-                        plt.rcParams.update({
-                            'font.family': 'sans-serif',
-                            'font.size': 11,
-                            'axes.titlesize': 16,
-                            'axes.titleweight': 'bold',
-                            'axes.labelsize': 12,
-                            'axes.labelweight': '500',
-                            'axes.facecolor': '#f8f9fa',
-                            'figure.facecolor': 'white'
-                        })
-                        
-                        fig, ax = plt.subplots(figsize=(12, 6))
-                        
-                        # Create histogram
-                        counts, bins, patches = ax.hist(rr_intervals, bins=30, 
-                                                    color='#3498db', alpha=0.7, 
-                                                    edgecolor='#2980b9', linewidth=0.5)
-                        
-                        # Add mean line
-                        ax.axvline(rr_mean, color='#e74c3c', linestyle='--', linewidth=2,
-                                label=f'Mean: {rr_mean:.1f} ms')
-                        
-                        # Styling
-                        ax.set_xlabel('RR Interval (ms)', fontsize=12, fontweight='500')
-                        ax.set_ylabel('Frequency', fontsize=12, fontweight='500')
-                        ax.set_title(f'RR Interval Distribution (n={len(rr_intervals)})', 
-                                    fontsize=16, fontweight='bold', pad=20)
-                        
-                        # Add statistics text box
-                        stats_text = f'Mean: {rr_mean:.1f} ms\nStd: {rr_std:.1f} ms\nCount: {len(rr_intervals)}'
-                        ax.text(0.02, 0.98, stats_text, transform=ax.transAxes,
-                                verticalalignment='top', horizontalalignment='left',
-                                bbox=dict(boxstyle='round,pad=0.8', facecolor='white', 
-                                        alpha=0.95, edgecolor='#dee2e6', linewidth=1),
-                                fontsize=11, fontweight='500')
-                        
-                        # Grid and spines
-                        ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
-                        ax.set_axisbelow(True)
-                        ax.spines['top'].set_visible(False)
-                        ax.spines['right'].set_visible(False)
-                        ax.spines['left'].set_linewidth(0.8)
-                        ax.spines['bottom'].set_linewidth(0.8)
-                        
-                        # Legend
-                        legend = ax.legend(loc='upper right', frameon=True, fancybox=True, shadow=True)
-                        legend.get_frame().set_facecolor('white')
-                        legend.get_frame().set_alpha(0.9)
-                        
-                        plt.tight_layout()
-                        st.pyplot(fig)
-                        
-                    else:
-                        st.error("❌ No RR interval data available. Complete peak detection analysis first.")
-                    
-                    close_plot_section()
-
-                
-                elif "Frequency Domain" in plot_type:
-                    create_professional_plot_header(
-                        "Frequency Domain Analysis",
-                        "Power spectral density analysis of heart rate variability"
-                    )
-                    
-                    freq_data = st.session_state.analyzer.results['frequency_domain']
-                    
-                    if 'error' not in freq_data:
-                        # Enhanced matplotlib styling
-                        plt.style.use('default')
-                        plt.rcParams.update({
-                            'font.family': 'sans-serif',
-                            'font.size': 11,
-                            'axes.titlesize': 16,
-                            'axes.titleweight': 'bold',
-                            'axes.labelsize': 12,
-                            'axes.labelweight': '500',
-                            'axes.facecolor': '#f8f9fa',
-                            'figure.facecolor': 'white'
-                        })
-                        
-                        fig, ax = plt.subplots(figsize=(14, 7))
-                        frequencies = np.asarray(freq_data['frequencies'], dtype=float)
-                        psd = np.asarray(freq_data['psd'], dtype=float)
-
-                        # Clean + strictly increasing + unique x
-                        good = np.isfinite(frequencies) & np.isfinite(psd) & (frequencies > 0)
-                        frequencies, psd = frequencies[good], psd[good]
-                        order = np.argsort(frequencies)
-                        frequencies, psd = frequencies[order], psd[order]
-                        frequencies, uniq_idx = np.unique(frequencies, return_index=True)
-                        psd = psd[uniq_idx]
-
-                        # Band masks with epsilon ~ half a bin to "touch" edges
-                        df = np.median(np.diff(frequencies))
-                        eps = float(df) * 0.51 if np.isfinite(df) and df > 0 else 1e-12
-
-                        vlf_mask = (frequencies >= (0.003 - eps)) & (frequencies <= (0.04 + eps))
-                        lf_mask  = (frequencies >= (0.04  - eps)) & (frequencies <= (0.15 + eps))
-                        hf_mask  = (frequencies >= (0.15  - eps)) & (frequencies <= (0.40 + eps))
-
-                        scale = 1e6
-                        baseline = np.zeros_like(psd)
-
-                        p_vlf = _band_fill(ax, frequencies, psd, 0.003, 0.04, scale=scale,
-                                        facecolor='#95a5a6', alpha=0.4, label='VLF (0.003–0.04 Hz)')
-                        p_lf  = _band_fill(ax, frequencies, psd, 0.04,  0.15, scale=scale,
-                                        facecolor='#346edb', alpha=0.5, label='LF (0.04–0.15 Hz)')
-                        p_hf  = _band_fill(ax, frequencies, psd, 0.15,  0.40, scale=scale,
-                                        facecolor='#e74c3c', alpha=0.5, label='HF (0.15–0.40 Hz)')
-
-                        # PSD curve 
-                        ax.plot(frequencies, psd*scale, color='#2c3e50', linewidth=2.5, label='PSD', zorder=5)
-                        
-                        #Graph styling
-                        ax.set_xlabel('Frequency (Hz)', fontsize=12, fontweight='500')
-                        ax.set_ylabel('Power Spectral Density (ms²/Hz)', fontsize=12, fontweight='500')
-                        ax.set_title('Heart Rate Variability - Frequency Domain Analysis', 
-                                    fontsize=16, fontweight='bold', pad=20)
-                        ax.set_xlim(0, 0.5)
-                        
-                        # Legend
-                        legend_handles = [
-                            Patch(facecolor='#95a5a6', edgecolor='none', alpha=0.4, label='VLF (0.003–0.04 Hz)'),
-                            Patch(facecolor='#346edb', edgecolor='none', alpha=0.5, label='LF (0.04–0.15 Hz)'),
-                            Patch(facecolor='#e74c3c', edgecolor='none', alpha=0.5, label='HF (0.15–0.40 Hz)'),
-                            Line2D([0], [0], color='#2c3e50', linewidth=2.5, label='PSD')
-                        ]
-
-                        legend = ax.legend(
-                            handles=legend_handles,
-                            loc='upper right',
-                            frameon=True,
-                            fancybox=True,
-                            shadow=True,
-                            fontsize=10,
-                            handlelength=1.8,
-                            borderaxespad=0.8
-                        )
-                        legend.get_frame().set_facecolor('white')
-                        legend.get_frame().set_alpha(0.9)
-
-                        
-                        #Grid
-                        ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
-                        ax.set_axisbelow(True)
-                        
-                        # Remove top and right spines
-                        ax.spines['top'].set_visible(False)
-                        ax.spines['right'].set_visible(False)
-                        ax.spines['left'].set_linewidth(0.8)
-                        ax.spines['bottom'].set_linewidth(0.8)
-                        
-                        #Print frequency domain values
-                        power_text = (f"VLF: {freq_data['vlf_power']:.2f} ms²\n"
-                                    f"LF: {freq_data['lf_power']:.2f} ms²\n"
-                                    f"HF: {freq_data['hf_power']:.2f} ms²\n"
-                                    f"Total Power: {freq_data['total_power']:.2f} ms²\n"
-                                    f"LF/HF: {freq_data['lf_hf_ratio']:.2f}\n"
-                                    f"LF n.u.: {freq_data['lf_nu']:.2f}\n"
-                                    f"HF n.u.: {freq_data['hf_nu']:.2f}")
-                        
-                        ax.text(0.02, 0.98, power_text, transform=ax.transAxes, 
-                            verticalalignment='top', horizontalalignment='left',
-                            bbox=dict(boxstyle='round,pad=0.8', facecolor='white', 
-                                        alpha=0.95, edgecolor='#dee2e6', linewidth=1),
-                            fontsize=11, fontweight='500')
-                        
-                        plt.tight_layout()
-                        st.pyplot(fig)
-                    else:
-                        st.error(f"Frequency domain analysis error: {freq_data['error']}")
-                    
-                    close_plot_section()
-                
-                elif "Poincaré Plot" in plot_type:
-                    create_professional_plot_header(
-                        "Poincaré Plot Analysis",
-                        "Nonlinear analysis of heart rate variability patterns"
-                    )
-                    
-                    plt.rcParams.update({
-                        'font.family': 'sans-serif',
-                        'font.size': 11,
-                        'axes.titlesize': 16,
-                        'axes.titleweight': 'bold',
-                        'axes.labelsize': 12,
-                        'axes.labelweight': '500',
-                        'axes.facecolor': '#f8f9fa',
-                        'figure.facecolor': 'white'
-                    })
-                    
-                    fig, ax = plt.subplots(figsize=(11, 9))
-                    
-                    RRDistance_ms = st.session_state.analyzer.ecg_data['rr_intervals']
-                    RRIplusOne = Poincare(RRDistance_ms)
-                    
-                    EllipseCenterX = np.average(np.delete(RRDistance_ms, -1))
-                    EllipseCenterY = np.average(RRIplusOne)
-                    Center_coords = EllipseCenterX, EllipseCenterY
-                    
-                    z = np.polyfit(np.delete(RRDistance_ms, -1), RRIplusOne, 1)
-                    p = np.poly1d(z)
-                    slope = z[0]
-                    theta = np.degrees(np.arctan(slope))
-                    theta_rad = np.radians(theta)
-                    
-                    # Enhanced scatter plot with better styling
-                    scatter = ax.scatter(np.delete(RRDistance_ms, -1), RRIplusOne, 
-                                        alpha=0.7, s=30, c='#667eea', edgecolors='white', 
-                                        linewidth=0.5, zorder=5)
-                    
-                    # Professional identity line
-                    ax.plot(np.delete(RRDistance_ms, -1), p(np.delete(RRDistance_ms, -1)), 
-                        color="#e74c3c", linewidth=3, label='Identity Line', 
-                        alpha=0.9, zorder=10)
-                    
-                    # Get SD values and draw enhanced ellipse
-                    if 'time_domain' in st.session_state.analyzer.results:
-                        td_results = st.session_state.analyzer.results['time_domain']
-                        sd1 = td_results['sd1']
-                        sd2 = td_results['sd2']
-                        
-                        # Enhanced ellipse with professional styling
-                        from matplotlib.patches import Ellipse
-                        e = Ellipse(xy=Center_coords, width=sd2*2, height=sd1*2, angle=theta,
-                                    edgecolor='#2c3e50', facecolor='none', linewidth=2.5, 
-                                    alpha=0.8, linestyle='-', zorder=8)
-                        ax.add_patch(e)
-                        
-                        # Enhanced axis lines with better colors
-                        x_sd2 = [EllipseCenterX, EllipseCenterX + sd2 * np.cos(theta_rad)]
-                        y_sd2 = [EllipseCenterY, EllipseCenterY + sd2 * np.sin(theta_rad)]
-                        ax.plot(x_sd2, y_sd2, color='#3498db', linewidth=3.5, 
-                                label='SD2 (Long-term)', alpha=0.9, zorder=9)
-                        
-                        x_sd1 = [EllipseCenterX, EllipseCenterX - sd1 * np.sin(theta_rad)]
-                        y_sd1 = [EllipseCenterY, EllipseCenterY + sd1 * np.cos(theta_rad)]
-                        ax.plot(x_sd1, y_sd1, color='#27ae60', linewidth=3.5, 
-                                label='SD1 (Short-term)', alpha=0.9, zorder=9)
-                        
-                        #Print SD1 and 2
-                        textstr = f'SD1 = {sd1:.1f} ms\nSD2 = {sd2:.1f} ms\nSD1/SD2 = {sd1/sd2:.3f}\nEllipse Area = {td_results["ellipse_area"]:.1f} ms²\nSample Entropy = {td_results["sample_entropy"]:.3f}'
-                        ax.text(0.05, 0.95, textstr, transform=ax.transAxes, 
-                                verticalalignment='top',
-                                bbox=dict(boxstyle='round,pad=0.8', facecolor='white', 
-                                        alpha=0.95, edgecolor='#dee2e6', linewidth=1),
-                                fontsize=12, fontweight='500')
-                    
-                    # Professional styling
-                    ax.set_xlabel("RR Interval (ms)", fontsize=12, fontweight='500')
-                    ax.set_ylabel("RR Interval + 1 (ms)", fontsize=12, fontweight='500')
-                    ax.set_title('Poincaré Plot - Nonlinear HRV Analysis', 
-                                fontsize=16, fontweight='bold', pad=20)
-                    
-                    # Enhanced grid and spines
-                    ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
-                    ax.set_axisbelow(True)
-                    
-                    # Remove top and right spines
-                    ax.spines['top'].set_visible(False)
-                    ax.spines['right'].set_visible(False)
-                    ax.spines['left'].set_linewidth(0.8)
-                    ax.spines['bottom'].set_linewidth(0.8)
-                    
-                    # Enhanced legend
-                    legend = ax.legend(loc='upper right', frameon=True, fancybox=True, 
-                                    shadow=True, fontsize=11)
-                    legend.get_frame().set_facecolor('white')
-                    legend.get_frame().set_alpha(0.9)
-                    
-                    # Equal aspect ratio for proper ellipse display
-                    ax.set_aspect('equal', adjustable='box')
-                    
-                    plt.tight_layout()
-                    st.pyplot(fig)
-                    close_plot_section()
-                
-                elif "BRS Time Domain Visualization" in plot_type:
-                    create_professional_plot_header(
-                        "🩺 Baroreflex Sensitivity - Time Domain Analysis",
-                        "Interactive visualization of blood pressure and RR interval sequences"
-                    )
-                    
-                    if 'brs_sequence' in st.session_state.analyzer.results:
-                        brs_data = st.session_state.analyzer.results['brs_sequence']
-                        
-                        if 'error' in brs_data:
-                            st.markdown(f"""
-                            <div class="error-box">
-                                <strong>BRS Analysis Error:</strong> {brs_data['error']}
-                            </div>
-                            """, unsafe_allow_html=True)
-                        elif 'plotting_data' in brs_data:
-                            plot_data = brs_data['plotting_data']
-                            
-                            # Enhanced interactive BRS plot
-                            fig = make_subplots(
-                                rows=2, cols=1,
-                                subplot_titles=('Systolic Blood Pressure', 'RR Intervals'),
-                                vertical_spacing=0.1,
-                                shared_xaxes=True
-                            )
-                            
-                            # Enhanced SBP trace
-                            fig.add_trace(go.Scatter(
-                                x=plot_data['sap_times'],
-                                y=plot_data['sbp'],
-                                mode='lines+markers',
-                                name='Systolic BP',
-                                line=dict(color='#e74c3c', width=2),
-                                marker=dict(size=5, color='#c0392b'),
-                                opacity=0.8
-                            ), row=1, col=1)
-                            
-                            # Enhanced RRI trace
-                            fig.add_trace(go.Scatter(
-                                x=plot_data['rri_times'],
-                                y=plot_data['rri'],
-                                mode='lines+markers',
-                                name='RR Intervals',
-                                line=dict(color='#3498db', width=2),
-                                marker=dict(size=5, color='#2980b9'),
-                                opacity=0.8
-                            ), row=2, col=1)
-                            
-                            # Highlight valid sequences with enhanced colors
-                            from scipy.stats import linregress
-                            
-                            sbp = plot_data['sbp']
-                            rri = plot_data['rri']
-                            ramps = plot_data['ramps']
-                            delay = plot_data['best_delay']
-                            r_threshold = plot_data['r_threshold']
-                            thresh_pi = plot_data['thresh_pi']
-                            sap_times = plot_data['sap_times']
-                            rri_times = plot_data['rri_times']
-                            
-                            sequence_count = 0
-                            valid_sequences = []
-                            
-                            for i, (start, end, direction) in enumerate(ramps):
-                                if end + delay >= len(rri):
-                                    continue
-                                
-                                sbp_ramp = sbp[start:end + 1]
-                                rri_ramp = rri[start + delay:end + 1 + delay]
-                                
-                                if len(sbp_ramp) != len(rri_ramp) or np.any(np.abs(np.diff(rri_ramp)) < thresh_pi):
-                                    continue
-                                
-                                slope, intercept, r_value, _, _ = linregress(sbp_ramp, rri_ramp)
-                                if abs(r_value) < r_threshold or slope <= 0:
-                                    continue
-                                
-                                sequence_count += 1
-                                color = '#27ae60' if direction == 'up' else '#f39c12'
-                                
-                                # Highlight sequences with enhanced styling
-                                if start < len(sap_times) and end < len(sap_times):
-                                    fig.add_trace(go.Scatter(
-                                        x=sap_times[start:end + 1],
-                                        y=sbp[start:end + 1],
-                                        mode='lines+markers',
-                                        name=f'{direction.upper()} sequence' if sequence_count == 1 else None,
-                                        line=dict(color=color, width=4),
-                                        marker=dict(size=8, color=color),
-                                        showlegend=(sequence_count == 1),
-                                        legendgroup=direction
-                                    ), row=1, col=1)
-                                
-                                if start + delay < len(rri_times) and end + 1 + delay <= len(rri_times):
-                                    fig.add_trace(go.Scatter(
-                                        x=rri_times[start + delay:end + 1 + delay],
-                                        y=rri[start + delay:end + 1 + delay],
-                                        mode='lines+markers',
-                                        name=None,
-                                        line=dict(color=color, width=4),
-                                        marker=dict(size=8, color=color),
-                                        showlegend=False,
-                                        legendgroup=direction
-                                    ), row=2, col=1)
-                                
-                                valid_sequences.append({
-                                    'sequence': sequence_count,
-                                    'direction': direction,
-                                    'slope': slope,
-                                    'r_value': r_value,
-                                    'start': start,
-                                    'end': end
-                                })
-                            
-                            # Highlight analysis window
-                            if 'time_window' in st.session_state:
-                                tw = st.session_state.time_window
-                                fig.add_vrect(
-                                    x0=tw['start_time'], x1=tw['end_time'],
-                                    fillcolor="rgba(255, 193, 7, 0.2)", opacity=0.8,
-                                    annotation_text="Analysis Window", annotation_position="top left",
-                                    row=1, col=1
-                                )
-                                fig.add_vrect(
-                                    x0=tw['start_time'], x1=tw['end_time'],
-                                    fillcolor="rgba(255, 193, 7, 0.2)", opacity=0.8,
-                                    row=2, col=1
-                                )
-                            
-                            # Enhanced layout
-                            fig.update_xaxes(title_text="Time (s)", row=2, col=1)
-                            fig.update_yaxes(title_text="Systolic BP (mmHg)", row=1, col=1)
-                            fig.update_yaxes(title_text="RR Interval (ms)", row=2, col=1)
-                            
-                            fig.update_layout(
-                                title=f'Baroreflex Sensitivity Analysis - {sequence_count} Valid Sequences Found',
-                                height=700,
-                                hovermode='x unified',
-                                showlegend=True,
-                                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-                                plot_bgcolor='rgba(248,249,250,0.8)'
-                            )
-                            
-                            st.plotly_chart(fig, use_container_width=True)
-                            
-                            # Enhanced BRS metrics display
-                            col1, col2, col3, col4 = st.columns(4)
-                            with col1:
-                                st.metric("🎯 BRS Mean", f"{brs_data.get('BRS_mean', 0):.2f} ms/mmHg", 
-                                         help="Average baroreflex sensitivity")
-                            with col2:
-                                st.metric("📊 BEI", f"{brs_data.get('BEI', 0):.2f}", 
-                                         help="Baroreflex Effectiveness Index")
-                            with col3:
-                                st.metric("✅ Valid Sequences", sequence_count,
-                                         help="Number of valid BRS sequences detected")
-                            with col4:
-                                st.metric("⏱️ Best Delay", f"{plot_data['best_delay']} beats",
-                                         help="Optimal delay between BP and RR changes")
-                            
-                            # Enhanced sequence details table
-                            if valid_sequences:
-                                st.markdown("#### 📋 Valid BRS Sequence Details")
-                                
-                                sequence_df = pd.DataFrame(valid_sequences)
-                                sequence_df['slope'] = sequence_df['slope'].round(3)
-                                sequence_df['r_value'] = sequence_df['r_value'].round(3)
-                                
-                                st.dataframe(
-                                    sequence_df,
-                                    column_config={
-                                        "sequence": st.column_config.NumberColumn("Seq #", width="small"),
-                                        "direction": st.column_config.TextColumn("Direction", width="small"), 
-                                        "slope": st.column_config.NumberColumn("Slope (ms/mmHg)", format="%.3f"),
-                                        "r_value": st.column_config.NumberColumn("Correlation (r)", format="%.3f"),
-                                        "start": st.column_config.NumberColumn("Start Index", width="small"),
-                                        "end": st.column_config.NumberColumn("End Index", width="small")
-                                    },
-                                    hide_index=True,
-                                    use_container_width=True
-                                )
-                                
-                                # Analysis parameters info
-                                st.info(f"📋 **Analysis Parameters:** delay={plot_data['best_delay']} beats, "
-                                       f"r_threshold={plot_data['r_threshold']}, thresh_pi={plot_data['thresh_pi']} ms")
-                    
-                    close_plot_section()
-                        # STEP 2A: Update plot options list in simple_gui.py (around line 820)
-
-                elif "Spectral BRS Analysis" in plot_type:
-                    create_professional_plot_header(
-                        "🌊 Spectral Baroreflex Sensitivity Analysis",
-                        "Cross-spectral analysis showing RRI and SBP power spectra, coherence, and transfer function"
-                    )
-                    
-                    # Check if we have the required spectral data
-                    if 'brs_spectral' not in st.session_state.analyzer.results or 'frequency_domain' not in st.session_state.analyzer.results:
-                        st.markdown("""
-                        <div class="error-box">
-                            <strong>❌ Spectral Analysis Error:</strong> Required spectral data not available. 
-                            Please ensure frequency domain and BRS spectral analysis completed successfully.
-                        </div>
-                        """, unsafe_allow_html=True)
-                    
-                    else:
-                        brs_spec_data = st.session_state.analyzer.results['brs_spectral']
-                        freq_data = st.session_state.analyzer.results['frequency_domain']
-                        
-                        if 'error' in brs_spec_data:
-                            st.markdown(f"""
-                            <div class="error-box">
-                                <strong>❌ Spectral BRS Error:</strong> {brs_spec_data['error']}
-                            </div>
-                            """, unsafe_allow_html=True)
-                        
-                        elif 'error' in freq_data:
-                            st.markdown(f"""
-                            <div class="error-box">
-                                <strong>❌ Frequency Domain Error:</strong> {freq_data['error']}
-                            </div>
-                            """, unsafe_allow_html=True)
-                        
-                        else:
-                            # Create comprehensive spectral analysis plot
-                            fig = make_subplots(
-                                rows=2, cols=2,
-                                subplot_titles=(
-                                    'RRI Power Spectral Density', 
-                                    'SBP Power Spectral Density',
-                                    'RRI-SBP Coherence', 
-                                    'Transfer Function |H(f)| = |CSD|/PSD_BP'
-                                ),
-                                specs=[[{"secondary_y": False}, {"secondary_y": False}],
-                                    [{"secondary_y": False}, {"secondary_y": False}]],
-                                vertical_spacing=0.12,
-                                horizontal_spacing=0.1
-                            )
-                            
-                            # Get the RRI spectral data
-                            frequencies_rr = freq_data['frequencies']
-                            psd_rr = freq_data['psd']
-                            
-                            # RRI PSD (Top Left)
-                            fig.add_trace(go.Scatter(
-                                x=frequencies_rr,
-                                y=psd_rr * 1e6,  # Convert to ms²/Hz for display
-                                mode='lines',
-                                name='RRI PSD',
-                                line=dict(color='#3498db', width=2),
-                                showlegend=False
-                            ), row=1, col=1)
-                            
-                            # Highlight frequency bands on RRI PSD
-                            lf_band = (frequencies_rr >= 0.04) & (frequencies_rr < 0.15)
-                            hf_band = (frequencies_rr >= 0.15) & (frequencies_rr < 0.4)
-                            
-                            if np.any(lf_band):
-                                fig.add_trace(go.Scatter(
-                                    x=frequencies_rr[lf_band],
-                                    y=psd_rr[lf_band] * 1e6,
-                                    mode='lines',
-                                    fill='tonexty',
-                                    name='LF Band',
-                                    line=dict(color='#e74c3c', width=0),
-                                    fillcolor='rgba(231, 76, 60, 0.3)',
-                                    showlegend=True
-                                ), row=1, col=1)
-                            
-                            if np.any(hf_band):
-                                fig.add_trace(go.Scatter(
-                                    x=frequencies_rr[hf_band],
-                                    y=psd_rr[hf_band] * 1e6,
-                                    mode='lines',
-                                    fill='tonexty',
-                                    name='HF Band',
-                                    line=dict(color='#27ae60', width=0),
-                                    fillcolor='rgba(39, 174, 96, 0.3)',
-                                    showlegend=True
-                                ), row=1, col=1)
-                            
-                            # SBP PSD (Top Right) - use the calculated data from analyzer
-                            if 'frequencies_bp' in brs_spec_data and 'psd_bp' in brs_spec_data:
-                                frequencies_bp = brs_spec_data['frequencies_bp']
-                                psd_bp = brs_spec_data['psd_bp']
-                                
-                                fig.add_trace(go.Scatter(
-                                    x=frequencies_bp,
-                                    y=psd_bp,
-                                    mode='lines',
-                                    name='SBP PSD',
-                                    line=dict(color='#e74c3c', width=2),
-                                    showlegend=False
-                                ), row=1, col=2)
-                                
-                                # Highlight bands on SBP
-                                lf_band_bp = (frequencies_bp >= 0.04) & (frequencies_bp < 0.15)
-                                hf_band_bp = (frequencies_bp >= 0.15) & (frequencies_bp < 0.4)
-                                
-                                if np.any(lf_band_bp):
-                                    fig.add_trace(go.Scatter(
-                                        x=frequencies_bp[lf_band_bp],
-                                        y=psd_bp[lf_band_bp],
-                                        mode='lines',
-                                        fill='tonexty',
-                                        name='LF Band (BP)',
-                                        line=dict(color='#e74c3c', width=0),
-                                        fillcolor='rgba(231, 76, 60, 0.2)',
-                                        showlegend=False
-                                    ), row=1, col=2)
-                                
-                                if np.any(hf_band_bp):
-                                    fig.add_trace(go.Scatter(
-                                        x=frequencies_bp[hf_band_bp],
-                                        y=psd_bp[hf_band_bp],
-                                        mode='lines',
-                                        fill='tonexty',
-                                        name='HF Band (BP)',
-                                        line=dict(color='#27ae60', width=0),
-                                        fillcolor='rgba(39, 174, 96, 0.2)',
-                                        showlegend=False
-                                    ), row=1, col=2)
-                            
-                            # Coherence plot (Bottom Left)
-                            if 'frequencies_coh' in brs_spec_data and 'coherence_values' in brs_spec_data:
-                                frequencies_coh = brs_spec_data['frequencies_coh']
-                                coherence_values = brs_spec_data['coherence_values']
-                                
-                                fig.add_trace(go.Scatter(
-                                    x=frequencies_coh,
-                                    y=coherence_values,
-                                    mode='lines',
-                                    name='Coherence',
-                                    line=dict(color='#9b59b6', width=2),
-                                    showlegend=False
-                                ), row=2, col=1)
-                                
-                                # Add coherence threshold line
-                                fig.add_hline(y=0.5, line_dash="dash", line_color="#f39c12", 
-                                            annotation_text="Threshold (0.5)", row=2, col=1)
-                                
-                                # Highlight significant coherence regions
-                                significant_mask = coherence_values >= 0.5
-                                if np.any(significant_mask):
-                                    fig.add_trace(go.Scatter(
-                                        x=frequencies_coh[significant_mask],
-                                        y=coherence_values[significant_mask],
-                                        mode='markers',
-                                        name='Valid Coherence (≥0.5)',
-                                        marker=dict(color='#e74c3c', size=4),
-                                        showlegend=False
-                                    ), row=2, col=1)
-                            
-                            # Transfer Function (Bottom Right) - exactly matching main.py calculations
-                            if 'transfer_gain' in brs_spec_data and 'frequencies_csd' in brs_spec_data:
-                                frequencies_csd = brs_spec_data['frequencies_csd']
-                                transfer_gain = brs_spec_data['transfer_gain']
-                                
-                                fig.add_trace(go.Scatter(
-                                    x=frequencies_csd,
-                                    y=transfer_gain,
-                                    mode='lines',
-                                    name='Transfer Function |H(f)|',
-                                    line=dict(color='#2c3e50', width=2),
-                                    showlegend=False
-                                ), row=2, col=2)
-                                
-                                # Add comprehensive BRS results annotation
-                                lf_coherence = brs_spec_data.get('lf_coherence', 0)
-                                hf_coherence = brs_spec_data.get('hf_coherence', 0)
-                                brs_lf_tf = brs_spec_data.get('brs_lf_tf', 0)
-                                brs_hf_tf = brs_spec_data.get('brs_hf_tf', 0)
-                                nperseg_used = brs_spec_data.get('nperseg_used', 'N/A')
-                                
-                                fig.add_annotation(
-                                    x=0.98, y=0.95, xref="paper", yref="paper",
-                                    text=f"<b>🔍 Spectral BRS Results</b><br><br>"
-                                        f"<b>LF Band (0.04-0.15 Hz)</b><br>"
-                                        f"BRS: {brs_lf_tf:.3f} ms/mmHg<br>"
-                                        f"Coherence: {lf_coherence:.3f} {'✅' if lf_coherence > 0.5 else '❌'}<br><br>"
-                                        f"<b>HF Band (0.15-0.4 Hz)</b><br>"
-                                        f"BRS: {brs_hf_tf:.3f} ms/mmHg<br>"
-                                        f"Coherence: {hf_coherence:.3f} {'✅' if hf_coherence > 0.5 else '❌'}<br><br>"
-                                        f"<b>Method</b><br>"
-                                        f"CSD: |csd(bp,rr)| / psd_bp<br>"
-                                        f"nperseg: {nperseg_used}<br>"
-                                        f"Interp: 4 Hz",
-                                    showarrow=False,
-                                    font=dict(family="Arial", size=10, color="black"),
-                                    align="left", bgcolor="rgba(248, 249, 250, 0.95)",
-                                    bordercolor="rgba(108, 117, 125, 0.5)", borderwidth=1, borderpad=10,
-                                    xanchor="right", yanchor="top"
-                                )
-                            
-                            # Update axes labels and formatting
-                            fig.update_xaxes(title_text="Frequency (Hz)", row=1, col=1)
-                            fig.update_yaxes(title_text="PSD (ms²/Hz)", row=1, col=1)
-                            
-                            fig.update_xaxes(title_text="Frequency (Hz)", row=1, col=2)
-                            fig.update_yaxes(title_text="PSD (mmHg²/Hz)", row=1, col=2)
-                            
-                            fig.update_xaxes(title_text="Frequency (Hz)", row=2, col=1)
-                            fig.update_yaxes(title_text="Coherence", row=2, col=1)
-                            
-                            fig.update_xaxes(title_text="Frequency (Hz)", row=2, col=2)
-                            fig.update_yaxes(title_text="Transfer Gain (ms/mmHg)", row=2, col=2)
-                            
-                            # Set consistent frequency range for all subplots (focus on relevant HRV bands)
-                            for row in [1, 2]:
-                                for col in [1, 2]:
-                                    fig.update_xaxes(range=[0, 0.5], row=row, col=col)
-                            
-                            # Overall layout
-                            fig.update_layout(
-                                title=f'Spectral BRS Analysis - Matches main.py Implementation',
-                                height=700,
-                                showlegend=True,
-                                legend=dict(
-                                    orientation="h", 
-                                    yanchor="bottom", 
-                                    y=1.02, 
-                                    xanchor="center", 
-                                    x=0.5
-                                ),
-                                plot_bgcolor='rgba(248,249,250,0.8)',
-                                margin=dict(r=250)  # Extra space for annotations
-                            )
-                            
-                            st.plotly_chart(fig, use_container_width=True)
-                            
-                            # Enhanced summary metrics
-                            col1, col2, col3, col4 = st.columns(4)
-                            
-                            with col1:
-                                lf_valid = "✅ Valid" if brs_spec_data.get('valid_lf', False) else "❌ Invalid"
-                                st.metric(
-                                    "🔵 LF BRS", 
-                                    f"{brs_spec_data.get('brs_lf_tf', 0):.3f} ms/mmHg",
-                                    help=f"Low frequency BRS - {lf_valid}"
-                                )
-                            
-                            with col2:
-                                hf_valid = "✅ Valid" if brs_spec_data.get('valid_hf', False) else "❌ Invalid"
-                                st.metric(
-                                    "🟢 HF BRS", 
-                                    f"{brs_spec_data.get('brs_hf_tf', 0):.3f} ms/mmHg",
-                                    help=f"High frequency BRS - {hf_valid}"
-                                )
-                            
-                            with col3:
-                                st.metric(
-                                    "🔵 LF Coherence", 
-                                    f"{brs_spec_data.get('lf_coherence', 0):.3f}",
-                                    help="Coherence in LF band (>0.5 required for validity)"
-                                )
-                            
-                            with col4:
-                                st.metric(
-                                    "🟢 HF Coherence", 
-                                    f"{brs_spec_data.get('hf_coherence', 0):.3f}",
-                                    help="Coherence in HF band (>0.5 required for validity)"
-                                )
-                            
-                            # Technical details in expandable section
-                            with st.expander("📋 Technical Analysis Details (matches main.py)", expanded=False):
-                                col1, col2 = st.columns(2)
-                                
-                                with col1:
-                                    st.markdown("**🔧 Analysis Parameters (matches main.py exactly):**")
-                                    st.markdown(f"- Interpolation frequency: 4 Hz")
-                                    st.markdown(f"- Spectral method: Welch's method") 
-                                    st.markdown(f"- CSD calculation: csd(bp_fft, rr_fft)")
-                                    st.markdown(f"- Transfer function: |CSD| / PSD_bp")
-                                    st.markdown(f"- nperseg used: {brs_spec_data.get('nperseg_used', 'N/A')}")
-                                    st.markdown(f"- Data points used: {brs_spec_data.get('data_length_used', 'N/A')}")
-                                    
-                                    if 'time_offset' in freq_data:
-                                        st.markdown(f"- Time normalization: {freq_data['time_offset']:.1f}s offset")
-                                    
-                                    if 'window_duration' in freq_data:
-                                        st.markdown(f"- Analysis duration: {freq_data['window_duration']:.1f}s")
-                                
-                                with col2:
-                                    st.markdown("**📊 Frequency Bands:**")
-                                    st.markdown("- VLF: 0.003 - 0.04 Hz")
-                                    st.markdown("- LF: 0.04 - 0.15 Hz")
-                                    st.markdown("- HF: 0.15 - 0.4 Hz")
-                                    st.markdown("")
-                                    st.markdown("**✅ Validity Criteria:**")
-                                    st.markdown("- Coherence > 0.5 required")
-                                    st.markdown("- Sufficient data length")
-                                    st.markdown("- Stable spectral estimates")
-                                    
-                                    if 'analysis_method' in brs_spec_data:
-                                        st.markdown(f"- Method: {brs_spec_data['analysis_method']}")
-                            
-                            # Interpretation guide
-                            st.markdown("### 📚 Interpretation Guide")
-                            
-                            interpretation_col1, interpretation_col2 = st.columns(2)
-                            
-                            with interpretation_col1:
-                                st.markdown("""
-                                **🔍 Understanding the Plots:**
-                                - **Top Left:** RRI power spectral density with frequency bands
-                                - **Top Right:** SBP power spectral density with frequency bands
-                                - **Bottom Left:** Coherence shows strength of linear relationship
-                                - **Bottom Right:** Transfer function |H(f)| = |CSD|/PSD_BP quantifies BRS
-                                """)
-                                
-                                st.markdown("""
-                                **📊 Coherence Interpretation:**
-                                - **> 0.5:** Strong linear relationship (BRS values reliable)
-                                - **< 0.5:** Weak relationship (BRS values unreliable)
-                                - **Peak coherence:** Indicates dominant coupling frequencies
-                                """)
-                            
-                            with interpretation_col2:
-                                st.markdown("""
-                                **🩺 Clinical Significance:**
-                                - **Higher BRS:** Better cardiovascular regulation
-                                - **LF BRS:** Reflects sympathetic and parasympathetic modulation
-                                - **HF BRS:** Primarily reflects parasympathetic activity
-                                """)
-                                
-                                st.markdown("""
-                                **⚠️ Quality Assessment:**
-                                - Check coherence before interpreting BRS values
-                                - Look for consistent patterns across frequency bands
-                                - Consider data length and artifact presence
-                                """)
-                    
-                    close_plot_section()
-                elif "BRS Sequence Analysis" in plot_type:
-                    create_professional_plot_header(
-                        "🩺 BRS Sequence Analysis Summary",
-                        "Comprehensive baroreflex sensitivity metrics and statistics"
-                    )
-                    
-                    if 'brs_sequence' in st.session_state.analyzer.results:
-                        brs_data = st.session_state.analyzer.results['brs_sequence']
-                        
-                        if 'error' in brs_data:
-                            st.markdown(f"""
-                            <div class="error-box">
-                                <strong>BRS Analysis Error:</strong> {brs_data['error']}
-                            </div>
-                            """, unsafe_allow_html=True)
-                        else:
-                            # Enhanced BRS metrics display
-                            col1, col2, col3 = st.columns(3)
-                            
-                            with col1:
-                                st.markdown(f"""
-                                <div class="metric-card">
-                                    <h4>🎯 Primary Metrics</h4>
-                                    <p><strong>BRS Mean:</strong> {brs_data.get('BRS_mean', 0):.2f} ms/mmHg</p>
-                                    <p><strong>BEI:</strong> {brs_data.get('BEI', 0):.2f}</p>
-                                    <p><strong>Best Delay:</strong> {brs_data.get('best_delay', 0)} beats</p>
-                                </div>
-                                """, unsafe_allow_html=True)
-                            
-                            with col2:
-                                st.markdown(f"""
-                                <div class="metric-card">
-                                    <h4>📊 Sequence Counts</h4>
-                                    <p><strong>Valid Sequences:</strong> {brs_data.get('num_sequences', 0)}</p>
-                                    <p><strong>Total SAP Ramps:</strong> {brs_data.get('num_sbp_ramps', 0)}</p>
-                                    <p><strong>Success Rate:</strong> {(brs_data.get('num_sequences', 0) / max(brs_data.get('num_sbp_ramps', 1), 1) * 100):.1f}%</p>
-                                </div>
-                                """, unsafe_allow_html=True)
-                            
-                            with col3:
-                                st.markdown(f"""
-                                <div class="metric-card">
-                                    <h4>🔄 Direction Analysis</h4>
-                                    <p><strong>Up Sequences:</strong> {brs_data.get('n_up', 0)}</p>
-                                    <p><strong>Down Sequences:</strong> {brs_data.get('n_down', 0)}</p>
-                                    <p><strong>Up/Down Ratio:</strong> {(brs_data.get('n_up', 0) / max(brs_data.get('n_down', 1), 1)):.2f}</p>
-                                </div>
-                                """, unsafe_allow_html=True)
-                            
-                            # Analysis parameters
-                            st.markdown("""
-                            <div class="window-info">
-                                <strong>📋 Analysis Parameters:</strong> min_len=3, delay_range=(0,4), r_threshold=0.8, thresh_sbp=1, thresh_pi=4
-                            </div>
-                            """, unsafe_allow_html=True)
-                    
-                    close_plot_section()
-        else:
-            st.info("Select one or more plots from the sidebar to visualize analysis results.")
 
 # Case 2: Preview Mode - Show Enhanced Peak Detection Preview
 elif st.session_state.file_loaded and st.session_state.channels_configured and st.session_state.preview_mode:
@@ -2554,7 +2550,7 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
     col1, col2, col3 = st.columns(3)
     
     with col1:
-            if st.button("✅ Accept & Run Full Analysis", type="primary", use_container_width=True,
+            if st.button("✅ Accept & Run Full Analysis", use_container_width=True,
                         help="Proceed with comprehensive HRV and BRS analysis using current settings"):
                 
                 # Check analysis capabilities before starting
@@ -2575,6 +2571,13 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
                                 st.session_state.analysis_started = False
                                 st.success("🎉 Complete analysis finished successfully!")
                                 st.balloons()
+                                plot_options = [
+                                    "Interactive Tachogram",
+                                    "RRI Histogram",
+                                    "Frequency Domain",
+                                    "Poincaré Plot"
+                                ]
+                                st.session_state.selected_plots = plot_options
                                 st.rerun()
                             else:
                                 st.session_state.analysis_started = False
