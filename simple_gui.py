@@ -14,7 +14,6 @@ sys.path.insert(0, current_dir)
 
 # enhanced_professional_gui.py
 import streamlit as st
-from streamlit_scroll_to_top import scroll_to_here
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -386,8 +385,6 @@ if 'channels_info' not in st.session_state:
     st.session_state.channels_info = []
 if 'channels_configured' not in st.session_state:
     st.session_state.channels_configured = False
-if 'scroll_to_top' not in st.session_state:
-    st.session_state.scroll_to_top = False
 
 # ============================================================================
 # HELPER FUNCTIONS
@@ -698,12 +695,6 @@ def auto_scale_peak_parameters(analyzer):
             'ecg_height': 0.8, 'ecg_prominence': 0.7, 'ecg_distance': 100,
             'bp_height': 110, 'bp_prominence': 5, 'bp_distance': 100
         }, False, f"Auto-scale failed: {str(e)}"
-
-def trigger_scroll_to_top():
-    """Trigger scroll to top if flagged in session state"""
-    if st.session_state.scroll_to_top:
-        scroll_to_here(0, key='top')
-        st.session_state.scroll_to_top = False
 
 # ============================================================================
 # MAIN APPLICATION
@@ -2587,7 +2578,6 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
                                     "Poincaré Plot"
                                 ]
                                 st.session_state.selected_plots = plot_options
-                                # scroll_to_here(0, key='tachogram_container')
                                 st.rerun()
                             else:
                                 st.session_state.analysis_started = False
