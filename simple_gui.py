@@ -264,7 +264,7 @@ st.markdown("""
         background: var(--surface);
         padding: 1.5rem;
         # border-radius: 12px;
-        border: 1px solid var(--border, var(--border-opacity));
+        # border: 1px solid var(--border, var(--border-opacity));
         margin: 1rem 0;
     }
     
@@ -1138,13 +1138,13 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                         # Time Domain Metrics
                         st.markdown(f"""
                         <div class="invis-card">
-                            <h2> 📊 HRV Metrics </h2>
-                            <h4>Basic Measures</h4>
+                            <h4> HRV Metrics </h4>
+                            <h5>Basic Measures</h5>
                             <p><strong>Beats:</strong> {td_results.get('num_beats', 'N/A')}</p>
                             <p><strong>Mean RR:</strong> {td_results.get('mean_rr', 'N/A'):.1f} ms</p>
                             <p><strong>HR:</strong> {td_results.get('hr', 'N/A'):.1f} BPM</p>
                             <br>
-                            <h4>Time Domain Metrics</h4>
+                            <h5>Time Domain Metrics</h5>
                             <p><strong>Mean RR:</strong> {td_results.get('mean_rr', 'N/A'):.1f} ms</p>
                             <p><strong>RMSSD:</strong> {td_results.get('rmssd', 'N/A'):.1f} ms</p>
                             <p><strong>SDNN:</strong> {td_results.get('sdnn', 'N/A'):.1f} ms</p>
@@ -1195,32 +1195,6 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                     fig.add_hline(y=mean_rr - std_rr, line_dash="dot", line_color=COLORS['secondary'], 
                                 line_width=1.5, opacity=0.6,
                                 annotation_text=f"-1σ: {mean_rr - std_rr:.1f}ms")
-                    
-                    # metrics panel 
-                    # metrics_text = "<b>📊 HRV Metrics</b><br><br>"
-                    # if 'time_domain' in st.session_state.analyzer.results:
-                    #     td = st.session_state.analyzer.results['time_domain']
-                    #     if 'error' not in td:
-                    #         metrics_text += f"<b>Basic Measures</b><br>"
-                    #         metrics_text += f"Beats: {td['num_beats']}<br>"
-                    #         metrics_text += f"Mean RR: {td['mean_rr']:.1f} ms<br>"
-                    #         metrics_text += f"HR: {td['hr']:.1f} BPM<br><br>"
-                            
-                    #         metrics_text += f"<b>Time Domain</b><br>"
-                    #         metrics_text += f"RMSSD: {td['rmssd']:.1f} ms<br>"
-                    #         metrics_text += f"SDNN: {td['sdnn']:.1f} ms<br>"
-                    #         metrics_text += f"SDNN: {td['sdsd']:.1f} ms<br>"
-                    #         metrics_text += f"pNN50: {td['pnn50']:.1f}%<br>"
-                            
-                    
-                    # fig.add_annotation(
-                    #     x=1.02, y=1.0, xref="paper", yref="paper",
-                    #     text=metrics_text, showarrow=False,
-                    #     font=dict(family="Inter", size=11, color="#1e293b"),
-                    #     align="left", bgcolor="rgba(255, 255, 255, 0.95)",
-                    #     bordercolor="rgba(108, 117, 125, 0.3)", borderwidth=1, borderpad=15,
-                    #     xanchor="left", yanchor="top"
-                    # )
                     
                     # Apply professional layout
                     fig = apply_professional_layout(
@@ -1439,7 +1413,7 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                     "Nonlinear analysis of heart rate variability patterns"
                 )
 
-                col1, col2 = st.columns([0.3, 0.7])
+                col1, col2 = st.columns([0.4, 0.6])
                 with col1:
                     td_results = st.session_state.analyzer.results['time_domain']
                     if 'error' not in td_results:
@@ -2287,260 +2261,263 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
     time_data = st.session_state.analyzer.ecg_data.get('time', [])
     
     if (len(peaks) > 1 and len(time_data) > 0) or (len(time_data) > 0):
-        create_professional_plot_header("⚡ ECG Peak Detection Preview")
-        
-        # Peak detection stats
-        if len(peaks) > 1 and len(time_data) > 0:
-            peak_intervals = np.diff([time_data[p] for p in peaks if p < len(time_data)])
-            if len(peak_intervals) > 0:
-                avg_interval = np.mean(peak_intervals)
-                hr_from_peaks = 60 / avg_interval
+        with st.container(border=True):
+            create_professional_plot_header("⚡ ECG Peak Detection Preview")
+            
+            # Peak detection stats
+            if len(peaks) > 1 and len(time_data) > 0:
+                peak_intervals = np.diff([time_data[p] for p in peaks if p < len(time_data)])
+                if len(peak_intervals) > 0:
+                    avg_interval = np.mean(peak_intervals)
+                    hr_from_peaks = 60 / avg_interval
+                    
+                    # Enhanced metrics
+                    metric_col1, metric_col2 = st.columns(2)
+                    with metric_col1:
+                        st.metric("🫀 R-peaks Detected", len(peaks))
+                    with metric_col2:
+                        st.metric("💓 Estimated HR", f"{hr_from_peaks:.1f} BPM")
+            
+            # Enhanced ECG preview plot
+            if len(time_data) > 0:
+                fig = go.Figure()
                 
-                # Enhanced metrics
-                metric_col1, metric_col2 = st.columns(2)
-                with metric_col1:
-                    st.metric("🫀 R-peaks Detected", len(peaks))
-                with metric_col2:
-                    st.metric("💓 Estimated HR", f"{hr_from_peaks:.1f} BPM")
-        
-        # Enhanced ECG preview plot
-        if len(time_data) > 0:
-            fig = go.Figure()
-            
-            fig.add_trace(go.Scatter(
-                x=time_data,
-                y=st.session_state.analyzer.ecg_data['raw'],
-                mode='lines',
-                name='ECG Signal',
-                line=dict(color='#3498db', width=1),
-                opacity=0.8
-            ))
-            
-            # Add detected peaks
-            if len(peaks) > 0:
-                valid_peaks = [p for p in peaks if p < len(time_data)]
-                if len(valid_peaks) > 0:
-                    fig.add_trace(go.Scatter(
-                        x=[time_data[p] for p in valid_peaks],
-                        y=[st.session_state.analyzer.ecg_data['raw'][p] for p in valid_peaks],
-                        mode='markers',
-                        name=f'R-peaks (n={len(valid_peaks)})',
-                        marker=dict(color='#e74c3c', size=6, symbol='circle')
-                    ))
-            
-            # Highlight analysis window
-            if 'time_window' in st.session_state:
-                tw = st.session_state.time_window
-                fig.add_vrect(
-                    x0=tw['start_time'], x1=tw['end_time'],
-                    fillcolor="rgba(255, 193, 7, 0.3)", opacity=0.8,
-                    annotation_text=f"Analysis Window ({tw['duration']:.0f}s)", 
-                    annotation_position="top left"
+                fig.add_trace(go.Scatter(
+                    x=time_data,
+                    y=st.session_state.analyzer.ecg_data['raw'],
+                    mode='lines',
+                    name='ECG Signal',
+                    line=dict(color='#3498db', width=1),
+                    opacity=0.8
+                ))
+                
+                # Add detected peaks
+                if len(peaks) > 0:
+                    valid_peaks = [p for p in peaks if p < len(time_data)]
+                    if len(valid_peaks) > 0:
+                        fig.add_trace(go.Scatter(
+                            x=[time_data[p] for p in valid_peaks],
+                            y=[st.session_state.analyzer.ecg_data['raw'][p] for p in valid_peaks],
+                            mode='markers',
+                            name=f'R-peaks (n={len(valid_peaks)})',
+                            marker=dict(color='#e74c3c', size=6, symbol='circle')
+                        ))
+                
+                # Highlight analysis window
+                if 'time_window' in st.session_state:
+                    tw = st.session_state.time_window
+                    fig.add_vrect(
+                        x0=tw['start_time'], x1=tw['end_time'],
+                        fillcolor="rgba(255, 193, 7, 0.3)", opacity=0.8,
+                        annotation_text=f"Analysis Window ({tw['duration']:.0f}s)", 
+                        annotation_position="top left"
+                    )
+                
+                duration_min = time_data[-1] / 60 if len(time_data) > 0 else 0
+                
+                fig.update_layout(
+                    title=f'ECG Peak Detection - Full Recording ({duration_min:.1f} min)',
+                    xaxis_title='Time (s)',
+                    yaxis_title='ECG (mV)',
+                    height=400,
+                    showlegend=True,
+                    hovermode='x unified',
+                    plot_bgcolor='rgba(248,249,250,0.8)'
                 )
+                
+                st.plotly_chart(fig, use_container_width=True)
             
-            duration_min = time_data[-1] / 60 if len(time_data) > 0 else 0
-            
-            fig.update_layout(
-                title=f'ECG Peak Detection - Full Recording ({duration_min:.1f} min)',
-                xaxis_title='Time (s)',
-                yaxis_title='ECG (mV)',
-                height=400,
-                showlegend=True,
-                hovermode='x unified',
-                plot_bgcolor='rgba(248,249,250,0.8)'
-            )
-            
-            st.plotly_chart(fig, use_container_width=True)
-        
-        close_plot_section()
+            close_plot_section()
     
     # BP peak detection stats
     bp_peaks = st.session_state.analyzer.bp_data.get('peaks', [])
     bp_time_data = st.session_state.analyzer.bp_data.get('time', [])
 
     if (len(bp_peaks) > 1) or (len(bp_time_data) > 0):
-        create_professional_plot_header("🩸 BP Peak Detection Preview")
-        
-        if len(bp_peaks) > 1:
-            systolic_values = st.session_state.analyzer.bp_data.get('systolic', [])
+        with st.container(border=True):
+            create_professional_plot_header("🩸 BP Peak Detection Preview")
             
-            if len(systolic_values) > 0:
-                metric_col1, metric_col2 = st.columns(2)
-                with metric_col1:
-                    st.metric("📈 Systolic Peaks", len(bp_peaks))
-                with metric_col2:
-                    st.metric("🩸 Mean Systolic", f"{np.mean(systolic_values):.1f} mmHg")
-        
-        # Enhanced BP preview plot
-        if len(bp_time_data) > 0:
-            fig = go.Figure()
+            if len(bp_peaks) > 1:
+                systolic_values = st.session_state.analyzer.bp_data.get('systolic', [])
+                
+                if len(systolic_values) > 0:
+                    metric_col1, metric_col2 = st.columns(2)
+                    with metric_col1:
+                        st.metric("📈 Systolic Peaks", len(bp_peaks))
+                    with metric_col2:
+                        st.metric("🩸 Mean Systolic", f"{np.mean(systolic_values):.1f} mmHg")
             
-            fig.add_trace(go.Scatter(
-                x=bp_time_data,
-                y=st.session_state.analyzer.bp_data['raw'],
-                mode='lines',
-                name='Blood Pressure',
-                line=dict(color='#e74c3c', width=1),
-                opacity=0.8
+            # Enhanced BP preview plot
+            if len(bp_time_data) > 0:
+                fig = go.Figure()
+                
+                fig.add_trace(go.Scatter(
+                    x=bp_time_data,
+                    y=st.session_state.analyzer.bp_data['raw'],
+                    mode='lines',
+                    name='Blood Pressure',
+                    line=dict(color='#e74c3c', width=1),
+                    opacity=0.8
+                ))
+                
+                # Add detected peaks
+                if len(bp_peaks) > 0:
+                    valid_peaks = [p for p in bp_peaks if p < len(bp_time_data)]
+                    if len(valid_peaks) > 0:
+                        fig.add_trace(go.Scatter(
+                            x=[bp_time_data[p] for p in valid_peaks],
+                            y=[st.session_state.analyzer.bp_data['raw'][p] for p in valid_peaks],
+                            mode='markers',
+                            name=f'Systolic Peaks (n={len(valid_peaks)})',
+                            marker=dict(color='#27ae60', size=6, symbol='circle')
+                        ))
+                
+                # Highlight analysis window
+                if 'time_window' in st.session_state:
+                    tw = st.session_state.time_window
+                    fig.add_vrect(
+                        x0=tw['start_time'], x1=tw['end_time'],
+                        fillcolor="rgba(255, 193, 7, 0.3)", opacity=0.8,
+                        annotation_text=f"Analysis Window ({tw['duration']:.0f}s)", 
+                        annotation_position="top left"
+                    )
+                
+                duration_min = bp_time_data[-1] / 60 if len(bp_time_data) > 0 else 0
+                
+                fig.update_layout(
+                    title=f'BP Peak Detection - Full Recording ({duration_min:.1f} min)',
+                    xaxis_title='Time (s)',
+                    yaxis_title='Blood Pressure (mmHg)',
+                    height=400,
+                    showlegend=True,
+                    hovermode='x unified',
+                    plot_bgcolor='rgba(248,249,250,0.8)'
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
+            
+            close_plot_section()
+    
+    # Enhanced RR Interval Tachogram Preview
+    with st.container(border=True):
+        create_professional_plot_header(
+            "📈 RR Interval Tachogram Preview",
+            "Heart rate variability across the complete recording with analysis window highlighted"
+        )
+        
+        if len(peaks) > 1 and 'rr_intervals' in st.session_state.analyzer.ecg_data:
+            rr_intervals = st.session_state.analyzer.ecg_data['rr_intervals']
+            rr_time_points = st.session_state.analyzer.ecg_data['td_peaks'][:-1]
+            
+            # Enhanced tachogram
+            fig_tacho = go.Figure()
+            
+            fig_tacho.add_trace(go.Scatter(
+                x=rr_time_points,
+                y=rr_intervals,
+                mode='lines+markers',
+                name='RR Intervals',
+                line=dict(color='#9b59b6', width=2),
+                marker=dict(size=4, color='#8e44ad')
             ))
-            
-            # Add detected peaks
-            if len(bp_peaks) > 0:
-                valid_peaks = [p for p in bp_peaks if p < len(bp_time_data)]
-                if len(valid_peaks) > 0:
-                    fig.add_trace(go.Scatter(
-                        x=[bp_time_data[p] for p in valid_peaks],
-                        y=[st.session_state.analyzer.bp_data['raw'][p] for p in valid_peaks],
-                        mode='markers',
-                        name=f'Systolic Peaks (n={len(valid_peaks)})',
-                        marker=dict(color='#27ae60', size=6, symbol='circle')
-                    ))
             
             # Highlight analysis window
             if 'time_window' in st.session_state:
                 tw = st.session_state.time_window
-                fig.add_vrect(
+                fig_tacho.add_vrect(
                     x0=tw['start_time'], x1=tw['end_time'],
                     fillcolor="rgba(255, 193, 7, 0.3)", opacity=0.8,
                     annotation_text=f"Analysis Window ({tw['duration']:.0f}s)", 
                     annotation_position="top left"
                 )
             
-            duration_min = bp_time_data[-1] / 60 if len(bp_time_data) > 0 else 0
+            # Enhanced statistics
+            mean_rr = np.mean(rr_intervals)
+            std_rr = np.std(rr_intervals, ddof=1)
+            min_rr = np.min(rr_intervals)
+            max_rr = np.max(rr_intervals)
             
-            fig.update_layout(
-                title=f'BP Peak Detection - Full Recording ({duration_min:.1f} min)',
+            # Add reference lines with better styling
+            fig_tacho.add_hline(y=mean_rr, line_dash="dash", line_color="#27ae60", line_width=2,
+                            annotation_text=f"Mean: {mean_rr:.1f} ms")
+            fig_tacho.add_hline(y=mean_rr + std_rr, line_dash="dot", line_color="#f39c12", line_width=2,
+                            annotation_text=f"+1 SD: {mean_rr + std_rr:.1f} ms")
+            fig_tacho.add_hline(y=mean_rr - std_rr, line_dash="dot", line_color="#f39c12", line_width=2,
+                            annotation_text=f"-1 SD: {mean_rr - std_rr:.1f} ms")
+            
+            fig_tacho.update_layout(
+                title=f'RR Interval Tachogram - Full Recording (Range: {min_rr:.0f}-{max_rr:.0f} ms)',
                 xaxis_title='Time (s)',
-                yaxis_title='Blood Pressure (mmHg)',
-                height=400,
-                showlegend=True,
+                yaxis_title='RR Interval (ms)',
+                height=450,
                 hovermode='x unified',
+                showlegend=True,
                 plot_bgcolor='rgba(248,249,250,0.8)'
             )
             
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig_tacho, use_container_width=True)
+            
+            # Enhanced summary statistics
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("📊 Mean RR", f"{mean_rr:.1f} ms", help="Average RR interval")
+            with col2:
+                st.metric("📈 RR Std Dev", f"{std_rr:.1f} ms", help="Standard deviation")
+            with col3:
+                st.metric("📏 RR Range", f"{max_rr - min_rr:.0f} ms", help="Max - Min RR interval")
+            with col4:
+                cv_rr = (std_rr / mean_rr) * 100
+                st.metric("📊 RR CV%", f"{cv_rr:.1f}%", help="Coefficient of variation")
+            
+            # Window-specific statistics
+            if 'time_window' in st.session_state:
+                st.markdown("### 🎯 Analysis Window Statistics")
+                
+                tw = st.session_state.time_window
+                
+                rr_intervals_np = np.array(rr_intervals)
+                rr_time_points_np = np.array(rr_time_points)
+                
+                # Filter RR intervals to analysis window
+                window_mask = (rr_time_points_np >= tw['start_time']) & (rr_time_points_np <= tw['end_time'])
+                window_rr = rr_intervals_np[window_mask]
+                
+                if len(window_rr) > 0:
+                    col1, col2, col3, col4 = st.columns(4)
+                    
+                    with col1:
+                        st.metric("🔢 Window RR Count", len(window_rr), help="RR intervals in selected window")
+                    with col2:
+                        st.metric("💓 Window Mean RR", f"{np.mean(window_rr):.1f} ms", help="Average RR in window")
+                    with col3:
+                        st.metric("📊 Window RR Std", f"{np.std(window_rr):.1f} ms", help="Std deviation in window")
+                    with col4:
+                        window_cv = (np.std(window_rr) / np.mean(window_rr)) * 100
+                        st.metric("📈 Window RR CV%", f"{window_cv:.1f}%", help="CV in selected window")
+                    
+                    st.markdown(f"""
+                    <div class="window-info">
+                        <strong>ℹ️ Analysis Preview:</strong> The selected {tw['duration']:.0f}-second window contains 
+                        {len(window_rr)} RR intervals ready for comprehensive HRV analysis.
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown("""
+                    <div class="warning-box">
+                        <strong>⚠️ Warning:</strong> No RR intervals found in the selected time window. 
+                        Please adjust the window or peak detection parameters.
+                    </div>
+                    """, unsafe_allow_html=True)
+            
+        else:
+            st.markdown("""
+            <div class="warning-box">
+                <strong>⚠️ Warning:</strong> Not enough R-peaks detected for RR interval analysis. 
+                Try adjusting ECG parameters in the sidebar.
+            </div>
+            """, unsafe_allow_html=True)
         
         close_plot_section()
-    
-    # Enhanced RR Interval Tachogram Preview
-    create_professional_plot_header(
-        "📈 RR Interval Tachogram Preview",
-        "Heart rate variability across the complete recording with analysis window highlighted"
-    )
-    
-    if len(peaks) > 1 and 'rr_intervals' in st.session_state.analyzer.ecg_data:
-        rr_intervals = st.session_state.analyzer.ecg_data['rr_intervals']
-        rr_time_points = st.session_state.analyzer.ecg_data['td_peaks'][:-1]
-        
-        # Enhanced tachogram
-        fig_tacho = go.Figure()
-        
-        fig_tacho.add_trace(go.Scatter(
-            x=rr_time_points,
-            y=rr_intervals,
-            mode='lines+markers',
-            name='RR Intervals',
-            line=dict(color='#9b59b6', width=2),
-            marker=dict(size=4, color='#8e44ad')
-        ))
-        
-        # Highlight analysis window
-        if 'time_window' in st.session_state:
-            tw = st.session_state.time_window
-            fig_tacho.add_vrect(
-                x0=tw['start_time'], x1=tw['end_time'],
-                fillcolor="rgba(255, 193, 7, 0.3)", opacity=0.8,
-                annotation_text=f"Analysis Window ({tw['duration']:.0f}s)", 
-                annotation_position="top left"
-            )
-        
-        # Enhanced statistics
-        mean_rr = np.mean(rr_intervals)
-        std_rr = np.std(rr_intervals, ddof=1)
-        min_rr = np.min(rr_intervals)
-        max_rr = np.max(rr_intervals)
-        
-        # Add reference lines with better styling
-        fig_tacho.add_hline(y=mean_rr, line_dash="dash", line_color="#27ae60", line_width=2,
-                           annotation_text=f"Mean: {mean_rr:.1f} ms")
-        fig_tacho.add_hline(y=mean_rr + std_rr, line_dash="dot", line_color="#f39c12", line_width=2,
-                           annotation_text=f"+1 SD: {mean_rr + std_rr:.1f} ms")
-        fig_tacho.add_hline(y=mean_rr - std_rr, line_dash="dot", line_color="#f39c12", line_width=2,
-                           annotation_text=f"-1 SD: {mean_rr - std_rr:.1f} ms")
-        
-        fig_tacho.update_layout(
-            title=f'RR Interval Tachogram - Full Recording (Range: {min_rr:.0f}-{max_rr:.0f} ms)',
-            xaxis_title='Time (s)',
-            yaxis_title='RR Interval (ms)',
-            height=450,
-            hovermode='x unified',
-            showlegend=True,
-            plot_bgcolor='rgba(248,249,250,0.8)'
-        )
-        
-        st.plotly_chart(fig_tacho, use_container_width=True)
-        
-        # Enhanced summary statistics
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("📊 Mean RR", f"{mean_rr:.1f} ms", help="Average RR interval")
-        with col2:
-            st.metric("📈 RR Std Dev", f"{std_rr:.1f} ms", help="Standard deviation")
-        with col3:
-            st.metric("📏 RR Range", f"{max_rr - min_rr:.0f} ms", help="Max - Min RR interval")
-        with col4:
-            cv_rr = (std_rr / mean_rr) * 100
-            st.metric("📊 RR CV%", f"{cv_rr:.1f}%", help="Coefficient of variation")
-        
-        # Window-specific statistics
-        if 'time_window' in st.session_state:
-            st.markdown("### 🎯 Analysis Window Statistics")
-            
-            tw = st.session_state.time_window
-            
-            rr_intervals_np = np.array(rr_intervals)
-            rr_time_points_np = np.array(rr_time_points)
-            
-            # Filter RR intervals to analysis window
-            window_mask = (rr_time_points_np >= tw['start_time']) & (rr_time_points_np <= tw['end_time'])
-            window_rr = rr_intervals_np[window_mask]
-            
-            if len(window_rr) > 0:
-                col1, col2, col3, col4 = st.columns(4)
-                
-                with col1:
-                    st.metric("🔢 Window RR Count", len(window_rr), help="RR intervals in selected window")
-                with col2:
-                    st.metric("💓 Window Mean RR", f"{np.mean(window_rr):.1f} ms", help="Average RR in window")
-                with col3:
-                    st.metric("📊 Window RR Std", f"{np.std(window_rr):.1f} ms", help="Std deviation in window")
-                with col4:
-                    window_cv = (np.std(window_rr) / np.mean(window_rr)) * 100
-                    st.metric("📈 Window RR CV%", f"{window_cv:.1f}%", help="CV in selected window")
-                
-                st.markdown(f"""
-                <div class="window-info">
-                    <strong>ℹ️ Analysis Preview:</strong> The selected {tw['duration']:.0f}-second window contains 
-                    {len(window_rr)} RR intervals ready for comprehensive HRV analysis.
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown("""
-                <div class="warning-box">
-                    <strong>⚠️ Warning:</strong> No RR intervals found in the selected time window. 
-                    Please adjust the window or peak detection parameters.
-                </div>
-                """, unsafe_allow_html=True)
-        
-    else:
-        st.markdown("""
-        <div class="warning-box">
-            <strong>⚠️ Warning:</strong> Not enough R-peaks detected for RR interval analysis. 
-            Try adjusting ECG parameters in the sidebar.
-        </div>
-        """, unsafe_allow_html=True)
-    
-    close_plot_section()
     
     # Enhanced action buttons
     st.markdown("---")
