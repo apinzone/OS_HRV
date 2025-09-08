@@ -1,0 +1,13 @@
+"Metric","Correlation","P_Value"
+"Number of Peaks",0.9996,0
+"Heart Rate (BPM)",0.9995,0
+"Mean RR (ms)",0.9995,0
+"RMSSD (ms)",0.9517,0
+"pNN50 (%)",0.9999,0
+"SDNN (ms)",0.8718,0
+"SD1 (ms)",0.9411,0
+"SD2 (ms)",0.8863,0
+"SD1/SD2 Ratio",0.6723,0
+"LF/HF Ratio",0.858,0
+"LF",0.8821,0
+"HF",0.9274,0

@@ -1,0 +1,2 @@
+record,total_annotations,valid_r_peaks,duration_minutes,sampling_rate_hz,mean_rr_interval_ms,mean_heart_rate_bpm,beat_types
+f1y01,8710,8709,120.40840000000001,250,829.6398713826368,73.1847534244013,"['N', 'V']"
