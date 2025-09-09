@@ -42,10 +42,10 @@ def extract_peaks_simple():
     ecg_baseline = np.median(ecg_signal)
     ecg_max = np.max(ecg_signal)
     ecg_min = np.min(ecg_signal)
-    signal_range = ecg_max - ecg_min
+    signal_range = ecg_max - ecg_baseline
     
     adaptive_params = {
-        'ecg_height': 0.5 * signal_range,
+        'ecg_height': 0.55 * signal_range,
         'ecg_prominence': 0.6 * (0.5 * signal_range),
         'ecg_distance': int(0.25 * sample_rate),
         'bp_height': 110,

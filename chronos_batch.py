@@ -23,7 +23,7 @@ def calculate_adaptive_ecg_params(ecg_signal, sample_rate):
     signal_range = ecg_max - ecg_baseline
     
     # Adaptive height: 50% of signal range above baseline (matches GUI)
-    ecg_height_default = 0.5 * signal_range
+    ecg_height_default = 0.55 * signal_range
     
     # Adaptive prominence: 60% of the height threshold (matches GUI)
     ecg_prominence_default = 0.6 * ecg_height_default
@@ -137,8 +137,7 @@ def batch_process_hrv_metrics():
                 ecg_distance=adaptive_params['ecg_distance'],
                 bp_height=adaptive_params['bp_height'],
                 bp_distance=adaptive_params['bp_distance'],
-                bp_prominence=adaptive_params['bp_prominence'],
-                use_adaptive=True  # This triggers adaptive algorithm
+                bp_prominence=adaptive_params['bp_prominence']
             )
             
             # Check if peaks were detected

@@ -960,7 +960,7 @@ with st.sidebar:
                     sample_rate = 256  # Default fallback
                 
                 # Adaptive defaults
-                ecg_height_default = 0.5 * signal_range
+                ecg_height_default = 0.55 * signal_range
                 ecg_prominence_default = 0.6 * ecg_height_default
                 ecg_distance_default = int(0.25 * sample_rate)
                 
@@ -2336,7 +2336,6 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
     # Get peaks data safely
     peaks = st.session_state.analyzer.ecg_data.get('peaks', [])
     time_data = st.session_state.analyzer.ecg_data.get('time', [])
-    
     if (len(peaks) > 1 and len(time_data) > 0) or (len(time_data) > 0):
         create_professional_plot_header("⚡ ECG Peak Detection Preview")
         
@@ -2350,10 +2349,10 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
                 # Enhanced metrics
                 metric_col1, metric_col2 = st.columns(2)
                 with metric_col1:
-                    st.metric("🫀 R-peaks Detected", len(peaks))
+                    st.metric("🫀 R-peaks Detected", len(peaks)+1)
                 with metric_col2:
                     st.metric("💓 Estimated HR", f"{hr_from_peaks:.1f} BPM")
-        
+
         # Enhanced ECG preview plot
         if len(time_data) > 0:
             fig = go.Figure()
@@ -2560,7 +2559,7 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
                 col1, col2, col3, col4 = st.columns(4)
                 
                 with col1:
-                    st.metric("🔢 Window RR Count", len(window_rr), help="RR intervals in selected window")
+                    st.metric("🔢 Window RR Count", (len(window_rr)+1), help="RR intervals in selected window")
                 with col2:
                     st.metric("💓 Window Mean RR", f"{np.mean(window_rr):.1f} ms", help="Average RR in window")
                 with col3:
