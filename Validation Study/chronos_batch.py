@@ -273,7 +273,7 @@ def batch_process_hrv_metrics():
     
     # Summary
     print("=" * 80)
-    print("YOUR PIPELINE BATCH PROCESSING SUMMARY")
+    print("ChronOS Batch Processing Summary")
     print("=" * 80)
     print(f"Total files found: {len(edf_files)}")
     print(f"Successfully processed: {successful}")
