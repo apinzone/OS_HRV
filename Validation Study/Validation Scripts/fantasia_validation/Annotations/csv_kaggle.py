@@ -1,4 +1,3 @@
-# f1y01_csv_to_edf_converter.py
 # Extract f1y01 ECG data from Kaggle CSV and convert to EDF
 
 import os
@@ -37,16 +36,13 @@ def extract_f1y01_from_csv():
         print(f"Sample data:")
         print(df_sample.head().to_string(index=False))
         
-        # Based on your earlier description, the structure should be:
-        # ECG, RESP, Participant, Sample, Sampling_Rate, Database
         expected_columns = ['ECG', 'RESP', 'Participant', 'Sample', 'Sampling_Rate', 'Database']
-        
         missing_columns = [col for col in expected_columns if col not in df_sample.columns]
         if missing_columns:
             print(f"WARNING: Expected columns missing: {missing_columns}")
             print("Available columns:", list(df_sample.columns))
         
-        # Instead of reading the entire 3.6GB file, read in chunks and filter
+        #Read in chunks and filter
         target_participant = "Fantasia_f1y01"
         print(f"Reading CSV in chunks and filtering for {target_participant}...")
         
@@ -232,14 +228,14 @@ def convert_ecg_to_edf(ecg_data):
         return False
 
 def test_with_analyzer(edf_path):
-    """Test the created EDF file with your analyzer"""
+    """Test the created EDF file with analyzer"""
     
     print(f"\n{'='*60}")
-    print("TESTING EDF WITH YOUR ANALYZER")
+    print("TESTING EDF WITH ANALYZER")
     print(f"{'='*60}")
     
     try:
-        # Import your analyzer
+        # Import analyzer
         current_dir = os.path.dirname(os.path.abspath(__file__))
         import sys
         if current_dir not in sys.path:

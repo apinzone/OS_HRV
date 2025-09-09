@@ -1,4 +1,3 @@
-# f1y01_annotation_extractor.py
 # Extract R-peak annotations from f1y01.ecg file
 
 import os

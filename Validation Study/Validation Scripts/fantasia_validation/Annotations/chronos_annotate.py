@@ -7,7 +7,6 @@ import numpy as np
 import pandas as pd
 
 def extract_peaks_simple():
-    """Simple extraction that works with your analyzer structure"""
     
     # Add current directory to path
     current_dir = os.path.dirname(os.path.abspath(__file__))

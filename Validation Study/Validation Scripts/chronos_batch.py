@@ -17,18 +17,13 @@ def calculate_adaptive_ecg_params(ecg_signal, sample_rate):
     Calculate adaptive ECG parameters exactly like your GUI
     This replicates the logic from your simple_gui.py calculate_adaptive_ecg_params function
     """
-    # Calculate signal characteristics exactly like your GUI
+    #Match Exact ChronOS ECG Peak detection
     ecg_baseline = np.median(ecg_signal)
     ecg_max = np.max(ecg_signal)
     signal_range = ecg_max - ecg_baseline
     
-    # Adaptive height: 50% of signal range above baseline (matches GUI)
     ecg_height_default = 0.55 * signal_range
-    
-    # Adaptive prominence: 60% of the height threshold (matches GUI)
     ecg_prominence_default = 0.6 * ecg_height_default
-    
-    # Adaptive distance: 250ms minimum RR interval (matches GUI)
     ecg_distance_default = int(0.25 * sample_rate)
     
     # Blood pressure defaults (if needed)
@@ -50,7 +45,7 @@ def batch_process_hrv_metrics():
     Batch process all EDF files to extract HRV metrics using ChronOS
     """
     
-    # Your validation directory
+    #Validation directory
     edf_directory = r"C:\Users\Anthony\Desktop\peak_detector\data\validation_synthetic_ecg"
     output_file = "ChronOS_results.csv"
     
@@ -130,14 +125,14 @@ def batch_process_hrv_metrics():
                   f"prominence={adaptive_params['ecg_prominence']:.2f}, "
                   f"distance={adaptive_params['ecg_distance']}")
             
-            # Run peak detection using adaptive method (matches GUI exactly)
+            # Run peak detection 
             analyzer.find_peaks_with_params(
                 ecg_height=adaptive_params['ecg_height'],
                 ecg_prominence=adaptive_params['ecg_prominence'],
                 ecg_distance=adaptive_params['ecg_distance'],
                 bp_height=adaptive_params['bp_height'],
                 bp_distance=adaptive_params['bp_distance'],
-                bp_prominence=adaptive_params['bp_prominence']
+                bp_prominence=adaptive_params['bp_prominence'],
             )
             
             # Check if peaks were detected
@@ -153,7 +148,7 @@ def batch_process_hrv_metrics():
             peak_count = len(analyzer.ecg_data['td_peaks'])
             print(f"  Peak detection: {peak_count} R-peaks found")
             
-            # Calculate HRV metrics using your analyzer's actual methods
+            # Calculate HRV metrics 
             analyzer.calculate_time_domain()
             analyzer.calculate_frequency_domain()
             
@@ -197,12 +192,11 @@ def batch_process_hrv_metrics():
                         'sample_rate': sample_rate,
                         'total_peaks': peak_count,
                         
-                        # Adaptive parameters used
                         'adaptive_height': adaptive_params['ecg_height'],
                         'adaptive_prominence': adaptive_params['ecg_prominence'], 
                         'adaptive_distance': adaptive_params['ecg_distance'],
                         
-                        # YOUR SPECIFIED HRV METRICS: mean RR, RMSSD, pNN50, SDNN, SDSD, SD1, SD2, SD1/SD2, VLF, LF, HF, TP, LF/HF
+                        #HRV METRICS - Time Domain
                         'mean_rr_ms': hrv_data.get('mean_rr', np.nan),
                         'rmssd_ms': hrv_data.get('rmssd', np.nan),
                         'pnn50_percent': hrv_data.get('pnn50', np.nan),
@@ -272,7 +266,7 @@ def batch_process_hrv_metrics():
     
     # Summary
     print("=" * 80)
-    print("YOUR PIPELINE BATCH PROCESSING SUMMARY")
+    print("ChronOS Batch Processing Summary")
     print("=" * 80)
     print(f"Total files found: {len(edf_files)}")
     print(f"Successfully processed: {successful}")
@@ -302,14 +296,12 @@ def main():
     Main function - processes your validation synthetic ECG directory
     """
     print("Starting Your Pipeline batch processing...")
-    print("Using adaptive peak detection parameters (50% height, 60% prominence, 250ms distance)")
     
     results_df = batch_process_hrv_metrics()
     
     if results_df is not None:
         print(f"\nBatch processing complete!")
         print(f"Results saved to: ChronOS_results.csv")
-        print(f"Ready for comparison with NeuroKit2 results.")
     else:
         print(f"\nBatch processing failed!")
 

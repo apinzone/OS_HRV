@@ -342,7 +342,6 @@ def main():
     """
     validator = NeuroKitValidator()
     
-    # Default to your data directory
     default_dir = r"C:\Users\Anthony\Desktop\peak_detector\data"
     
     # Check if default directory exists
