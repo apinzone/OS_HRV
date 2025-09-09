@@ -73,6 +73,7 @@ results = analyzer.get_validation_metrics()
 - pNN50: Percentage of successive intervals >50ms
 
 **Frequency Domain**  
+- VLF Power: Very Low frequency power (0.003-0.04 Hz)
 - LF Power: Low frequency power (0.04-0.15 Hz)
 - HF Power: High frequency power (0.15-0.40 Hz)
 - LF/HF Ratio: Autonomic balance measure
