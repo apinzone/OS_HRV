@@ -1,7 +1,7 @@
 # analyzer.py - Enhanced with ECG scale detection, flexible channel selection, and EDF support
 import numpy as np
 import math
-from scipy.signal import find_peaks, welch, coherence, csd
+from scipy.signal import find_peaks, welch, coherence, csd, butter, filtfilt
 from scipy.interpolate import interp1d
 import bioread
 import os
@@ -31,6 +31,54 @@ class CardiovascularAnalyzer:
         self.ecg_channel = None
         self.bp_channel = None
         self.channels_configured = False
+        self.preprocessing_options = {
+            'enable_bandpass': False,
+            'bandpass_lowcut': 0.5,
+            'bandpass_highcut': 40.0,
+            'bandpass_order': 4
+         }
+        
+    def bandpass_filter(self, signal, lowcut=0.5, highcut=40, fs=1000, order=4):
+        """
+        Apply bandpass filter to ECG signal
+        
+        Parameters:
+        -----------
+        signal : array-like
+            Input signal to filter
+        lowcut : float
+            Low frequency cutoff (Hz)
+        highcut : float  
+            High frequency cutoff (Hz)
+        fs : float
+            Sampling frequency (Hz)
+        order : int
+            Filter order
+            
+        Returns:
+        --------
+        filtered_signal : array
+            Bandpass filtered signal
+        """
+        nyquist = 0.5 * fs
+        low = lowcut / nyquist
+        high = highcut / nyquist
+        
+        # Design Butterworth filter
+        b, a = butter(order, [low, high], btype='band')
+        
+        # Apply zero-phase filtering (filtfilt prevents phase distortion)
+        filtered_signal = filtfilt(b, a, signal)
+        
+        return filtered_signal
+    def configure_preprocessing(self, enable_bandpass=False, lowcut=0.5, highcut=40.0, order=4):
+        """Configure preprocessing options"""
+        self.preprocessing_options = {
+            'enable_bandpass': enable_bandpass,
+            'bandpass_lowcut': lowcut,
+            'bandpass_highcut': highcut,
+            'bandpass_order': order
+        }
 
     def detect_ecg_scale(self, ecg_signal):
         """
@@ -384,24 +432,42 @@ class CardiovascularAnalyzer:
                 self.ecg_scale, self.ecg_scale_factor = self.detect_ecg_scale(ECG_Data)
                 ECG_Data_mV = ECG_Data * self.ecg_scale_factor
                 
+                # APPLY BANDPASS FILTERING IF ENABLED
+                if self.preprocessing_options['enable_bandpass']:
+                    ECG_Data_filtered = self.bandpass_filter(
+                        ECG_Data_mV,
+                        lowcut=self.preprocessing_options['bandpass_lowcut'],
+                        highcut=self.preprocessing_options['bandpass_highcut'],
+                        fs=ECG_fs,
+                        order=self.preprocessing_options['bandpass_order']
+                    )
+                    filter_applied = True
+                else:
+                    ECG_Data_filtered = ECG_Data_mV
+                    filter_applied = False
+                
                 self.ecg_data = {
-                    'raw': ECG_Data_mV,
+                    'raw': ECG_Data_filtered,  # Store filtered version as 'raw'
                     'raw_original': ECG_Data,
+                    'raw_unfiltered': ECG_Data_mV,  # Store unfiltered mV version
                     'time': Time,
                     'fs': ECG_fs,
                     'detected_scale': self.ecg_scale,
                     'scale_factor': self.ecg_scale_factor,
                     'channel_index': ecg_channel_idx,
-                    'channel_name': channel_name
+                    'channel_name': channel_name,
+                    'bandpass_applied': filter_applied,
+                    'filter_params': self.preprocessing_options.copy() if filter_applied else None
                 }
                 
                 self.ecg_channel = ecg_channel_idx
-                success_messages.append(f"✅ ECG: Channel {ecg_channel_idx} configured ({self.ecg_scale} detected)")
+                filter_note = f" (0.5-40 Hz filtered)" if filter_applied else ""
+                success_messages.append(f"✅ ECG: Channel {ecg_channel_idx} configured ({self.ecg_scale} detected){filter_note}")
                 
             except Exception as e:
                 raise Exception(f"Failed to configure ECG channel {ecg_channel_idx}: {str(e)}")
         
-        # Configure BP channel  
+        # Configure BP channel (unchanged)
         if bp_channel_idx is not None:
             try:
                 if self.file_type == 'acq':

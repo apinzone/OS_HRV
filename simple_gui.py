@@ -937,7 +937,44 @@ with st.sidebar:
                 }
         
         st.markdown('</div>', unsafe_allow_html=True)
-        
+        # ECG Preprocessing Section
+        st.markdown("## 🔧 ECG Preprocessing")
+
+        # Bandpass filter checkbox
+        enable_bandpass = st.checkbox(
+            "Enable ECG Bandpass Filter (0.5-40 Hz)", 
+            value=False,
+            help="Apply standard clinical ECG filtering to reduce baseline wander and high-frequency noise"
+        )
+
+        if enable_bandpass:
+            st.info("🔧 **Filter Applied:** 0.5-40 Hz bandpass filter will remove baseline drift (<0.5 Hz) and muscle noise (>40 Hz)")
+            
+            # Optional: Add advanced filter parameters in an expander
+            with st.expander("🔧 Advanced Filter Settings", expanded=False):
+                col1, col2 = st.columns(2)
+                with col1:
+                    lowcut = st.number_input("Low cutoff (Hz)", min_value=0.1, max_value=5.0, value=0.5, step=0.1)
+                with col2:
+                    highcut = st.number_input("High cutoff (Hz)", min_value=10.0, max_value=150.0, value=40.0, step=5.0)
+                
+                filter_order = st.selectbox("Filter order", [2, 4, 6, 8], index=1, help="Higher order = sharper cutoff")
+        else:
+            # Use default values when filter is disabled
+            lowcut = 0.5
+            highcut = 40.0
+            filter_order = 4
+
+        # Configure preprocessing before channel configuration
+        st.session_state.analyzer.configure_preprocessing(
+            enable_bandpass=enable_bandpass,
+            lowcut=lowcut,
+            highcut=highcut,
+            order=filter_order
+        )
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
         # Peak Detection Parameters
         st.markdown("## Peak Detection")
 
@@ -2383,7 +2420,7 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
                 tw = st.session_state.time_window
                 fig.add_vrect(
                     x0=tw['start_time'], x1=tw['end_time'],
-                    fillcolor="rgba(255, 193, 7, 0.3)", opacity=0.8,
+                    fillcolor="rgba(255, 193, 7, 0.3)", opacity=0.7,
                     annotation_text=f"Analysis Window ({tw['duration']:.0f}s)", 
                     annotation_position="top left"
                 )
@@ -2431,7 +2468,7 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
                 mode='lines',
                 name='Blood Pressure',
                 line=dict(color='#e74c3c', width=1),
-                opacity=0.8
+                opacity=0.7
             ))
             
             # Add detected peaks
@@ -2451,7 +2488,7 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
                 tw = st.session_state.time_window
                 fig.add_vrect(
                     x0=tw['start_time'], x1=tw['end_time'],
-                    fillcolor="rgba(255, 193, 7, 0.3)", opacity=0.8,
+                    fillcolor="rgba(255, 193, 7, 0.3)", opacity=0.7,
                     annotation_text=f"Analysis Window ({tw['duration']:.0f}s)", 
                     annotation_position="top left"
                 )
@@ -2499,7 +2536,7 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
             tw = st.session_state.time_window
             fig_tacho.add_vrect(
                 x0=tw['start_time'], x1=tw['end_time'],
-                fillcolor="rgba(255, 193, 7, 0.3)", opacity=0.8,
+                fillcolor="rgba(255, 193, 7, 0.3)", opacity=0.7,
                 annotation_text=f"Analysis Window ({tw['duration']:.0f}s)", 
                 annotation_position="top left"
             )
