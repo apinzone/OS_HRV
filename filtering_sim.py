@@ -61,13 +61,13 @@ def generate_ecg_with_noise(duration=300, fs=256, hr=60):
     return noisy_ecg, t
 
 def generate_ecg_with_ectopics(duration=300, fs=256, hr=60):
-    """Generate ECG with a few clear ectopic beats that should be detected"""
+    """Generate ECG with isolated ectopic beats that should be detected"""
     
     # Time vector
     t = np.arange(0, duration, 1/fs)
     n_samples = len(t)
     
-    # Generate baseline clean ECG (similar to above but cleaner)
+    # Generate baseline clean ECG
     rr_mean = 60.0 / hr
     n_beats = int(duration / rr_mean)
     
@@ -75,25 +75,39 @@ def generate_ecg_with_ectopics(duration=300, fs=256, hr=60):
     rr_intervals = np.random.normal(rr_mean, rr_mean * 0.03, n_beats)  # Less variability
     rr_intervals = np.clip(rr_intervals, 0.6, 1.4)
     
-    # INJECT SPECIFIC ECTOPIC PATTERNS:
+    # INJECT SPECIFIC ISOLATED ECTOPIC PATTERNS that bypass peak detection minimum distance:
     
-    # 1. Premature beat followed by compensatory pause (around 60 seconds)
-    ectopic_idx_1 = int(60 / rr_mean)  # Beat around 60 seconds
-    if ectopic_idx_1 < len(rr_intervals) - 2:
-        rr_intervals[ectopic_idx_1] = 0.25  # Very short RR (250ms) - premature beat
-        rr_intervals[ectopic_idx_1 + 1] = 1.8  # Long compensatory pause (1800ms)
+    # 1. Short interval that passes peak detection but fails physiological limits (around 90 seconds)
+    ectopic_idx_1 = int(90 / rr_mean)
+    if ectopic_idx_1 < len(rr_intervals):
+        rr_intervals[ectopic_idx_1] = 0.28  # 280ms - passes 250ms minimum distance but < 300ms physiological limit
+        print(f"Injected short interval (280ms) at beat {ectopic_idx_1} (~90s)")
     
-    # 2. Another ectopic around 180 seconds - missed beat scenario
-    ectopic_idx_2 = int(180 / rr_mean)
-    if ectopic_idx_2 < len(rr_intervals) - 1:
-        rr_intervals[ectopic_idx_2] = 2.1  # Very long RR (2100ms) - missed beat
+    # 2. Long interval - measurement error (around 150 seconds)
+    ectopic_idx_2 = int(150 / rr_mean)
+    if ectopic_idx_2 < len(rr_intervals):
+        rr_intervals[ectopic_idx_2] = 2.1  # 2100ms - clearly > 2000ms threshold
+        print(f"Injected long interval (2100ms) at beat {ectopic_idx_2} (~150s)")
     
-    # 3. Statistical outlier around 240 seconds
-    ectopic_idx_3 = int(240 / rr_mean)
+    # 3. Very extreme statistical outlier (around 210 seconds)
+    ectopic_idx_3 = int(210 / rr_mean)
     if ectopic_idx_3 < len(rr_intervals):
-        mean_local = np.mean(rr_intervals)
-        std_local = np.std(rr_intervals)
-        rr_intervals[ectopic_idx_3] = mean_local + 4 * std_local  # 4 standard deviations out
+        # Create very extreme outlier that will definitely trigger z-score > 3
+        mean_normal = np.mean(rr_intervals[:ectopic_idx_3])  # Use data before outlier
+        std_normal = np.std(rr_intervals[:ectopic_idx_3])
+        
+        # Make it 5 standard deviations out to ensure detection
+        outlier_value = mean_normal + 5.0 * std_normal
+        # But keep it under 2000ms so it's caught by z-score, not physiological limits
+        outlier_value = min(outlier_value, 1.8)  # Cap at 1800ms
+        rr_intervals[ectopic_idx_3] = outlier_value
+        print(f"Injected statistical outlier ({outlier_value*1000:.0f}ms, z-score=~5.0) at beat {ectopic_idx_3} (~210s)")
+    
+    # 4. Add one more - borderline long interval that's just at physiological limit
+    ectopic_idx_4 = int(270 / rr_mean)
+    if ectopic_idx_4 < len(rr_intervals):
+        rr_intervals[ectopic_idx_4] = 2.05  # 2050ms - just over 2000ms limit
+        print(f"Injected borderline long interval (2050ms) at beat {ectopic_idx_4} (~270s)")
     
     # Generate beat times
     beat_times = np.cumsum(rr_intervals)
@@ -133,7 +147,7 @@ def create_edf_file(ecg_signal, filename, fs=256, duration=None):
     signal_header = {
         'label': 'ECG',
         'dimension': 'mV',
-        'sample_frequency': fs,
+        'sample_frequency': fs,  # Updated parameter name
         'physical_min': -5.0,
         'physical_max': 5.0,
         'digital_min': -32768,
@@ -186,25 +200,26 @@ def main():
     print("   - Electronic noise (~100 Hz)")
     print("   Expected: 0.5-40 Hz bandpass filter will significantly clean the signal")
     
-    # 2. Generate ECG with ectopic beats
-    print("\n2. Creating ECG with ectopic beats for detection testing...")
+    # 2. Generate ECG with isolated ectopic beats
+    print("\n2. Creating ECG with isolated ectopic beats for detection testing...")
     ectopic_ecg, time_vec = generate_ecg_with_ectopics(duration, fs, hr)
-    create_edf_file(ectopic_ecg, "test_ecg_with_ectopics.edf", fs, duration)
+    create_edf_file(ectopic_ecg, "test_ecg_with_isolated_ectopics.edf", fs, duration)
     
-    print("   This file contains:")
-    print("   - Premature beat (250ms RR) + compensatory pause (1800ms) around 60s")
-    print("   - Missed beat simulation (2100ms RR) around 180s")  
-    print("   - Statistical outlier (4σ from mean) around 240s")
-    print("   Expected: Your ectopic detection should flag these 3-4 intervals")
+    print("   This file contains 4 isolated ectopic patterns:")
+    print("   - Short interval (280ms) - passes peak detection but fails physiological limits")  
+    print("   - Long interval (2100ms) - physiological limit violation")
+    print("   - Statistical outlier (capped at 1800ms, 5 std deviations)")
+    print("   - Borderline long interval (2050ms) - just over physiological limit")
+    print("   Expected: Your ectopic detection should flag exactly these 4 intervals")
     
     print("\nTest files created successfully!")
     print("\nTo test:")
     print("1. Load test_noisy_ecg_for_filter.edf")
     print("2. Configure ECG channel, preview peaks without filter")
     print("3. Enable bandpass filter, preview again - should see cleaner signal")
-    print("4. Load test_ecg_with_ectopics.edf") 
+    print("4. Load test_ecg_with_isolated_ectopics.edf") 
     print("5. Configure channel, preview peaks, run ectopic detection")
-    print("6. Should detect 3-4 problematic intervals at expected time points")
+    print("6. Should detect exactly 4 problematic intervals at the expected times")
 
 if __name__ == "__main__":
     main()

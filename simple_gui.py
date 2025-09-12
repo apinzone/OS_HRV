@@ -728,7 +728,18 @@ with st.sidebar:
                         
                         # Clean up temp file
                         os.unlink(tmp_file_path)
-                        
+
+                        analysis_keys_to_clear = [
+                            'ectopic_results', 
+                            'peak_params', 
+                            'time_window', 
+                            'selected_plots',
+                            'ecg_reset_counter'
+                        ]
+                        for key in analysis_keys_to_clear:
+                            if key in st.session_state:
+                                del st.session_state[key]
+                                
                         # Store channel info for selection
                         st.session_state.channels_info = channels_info
                         st.session_state.file_loaded = True
