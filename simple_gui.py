@@ -566,14 +566,6 @@ def run_analysis_with_progress(time_window=None):
         
         capabilities = st.session_state.analyzer.get_analysis_capabilities()
 
-        try:
-            if hasattr(st.session_state, 'peak_params'):
-                st.session_state.analyzer.find_peaks_with_params(**st.session_state.peak_params)
-            else:
-                st.session_state.analyzer.find_peaks()
-        except Exception as peak_error:
-            status_text.markdown("**⚠️ Step 1:** Standard detection failed, trying adaptive method...")
-            st.session_state.analyzer.find_peaks_adaptive()
         progress_bar.progress(20)
         status_text.markdown("**✅ Step 1 Complete:** Peak detection finished")
         
@@ -1116,11 +1108,32 @@ with st.sidebar:
 
         # Enhanced preview button
         if st.button("🔍 Preview Detection", use_container_width=True, type="secondary"):
-            with st.spinner("Updating peak detection..."):
+            with st.spinner("Updating preprocessing and peak detection..."):
                 try:
+                    # First, reapply current preprocessing settings to configured channels
+                    if st.session_state.analyzer.ecg_data:
+                        # Get the original raw data and reapply current filter settings
+                        original_raw = st.session_state.analyzer.ecg_data.get('raw_original')
+                        if original_raw is not None:
+                            # Apply current preprocessing
+                            if st.session_state.analyzer.preprocessing_options['enable_bandpass']:
+                                filtered_data = st.session_state.analyzer.bandpass_filter(
+                                    original_raw * st.session_state.analyzer.ecg_data['scale_factor'],
+                                    lowcut=st.session_state.analyzer.preprocessing_options['bandpass_lowcut'],
+                                    highcut=st.session_state.analyzer.preprocessing_options['bandpass_highcut'],
+                                    fs=st.session_state.analyzer.ecg_data['fs'],
+                                    order=st.session_state.analyzer.preprocessing_options['bandpass_order']
+                                )
+                            else:
+                                filtered_data = original_raw * st.session_state.analyzer.ecg_data['scale_factor']
+                            
+                            # Update the processed signal
+                            st.session_state.analyzer.ecg_data['raw'] = filtered_data
+                    
+                    # Then run peak detection with current parameters
                     st.session_state.analyzer.find_peaks_with_params(**st.session_state.peak_params)
                     st.session_state.preview_mode = True
-                    st.success("✅ Preview updated!")
+                    st.success("✅ Preview updated with current settings!")
                     st.rerun()
                 except Exception as e:
                     st.error(f"❌ Preview failed: {str(e)}")
@@ -2629,6 +2642,99 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
     
     close_plot_section()
     
+    # Ectopic Beat Detection Section (only if peaks detected and in preview mode)
+    if st.session_state.preview_mode and 'rr_intervals' in st.session_state.analyzer.ecg_data:
+        create_professional_plot_header(
+            "Ectopic Beat Detection",
+            "Automated detection of potential artifacts in RR intervals"
+        )
+        
+        if 'rr_intervals' in st.session_state.analyzer.ecg_data:
+            # Get the current RR intervals (from filtered or unfiltered peaks)
+            current_rr = st.session_state.analyzer.ecg_data['rr_intervals']
+            rr_intervals = current_rr
+        else:
+            st.warning("No RR intervals available. Please run peak detection first.")
+            rr_intervals = []
+        
+        # Detection parameters
+        col1, col2 = st.columns(2)
+        with col1:
+            conservative_mode = st.checkbox(
+                "Conservative Detection", 
+                value=True,
+                help="Use stricter thresholds to minimize false positives"
+            )
+        with col2:
+            if st.button("Detect Ectopic Beats", type="secondary"):
+                ectopic_results = st.session_state.analyzer.detect_ectopic_beats(
+                    rr_intervals, conservative=conservative_mode
+                )
+                st.session_state.ectopic_results = ectopic_results
+        
+        # Display results if available
+        if 'ectopic_results' in st.session_state:
+            results = st.session_state.ectopic_results
+            
+            if results['total_flagged'] == 0:
+                st.success(f"No ectopic beats detected in {len(rr_intervals)} RR intervals")
+            else:
+                st.warning(f"{results['total_flagged']} potential ectopic beats detected ({results['percentage_flagged']:.1f}%)")
+                
+                # Manual review interface
+                st.markdown("#### Manual Review")
+                st.markdown("Review each flagged beat and decide whether to apply correction:")
+                
+                correction_decisions = {}
+                td_peaks = st.session_state.analyzer.ecg_data.get('td_peaks', [])
+                
+                for i, (idx, reason) in enumerate(zip(results['flagged_indices'], results['flagged_reasons'])):
+                    col1, col2, col3, col4, col5 = st.columns([1, 2, 2, 2, 1])
+                    
+                    with col1:
+                        st.write(f"**Beat {idx + 1}:**")
+                    with col2:
+                        st.write(f"{rr_intervals[idx]:.0f} ms")
+                    with col3:
+                        st.write(f"{reason}")
+                    with col4:
+                        # Add timestamp if available
+                        if idx < len(td_peaks):
+                            st.write(f"Time: {td_peaks[idx]:.1f}s")
+                        else:
+                            st.write("Time: N/A")
+                    with col5:
+                        correction_decisions[idx] = st.checkbox(
+                            "Correct", 
+                            key=f"correct_{idx}",
+                            help=f"Apply linear interpolation to RR interval {idx + 1}"
+                        )
+                
+                # Apply corrections button
+                if st.button("Apply Selected Corrections", type="primary"):
+                    corrected_rr = st.session_state.analyzer.apply_ectopic_corrections(correction_decisions)
+                    
+                    approved_count = sum(correction_decisions.values())
+                    st.success(f"Applied {approved_count} corrections to RR intervals")
+                    
+                    # Show before/after stats
+                    if approved_count > 0:
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            original_rr = st.session_state.analyzer.ectopic_correction_info['original_rr']
+                            st.metric("Original Mean RR", f"{np.mean(original_rr):.1f} ms")
+                            st.metric("Original RMSSD", f"{np.sqrt(np.mean(np.diff(original_rr)**2)):.1f} ms")
+                        with col2:
+                            st.metric("Corrected Mean RR", f"{np.mean(corrected_rr):.1f} ms")
+                            st.metric("Corrected RMSSD", f"{np.sqrt(np.mean(np.diff(corrected_rr)**2)):.1f} ms")
+                        
+                       
+                        if st.button("Refresh Tachogram Preview", type="secondary"):
+                            st.rerun()
+                        st.info("RR intervals have been updated. You can now proceed with full analysis.")
+                        
+        close_plot_section()
+
     # Enhanced action buttons
     st.markdown("---")
     st.markdown("### 🚀 Next Steps")

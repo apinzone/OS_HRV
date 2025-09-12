@@ -876,6 +876,16 @@ class CardiovascularAnalyzer:
             'ellipse_area': S,
             'sample_entropy': sampen
         }
+
+        # Add ectopic correction info to results if available
+        if hasattr(self, 'ectopic_correction_info'):
+            self.results['time_domain']['ectopic_corrections'] = {
+                'applied': True,
+                'count': self.ectopic_correction_info['total_corrections'],
+                'percentage': self.ectopic_correction_info['percentage_corrected']
+            }
+        else:
+            self.results['time_domain']['ectopic_corrections'] = {'applied': False}
         
     def calculate_frequency_domain(self):
         """Updated frequency domain with proper units and normalization"""
@@ -1165,6 +1175,100 @@ class CardiovascularAnalyzer:
                 'min_length': min_length,
                 'nperseg_attempted': nperseg
             }
+    def detect_ectopic_beats(self, rr_intervals, conservative=True):
+        """
+        Minimal ectopic detection for clean research data
+        Focus on physiological limits and extreme statistical outliers
+        """
+        rr_intervals = np.array(rr_intervals)
+        flagged_indices = []
+        flagged_reasons = []
+        
+        # Physiological limits - catches most movement artifacts
+        physio_min, physio_max = 300, 2000  # ms
+        
+        # 1. Physiological limits (catches missed beats, false detections)
+        physio_outliers = np.where((rr_intervals < physio_min) | (rr_intervals > physio_max))[0]
+        for idx in physio_outliers:
+            flagged_indices.append(idx)
+            flagged_reasons.append(f"Physiological limit: {rr_intervals[idx]:.0f}ms")
+        
+        # 2. Extreme statistical outliers only (z-score > 3)
+        if len(rr_intervals) >= 10:
+            mean_rr = np.mean(rr_intervals)
+            std_rr = np.std(rr_intervals)
+            
+            if std_rr > 0:  # Avoid division by zero
+                z_scores = np.abs((rr_intervals - mean_rr) / std_rr)
+                extreme_outliers = np.where(z_scores > 3.0)[0]
+                
+                for idx in extreme_outliers:
+                    if idx not in flagged_indices:
+                        flagged_indices.append(idx)
+                        flagged_reasons.append(f"Extreme statistical outlier: z-score={z_scores[idx]:.1f}")
+        
+        return {
+            'flagged_indices': flagged_indices,
+            'flagged_reasons': flagged_reasons,
+            'total_flagged': len(flagged_indices),
+            'percentage_flagged': len(flagged_indices) / len(rr_intervals) * 100 if len(rr_intervals) > 0 else 0
+        }
+
+    def apply_ectopic_corrections(self, correction_decisions):
+        """
+        Apply user-approved ectopic corrections to RR intervals
+        correction_decisions: dict with indices as keys, True/False as values
+        """
+        original_rr = self.ecg_data['rr_intervals'].copy()
+        corrected_rr = original_rr.copy()
+        
+        # Get indices where user approved correction
+        indices_to_correct = [idx for idx, approved in correction_decisions.items() if approved]
+        
+        # Apply linear interpolation for approved corrections
+        for idx in sorted(indices_to_correct):
+            if 0 < idx < len(corrected_rr) - 1:
+                # Linear interpolation between adjacent beats
+                corrected_rr[idx] = (corrected_rr[idx-1] + corrected_rr[idx+1]) / 2
+            elif idx == 0 and len(corrected_rr) > 1:
+                # First beat - use next beat as reference
+                corrected_rr[idx] = corrected_rr[idx+1]
+            elif idx == len(corrected_rr) - 1 and len(corrected_rr) > 1:
+                # Last beat - use previous beat as reference
+                corrected_rr[idx] = corrected_rr[idx-1]
+        
+        # Store correction info
+        self.ectopic_correction_info = {
+            'original_rr': original_rr,
+            'corrected_rr': corrected_rr,
+            'corrected_indices': indices_to_correct,
+            'total_corrections': len(indices_to_correct),
+            'percentage_corrected': len(indices_to_correct) / len(original_rr) * 100
+        }
+        
+        # Update the RR intervals in ecg_data - THIS IS THE KEY LINE
+        self.ecg_data['rr_intervals'] = corrected_rr
+        
+        return corrected_rr
+
+    def get_flagged_peak_times(self, flagged_rr_indices):
+        """
+        Convert flagged RR interval indices to corresponding peak timestamps
+        """
+        td_peaks = self.ecg_data['td_peaks']
+        flagged_times = []
+        
+        for rr_idx in flagged_rr_indices:
+            if rr_idx < len(td_peaks) - 1:
+                peak_time = td_peaks[rr_idx]
+                flagged_times.append({
+                    'rr_index': rr_idx,
+                    'peak_time': peak_time,
+                    'next_peak_time': td_peaks[rr_idx + 1],
+                    'rr_duration': self.ecg_data['rr_intervals'][rr_idx]
+                })
+        
+        return flagged_times
 
     def analyze_all(self, time_window=None):
         """Run complete analysis based on available channels"""
