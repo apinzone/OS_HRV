@@ -1286,7 +1286,7 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                         tw = st.session_state.time_window
                         fig.add_vrect(
                             x0=tw['start_time'], x1=tw['end_time'],
-                            fillcolor=COLORS['window'], opacity=0.6,
+                            fillcolor=COLORS['window'], opacity=0.3,
                             line=dict(color=COLORS['warning'], width=2),
                             annotation_text="Analysis Window", 
                             annotation_position="top left",
@@ -1776,13 +1776,13 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                             tw = st.session_state.time_window
                             fig.add_vrect(
                                 x0=tw['start_time'], x1=tw['end_time'],
-                                fillcolor="rgba(255, 193, 7, 0.2)", opacity=0.8,
+                                fillcolor="rgba(255, 193, 7, 0.2)", opacity=0.3,
                                 annotation_text="Analysis Window", annotation_position="top left",
                                 row=1, col=1
                             )
                             fig.add_vrect(
                                 x0=tw['start_time'], x1=tw['end_time'],
-                                fillcolor="rgba(255, 193, 7, 0.2)", opacity=0.8,
+                                fillcolor="rgba(255, 193, 7, 0.2)", opacity=0.3,
                                 row=2, col=1
                             )
                         
@@ -2444,7 +2444,7 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
                 tw = st.session_state.time_window
                 fig.add_vrect(
                     x0=tw['start_time'], x1=tw['end_time'],
-                    fillcolor="rgba(255, 193, 7, 0.3)", opacity=0.7,
+                    fillcolor="rgba(255, 193, 7, 0.3)", opacity=0.3,
                     annotation_text=f"Analysis Window ({tw['duration']:.0f}s)", 
                     annotation_position="top left"
                 )
@@ -2512,7 +2512,7 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
                 tw = st.session_state.time_window
                 fig.add_vrect(
                     x0=tw['start_time'], x1=tw['end_time'],
-                    fillcolor="rgba(255, 193, 7, 0.3)", opacity=0.7,
+                    fillcolor="rgba(255, 193, 7, 0.3)", opacity=0.3,
                     annotation_text=f"Analysis Window ({tw['duration']:.0f}s)", 
                     annotation_position="top left"
                 )
@@ -2560,7 +2560,7 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
             tw = st.session_state.time_window
             fig_tacho.add_vrect(
                 x0=tw['start_time'], x1=tw['end_time'],
-                fillcolor="rgba(255, 193, 7, 0.3)", opacity=0.7,
+                fillcolor="rgba(255, 193, 7, 0.3)", opacity=0.3,
                 annotation_text=f"Analysis Window ({tw['duration']:.0f}s)", 
                 annotation_position="top left"
             )
