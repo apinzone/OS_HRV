@@ -2635,108 +2635,108 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
             # Info message outside the columns
             if 'time_window' in st.session_state:
                 tw = st.session_state.time_window
-                st.markdown(f"""
-                <div class="window-info">
-                    <strong>ℹ️ Analysis Preview:</strong> The selected {tw['duration']:.0f}-second window contains 
-                    {len(display_rr)} RR intervals ready for comprehensive HRV analysis.
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    st.markdown(f"""
+                    <div class="window-info" style="margin-bottom: 0;">
+                        <strong>ℹ️ Analysis Preview:</strong> The selected {tw['duration']:.0f}-second window contains 
+                        {len(display_rr)} RR intervals ready for comprehensive HRV analysis.
+                    </div>
+                    """, unsafe_allow_html=True)
+                with col2:
+                    st.markdown('<div style="padding-top: 8px;">', unsafe_allow_html=True)
+                    if st.session_state.preview_mode and 'rr_intervals' in st.session_state.analyzer.ecg_data:
+                        if st.button("Detect Ectopic Beats", type="secondary", use_container_width=True):
+                            if 'rr_intervals' in st.session_state.analyzer.ecg_data:
+                                current_rr = st.session_state.analyzer.ecg_data['rr_intervals']
+                                ectopic_results = st.session_state.analyzer.detect_ectopic_beats(current_rr)
+                                st.session_state.ectopic_results = ectopic_results
+                            else:
+                                st.warning("No RR intervals available. Please run peak detection first.")
+                    st.markdown('</div>', unsafe_allow_html=True)
+            else:
+                st.markdown("""
+                <div class="warning-box">
+                    <strong>⚠️ Warning:</strong> No RR intervals found in the selected time window. 
+                    Please adjust the window or peak detection parameters.
                 </div>
                 """, unsafe_allow_html=True)
+                
+    close_plot_section()
+        
+    # Display results if available
+    if 'ectopic_results' in st.session_state:
+        results = st.session_state.ectopic_results
+        
+        if 'rr_intervals' in st.session_state.analyzer.ecg_data:
+            rr_intervals = st.session_state.analyzer.ecg_data['rr_intervals']
         else:
-            st.markdown("""
-            <div class="warning-box">
-                <strong>⚠️ Warning:</strong> No RR intervals found in the selected time window. 
-                Please adjust the window or peak detection parameters.
+            rr_intervals = []
+        
+        if results['total_flagged'] == 0:
+            st.markdown(f"""
+            <div class="window-info">
+                <strong>✅ Quality Check:</strong> No ectopic beats detected in {len(rr_intervals)} RR intervals
             </div>
             """, unsafe_allow_html=True)
-    
-    close_plot_section()
-    
-    # Ectopic Beat Detection Section (only if peaks detected and in preview mode)
-    if st.session_state.preview_mode and 'rr_intervals' in st.session_state.analyzer.ecg_data:
-        st.markdown("---")
-        
-        # Compact trigger section
-        col1, col2 = st.columns([1, 1])
-        with col1:
-            st.markdown("**Data Quality Check:**")
-        with col2:
-            if st.button("Detect Ectopic Beats", type="secondary", use_container_width=True):
-                if 'rr_intervals' in st.session_state.analyzer.ecg_data:
-                    current_rr = st.session_state.analyzer.ecg_data['rr_intervals']
-                    rr_intervals = current_rr
-                    ectopic_results = st.session_state.analyzer.detect_ectopic_beats(
-                        rr_intervals, conservative=conservative_mode
+        else:
+            st.markdown(f"""
+            <div class="window-info">
+                <strong>⚠️ Quality Check:</strong> {results['total_flagged']} potential ectopic beats detected ({results['percentage_flagged']:.1f}%)
+            </div>
+            """, unsafe_allow_html=True)
+                    
+            # Manual review interface
+            st.markdown("#### Manual Review")
+            st.markdown("Review each flagged beat and decide whether to apply correction:")
+            
+            correction_decisions = {}
+            td_peaks = st.session_state.analyzer.ecg_data.get('td_peaks', [])
+            
+            for i, (idx, reason) in enumerate(zip(results['flagged_indices'], results['flagged_reasons'])):
+                col1, col2, col3, col4, col5 = st.columns([1, 2, 2, 2, 1])
+                
+                with col1:
+                    st.write(f"**Beat {idx + 1}:**")
+                with col2:
+                    st.write(f"{rr_intervals[idx]:.0f} ms")
+                with col3:
+                    st.write(f"{reason}")
+                with col4:
+                    # Add timestamp if available
+                    if idx < len(td_peaks):
+                        st.write(f"Time: {td_peaks[idx]:.1f}s")
+                    else:
+                        st.write("Time: N/A")
+                with col5:
+                    correction_decisions[idx] = st.checkbox(
+                        "Correct", 
+                        key=f"correct_{idx}",
+                        help=f"Apply linear interpolation to RR interval {idx + 1}"
                     )
-                    st.session_state.ectopic_results = ectopic_results
-                else:
-                    st.warning("No RR intervals available. Please run peak detection first.")
-        
-        # Display results if available - EXACT SAME CODE
-        if 'ectopic_results' in st.session_state:
-            results = st.session_state.ectopic_results
             
-            if 'rr_intervals' in st.session_state.analyzer.ecg_data:
-                rr_intervals = st.session_state.analyzer.ecg_data['rr_intervals']
-            else:
-                rr_intervals = []
-            
-            if results['total_flagged'] == 0:
-                st.success(f"No ectopic beats detected in {len(rr_intervals)} RR intervals")
-            else:
-                st.warning(f"{results['total_flagged']} potential ectopic beats detected ({results['percentage_flagged']:.1f}%)")
+            # Apply corrections button
+            if st.button("Apply Selected Corrections", type="primary"):
+                corrected_rr = st.session_state.analyzer.apply_ectopic_corrections(correction_decisions)
                 
-                # Manual review interface
-                st.markdown("#### Manual Review")
-                st.markdown("Review each flagged beat and decide whether to apply correction:")
+                approved_count = sum(correction_decisions.values())
+                st.success(f"Applied {approved_count} corrections to RR intervals. Tachogram regenerated.")
                 
-                correction_decisions = {}
-                td_peaks = st.session_state.analyzer.ecg_data.get('td_peaks', [])
-                
-                for i, (idx, reason) in enumerate(zip(results['flagged_indices'], results['flagged_reasons'])):
-                    col1, col2, col3, col4, col5 = st.columns([1, 2, 2, 2, 1])
-                    
+                # Show before/after stats
+                if approved_count > 0:
+                    col1, col2 = st.columns(2)
                     with col1:
-                        st.write(f"**Beat {idx + 1}:**")
+                        original_rr = st.session_state.analyzer.ectopic_correction_info['original_rr']
+                        st.metric("Original Mean RR", f"{np.mean(original_rr):.1f} ms")
+                        st.metric("Original RMSSD", f"{np.sqrt(np.mean(np.diff(original_rr)**2)):.1f} ms")
                     with col2:
-                        st.write(f"{rr_intervals[idx]:.0f} ms")
-                    with col3:
-                        st.write(f"{reason}")
-                    with col4:
-                        # Add timestamp if available
-                        if idx < len(td_peaks):
-                            st.write(f"Time: {td_peaks[idx]:.1f}s")
-                        else:
-                            st.write("Time: N/A")
-                    with col5:
-                        correction_decisions[idx] = st.checkbox(
-                            "Correct", 
-                            key=f"correct_{idx}",
-                            help=f"Apply linear interpolation to RR interval {idx + 1}"
-                        )
-                
-                # Apply corrections button
-                if st.button("Apply Selected Corrections", type="primary"):
-                    corrected_rr = st.session_state.analyzer.apply_ectopic_corrections(correction_decisions)
+                        st.metric("Corrected Mean RR", f"{np.mean(corrected_rr):.1f} ms")
+                        st.metric("Corrected RMSSD", f"{np.sqrt(np.mean(np.diff(corrected_rr)**2)):.1f} ms")
                     
-                    approved_count = sum(correction_decisions.values())
-                    st.success(f"Applied {approved_count} corrections to RR intervals")
-                    
-                    # Show before/after stats
-                    if approved_count > 0:
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            original_rr = st.session_state.analyzer.ectopic_correction_info['original_rr']
-                            st.metric("Original Mean RR", f"{np.mean(original_rr):.1f} ms")
-                            st.metric("Original RMSSD", f"{np.sqrt(np.mean(np.diff(original_rr)**2)):.1f} ms")
-                        with col2:
-                            st.metric("Corrected Mean RR", f"{np.mean(corrected_rr):.1f} ms")
-                            st.metric("Corrected RMSSD", f"{np.sqrt(np.mean(np.diff(corrected_rr)**2)):.1f} ms")
-                        
-                        
-                        if st.button("Refresh Tachogram Preview", type="secondary"):
-                            st.rerun()
-                        st.info("RR intervals have been updated. You can now proceed with full analysis.")
-        close_plot_section()
+                    st.rerun()  # Auto-refresh immediately
+                    st.info("RR intervals have been updated. You can now proceed with full analysis.")
+
+    close_plot_section()
 
     # Enhanced action buttons
     st.markdown("---")
