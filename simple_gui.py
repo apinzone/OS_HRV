@@ -205,7 +205,7 @@ st.markdown("""
     /* Override Streamlit app defaults */
     .stApp {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
-        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%) !important;
+        background: white !important;
         color: var(--text) !important;
         color-scheme: light !important;
     }
@@ -241,6 +241,15 @@ st.markdown("""
         color: rgba(255, 255, 255, 0.8) !important;
         font-size: 1.1rem;
         margin-top: 0.5rem;
+    }
+    
+    /* Footer Rules */
+    .footer-section {
+        color: white !important;
+    }
+
+    .footer-section * {
+        color: white !important;
     }
     
     /* Clean status container */
@@ -318,6 +327,17 @@ st.markdown("""
         border: 1px solid rgba(234, 179, 8, var(--border-opacity));
     }
     
+    /* Preview Boxes */       
+    .preview-header {
+        background: white;
+        padding: 1.25rem;
+        border-radius: 10px;
+        border-left: 4px solid #2563eb;
+        margin: 1rem 0;
+        border: 1px solid rgba(0,0,0,0.1);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+            
     /* Clean button styling */
     .stButton > button {
         border-radius: 8px;
@@ -683,7 +703,7 @@ def close_plot_section():
 show_professional_header()
 
 # Analysis Status Dashboard
-show_analysis_status()
+# show_analysis_status()
 # ============================================================================
 # SIDEBAR CONFIGURATION
 # ============================================================================
@@ -807,14 +827,14 @@ with st.sidebar:
             bp_default = i + 1   # +1 because "None" is first option
     
     ecg_selection = st.selectbox(
-        "⚡ Select ECG Channel:",
+        "Select ECG Channel:",
         ecg_options,
         index=ecg_default,
         help="Choose the channel containing ECG/EKG data"
     )
     
     bp_selection = st.selectbox(
-        "🩸 Select BP Channel:",
+        "Select BP Channel:",
         bp_options,
         index=bp_default,
         help="Choose the channel containing blood pressure data"
@@ -2355,69 +2375,20 @@ if st.session_state.analyzed and st.session_state.channels_configured:
 # Case 2: Preview Mode - Show Enhanced Peak Detection Preview
 elif st.session_state.file_loaded and st.session_state.channels_configured and st.session_state.preview_mode:
     st.markdown("""
-    <div class="window-info">
-        <h3 style="margin: 0;">🔍 Peak Detection Preview & Time Window Selection</h3>
+    <div class="preview-header">
+        <h3 style="margin: 0;">Peak Detection Preview & Time Window Selection</h3>
         <p style="margin: 0.5rem 0 0 0;">Review detected peaks and selected analysis window. Adjust parameters in sidebar if needed.</p>
     </div>
     """, unsafe_allow_html=True)
-    
-    # Show channel configuration in preview
-    if hasattr(st.session_state.analyzer, 'ecg_data') or hasattr(st.session_state.analyzer, 'bp_data'):
-        analyzer = st.session_state.analyzer
-        
-        config_text = "<strong>Configured Channels:</strong> "
-        channel_parts = []
-        
-        if analyzer.ecg_data:
-            scale_note = f" ({analyzer.ecg_data.get('detected_scale', 'Unknown')} scale)" 
-            channel_parts.append(f"ECG Ch{analyzer.ecg_channel}{scale_note}")
-        
-        if analyzer.bp_data:
-            channel_parts.append(f"BP Ch{analyzer.bp_channel}")
-        
-        config_text += " | ".join(channel_parts)
-        
-        st.markdown(f"""
-        <div class="metric-card">
-            <h4>🔧 Channel Configuration</h4>
-            <p>{config_text}</p>
-        </div>
-        """, unsafe_allow_html=True)
 
-    # Time window info
-    if 'time_window' in st.session_state:
-        tw = st.session_state.time_window
-        st.markdown(f"""
-        <div class="metric-card">
-            <h4>🎯 Selected Analysis Window</h4>
-            <p><strong>Start:</strong> {tw['start_time']:.0f}s | <strong>End:</strong> {tw['end_time']:.0f}s | <strong>Duration:</strong> {tw['duration']:.0f}s ({tw['duration']/60:.1f} min)</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
     # Get peaks data safely
     peaks = st.session_state.analyzer.ecg_data.get('peaks', [])
     time_data = st.session_state.analyzer.ecg_data.get('time', [])
     if (len(peaks) > 1 and len(time_data) > 0) or (len(time_data) > 0):
-        create_professional_plot_header("⚡ ECG Peak Detection Preview")
-        
-        # Peak detection stats
-        if len(peaks) > 1 and len(time_data) > 0:
-            peak_intervals = np.diff([time_data[p] for p in peaks if p < len(time_data)])
-            if len(peak_intervals) > 0:
-                avg_interval = np.mean(peak_intervals)
-                hr_from_peaks = 60 / avg_interval
-                
-                # Enhanced metrics
-                metric_col1, metric_col2 = st.columns(2)
-                with metric_col1:
-                    st.metric("🫀 R-peaks Detected", len(peaks)+1)
-                with metric_col2:
-                    st.metric("💓 Estimated HR", f"{hr_from_peaks:.1f} BPM")
-
+    
         # Enhanced ECG preview plot
         if len(time_data) > 0:
             fig = go.Figure()
-            
             fig.add_trace(go.Scatter(
                 x=time_data,
                 y=st.session_state.analyzer.ecg_data['raw'],
@@ -2452,13 +2423,33 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
             duration_min = time_data[-1] / 60 if len(time_data) > 0 else 0
             
             fig.update_layout(
-                title=f'ECG Peak Detection - Full Recording ({duration_min:.1f} min)',
-                xaxis_title='Time (s)',
-                yaxis_title='ECG (mV)',
+                title=dict(
+                    text=f'ECG Peak Detection - Full Recording ({duration_min:.1f} min) - {len(peaks)} R-peaks detected',
+                    font=dict(size=18, color='black', family='Inter'),
+                    x=0.5,
+                    xanchor='center'
+                ),
+                xaxis=dict(
+                    title=dict(text='Time (s)', font=dict(size=14, color='black', family='Inter')),
+                    tickfont=dict(size=12, color='black', family='Inter'),
+                    gridcolor='rgba(0,0,0,0.1)',
+                    showgrid=True,
+                    zeroline=False
+                ),
+                yaxis=dict(
+                    title=dict(text='ECG (mV)', font=dict(size=14, color='black', family='Inter')),
+                    tickfont=dict(size=12, color='black', family='Inter'),
+                    gridcolor='rgba(0,0,0,0.1)',
+                    showgrid=True,
+                    zeroline=False
+                ),
                 height=400,
-                showlegend=True,
+                showlegend=False,
                 hovermode='x unified',
-                plot_bgcolor='rgba(248,249,250,0.8)'
+                plot_bgcolor='white',
+                paper_bgcolor='white',
+                margin=dict(l=10, r=10, t=50, b=10),
+                font=dict(family='Inter', size=12, color='black')
             )
             
             st.plotly_chart(fig, use_container_width=True)
@@ -2534,11 +2525,6 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
         close_plot_section()
     
     # Enhanced RR Interval Tachogram Preview
-    create_professional_plot_header(
-        "📈 RR Interval Tachogram Preview",
-        "Heart rate variability across the complete recording with analysis window highlighted"
-    )
-    
     if len(peaks) > 1 and 'rr_intervals' in st.session_state.analyzer.ecg_data:
         rr_intervals = st.session_state.analyzer.ecg_data['rr_intervals']
         rr_time_points = st.session_state.analyzer.ecg_data['td_peaks'][:-1]
@@ -2573,119 +2559,126 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
         
         # Add reference lines with better styling
         fig_tacho.add_hline(y=mean_rr, line_dash="dash", line_color="#27ae60", line_width=2,
-                           annotation_text=f"Mean: {mean_rr:.1f} ms")
+                        annotation_text=f"Mean: {mean_rr:.1f} ms",
+                        annotation_font=dict(weight='bold', color='black', size=12))
         fig_tacho.add_hline(y=mean_rr + std_rr, line_dash="dot", line_color="#f39c12", line_width=2,
-                           annotation_text=f"+1 SD: {mean_rr + std_rr:.1f} ms")
+                        annotation_text=f"+1 SD: {mean_rr + std_rr:.1f} ms",
+                        annotation_font=dict(weight='bold', color='black', size=12))
         fig_tacho.add_hline(y=mean_rr - std_rr, line_dash="dot", line_color="#f39c12", line_width=2,
-                           annotation_text=f"-1 SD: {mean_rr - std_rr:.1f} ms")
+                        annotation_text=f"-1 SD: {mean_rr - std_rr:.1f} ms",
+                        annotation_font=dict(weight='bold', color='black', size=12))
         
         fig_tacho.update_layout(
-            title=f'RR Interval Tachogram - Full Recording (Range: {min_rr:.0f}-{max_rr:.0f} ms)',
-            xaxis_title='Time (s)',
-            yaxis_title='RR Interval (ms)',
-            height=450,
-            hovermode='x unified',
-            showlegend=True,
-            plot_bgcolor='rgba(248,249,250,0.8)'
-        )
+                    title=dict(
+                        text=f'RR Interval Tachogram - Full Recording (Range: {min_rr:.0f}-{max_rr:.0f} ms)',
+                        font=dict(size=18, color='black', family='Inter'),
+                        x=0.5,
+                        xanchor='center'
+                    ),
+                    xaxis=dict(
+                        title=dict(text='Time (s)', font=dict(size=14, color='black', family='Inter')),
+                        tickfont=dict(size=12, color='black', family='Inter'),
+                        gridcolor='rgba(0,0,0,0.1)',
+                        showgrid=True,
+                        zeroline=False
+                    ),
+                    yaxis=dict(
+                        title=dict(text='RR Interval (ms)', font=dict(size=14, color='black', family='Inter')),
+                        tickfont=dict(size=12, color='black', family='Inter'),
+                        gridcolor='rgba(0,0,0,0.1)',
+                        showgrid=True,
+                        zeroline=False
+                    ),
+                    height=450,
+                    hovermode='x unified',
+                    showlegend=False,
+                    plot_bgcolor='white',
+                    paper_bgcolor='white',
+                    margin=dict(l=10, r=10, t=50, b=10),
+                    font=dict(family='Inter', size=12, color='black')
+                )
         
         st.plotly_chart(fig_tacho, use_container_width=True)
-        
-        # Enhanced summary statistics
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("📊 Mean RR", f"{mean_rr:.1f} ms", help="Average RR interval")
-        with col2:
-            st.metric("📈 RR Std Dev", f"{std_rr:.1f} ms", help="Standard deviation")
-        with col3:
-            st.metric("📏 RR Range", f"{max_rr - min_rr:.0f} ms", help="Max - Min RR interval")
-        with col4:
-            cv_rr = (std_rr / mean_rr) * 100
-            st.metric("📊 RR CV%", f"{cv_rr:.1f}%", help="Coefficient of variation")
-        
+
         # Window-specific statistics
         if 'time_window' in st.session_state:
-            st.markdown("### 🎯 Analysis Window Statistics")
-            
             tw = st.session_state.time_window
-            
             rr_intervals_np = np.array(rr_intervals)
             rr_time_points_np = np.array(rr_time_points)
             
-            # Filter RR intervals to analysis window
+            # Filter to window
             window_mask = (rr_time_points_np >= tw['start_time']) & (rr_time_points_np <= tw['end_time'])
-            window_rr = rr_intervals_np[window_mask]
+            display_rr = rr_intervals_np[window_mask]
+            display_count = len(display_rr)
+        else:
+            # No window selected, use all data
+            display_rr = rr_intervals
+            display_count = len(rr_intervals)
+
+        if len(display_rr) > 0:
+            display_mean = np.mean(display_rr)
+            display_std = np.std(display_rr)
+            display_cv = (display_std / display_mean) * 100
+            display_hr = 60000 / display_mean
             
-            if len(window_rr) > 0:
-                col1, col2, col3, col4 = st.columns(4)
-                
-                with col1:
-                    st.metric("🔢 Window RR Count", (len(window_rr)+1), help="RR intervals in selected window")
-                with col2:
-                    st.metric("💓 Window Mean RR", f"{np.mean(window_rr):.1f} ms", help="Average RR in window")
-                with col3:
-                    st.metric("📊 Window RR Std", f"{np.std(window_rr):.1f} ms", help="Std deviation in window")
-                with col4:
-                    window_cv = (np.std(window_rr) / np.mean(window_rr)) * 100
-                    st.metric("📈 Window RR CV%", f"{window_cv:.1f}%", help="CV in selected window")
-                
+            # Show the 4 key metrics
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("RR Count", display_count, help="RR intervals in analysis window")
+            with col2:
+                st.metric("Mean RR", f"{display_mean:.1f} ms", help="Average RR interval")
+            with col3:
+                st.metric("RR CV%", f"{display_cv:.1f}%", help="Coefficient of variation")
+            with col4:
+                st.metric("Heart Rate", f"{display_hr:.1f} BPM", help="Estimated from mean RR")
+            
+            # Info message outside the columns
+            if 'time_window' in st.session_state:
+                tw = st.session_state.time_window
                 st.markdown(f"""
                 <div class="window-info">
                     <strong>ℹ️ Analysis Preview:</strong> The selected {tw['duration']:.0f}-second window contains 
-                    {len(window_rr)} RR intervals ready for comprehensive HRV analysis.
+                    {len(display_rr)} RR intervals ready for comprehensive HRV analysis.
                 </div>
                 """, unsafe_allow_html=True)
-            else:
-                st.markdown("""
-                <div class="warning-box">
-                    <strong>⚠️ Warning:</strong> No RR intervals found in the selected time window. 
-                    Please adjust the window or peak detection parameters.
-                </div>
-                """, unsafe_allow_html=True)
-        
-    else:
-        st.markdown("""
-        <div class="warning-box">
-            <strong>⚠️ Warning:</strong> Not enough R-peaks detected for RR interval analysis. 
-            Try adjusting ECG parameters in the sidebar.
-        </div>
-        """, unsafe_allow_html=True)
+        else:
+            st.markdown("""
+            <div class="warning-box">
+                <strong>⚠️ Warning:</strong> No RR intervals found in the selected time window. 
+                Please adjust the window or peak detection parameters.
+            </div>
+            """, unsafe_allow_html=True)
     
     close_plot_section()
     
     # Ectopic Beat Detection Section (only if peaks detected and in preview mode)
     if st.session_state.preview_mode and 'rr_intervals' in st.session_state.analyzer.ecg_data:
-        create_professional_plot_header(
-            "Ectopic Beat Detection",
-            "Automated detection of potential artifacts in RR intervals"
-        )
+        st.markdown("---")
         
-        if 'rr_intervals' in st.session_state.analyzer.ecg_data:
-            # Get the current RR intervals (from filtered or unfiltered peaks)
-            current_rr = st.session_state.analyzer.ecg_data['rr_intervals']
-            rr_intervals = current_rr
-        else:
-            st.warning("No RR intervals available. Please run peak detection first.")
-            rr_intervals = []
-        
-        # Detection parameters
-        col1, col2 = st.columns(2)
+        # Compact trigger section
+        col1, col2 = st.columns([1, 1])
         with col1:
-            conservative_mode = st.checkbox(
-                "Conservative Detection", 
-                value=True,
-                help="Use stricter thresholds to minimize false positives"
-            )
+            st.markdown("**Data Quality Check:**")
         with col2:
-            if st.button("Detect Ectopic Beats", type="secondary"):
-                ectopic_results = st.session_state.analyzer.detect_ectopic_beats(
-                    rr_intervals, conservative=conservative_mode
-                )
-                st.session_state.ectopic_results = ectopic_results
+            if st.button("Detect Ectopic Beats", type="secondary", use_container_width=True):
+                if 'rr_intervals' in st.session_state.analyzer.ecg_data:
+                    current_rr = st.session_state.analyzer.ecg_data['rr_intervals']
+                    rr_intervals = current_rr
+                    ectopic_results = st.session_state.analyzer.detect_ectopic_beats(
+                        rr_intervals, conservative=conservative_mode
+                    )
+                    st.session_state.ectopic_results = ectopic_results
+                else:
+                    st.warning("No RR intervals available. Please run peak detection first.")
         
-        # Display results if available
+        # Display results if available - EXACT SAME CODE
         if 'ectopic_results' in st.session_state:
             results = st.session_state.ectopic_results
+            
+            if 'rr_intervals' in st.session_state.analyzer.ecg_data:
+                rr_intervals = st.session_state.analyzer.ecg_data['rr_intervals']
+            else:
+                rr_intervals = []
             
             if results['total_flagged'] == 0:
                 st.success(f"No ectopic beats detected in {len(rr_intervals)} RR intervals")
@@ -2739,23 +2732,22 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
                             st.metric("Corrected Mean RR", f"{np.mean(corrected_rr):.1f} ms")
                             st.metric("Corrected RMSSD", f"{np.sqrt(np.mean(np.diff(corrected_rr)**2)):.1f} ms")
                         
-                       
+                        
                         if st.button("Refresh Tachogram Preview", type="secondary"):
                             st.rerun()
                         st.info("RR intervals have been updated. You can now proceed with full analysis.")
-                        
         close_plot_section()
 
     # Enhanced action buttons
     st.markdown("---")
-    st.markdown("### 🚀 Next Steps")
+    st.markdown("### Next Steps")
     st.markdown("Choose your next action based on the preview results above:")
     
     col1, col2, col3 = st.columns(3)
     
     with col1:
-            if st.button("✅ Accept & Run Full Analysis", use_container_width=True,
-                        help="Proceed with comprehensive HRV and BRS analysis using current settings"):
+            if st.button("Accept & Run Full Analysis", use_container_width=True,
+                        help="Proceed with analysis using current settings"):
                 
                 # Check analysis capabilities before starting
                 capabilities = st.session_state.analyzer.get_analysis_capabilities()
@@ -2791,14 +2783,14 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
                             st.error(f"❌ Analysis failed: {str(e)}")
     
     with col2:
-        if st.button("🔄 Adjust Parameters", use_container_width=True,
+        if st.button("Adjust Parameters", use_container_width=True,
                     help="Return to parameter adjustment mode"):
             st.session_state.preview_mode = False
             st.info("👈 Adjust parameters or time window in the sidebar and click 'Preview' again")
             st.rerun()
     
     with col3:
-        if st.button("📊 Use Default Settings", use_container_width=True,
+        if st.button("Use Default Settings", use_container_width=True,
                     help="Run analysis with original default parameters"):
             st.session_state.analysis_started = True
             
@@ -2828,7 +2820,7 @@ else:
     st.markdown("""
     <div class="window-info">
         <h3 style="margin: 0;">⌚ Welcome to ChronOS</h3>
-        <p style="margin: 0.5rem 0 0 0;">Upload an ACQ or EDF file using the sidebar to begin your cardiovascular analysis journey</p>
+        <p style="margin: 0.5rem 0 0 0;">Upload an ACQ or EDF file using the sidebar to begin analysis of physiological signals</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -2841,7 +2833,7 @@ else:
             <h3>Platform Capabilities</h3>
             <ul style="margin: 0; padding-left: 1.2rem; line-height: 1.6;">
                 <li><strong>File Format Support:</strong> ACQ (AcqKnowledge) and EDF files</li>
-                <li><strong>Channel Configuration:</strong> Flexible ECG and BP channel selection</li>
+                <li><strong>Channel Configuration:</strong> Flexible channel selection</li>
                 <li><strong>Analysis Window:</strong> Customizable time segments for focused analysis</li>
                 <li><strong>Peak Detection:</strong> Adaptive parameter scaling with options for manual user adjustment</li>
             </ul>
@@ -2878,14 +2870,14 @@ else:
 # Professional footer
 st.markdown("---")
 st.markdown(f"""
-<div style="text-align: center; padding: 2rem; background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%); 
-           border-radius: 10px; margin-top: 2rem; display: flex; align-items: center; justify-content: center;">
+<div class="footer-section" style="text-align: center; padding: 2rem; background: linear-gradient(135deg, rgba(37, 99, 235, 0.95) 0%, rgba(79, 70, 229, 0.95) 100%); 
+           border: 1px solid rgba(0, 0, 0, 0.7); border-radius: 10px; margin-top: 2rem; display: flex; align-items: center; justify-content: center;">
     <div style="display: flex; align-items: center; gap: 15px;">
         <img src="data:image/png;base64,{get_base64_of_image("logo.png")}" 
-             style="width: 40px; height: 40px; object-fit: contain;" 
+             style="width: 55px; height: 55px; object-fit: contain;" 
              alt="ChronOS Logo"/>
         <div>
-            <p style="margin: 0; color: #6c757d; font-size: 0.9rem;">
+            <p style="margin: 0; font-size: 0.9rem;">
                 <strong>ChronOS v1.3</strong> | Professional HRV & BRS Analysis Platform<br>
                 Built with Streamlit • Enhanced User Experience • Advanced Peak Detection • Time Window Selection
             </p>
