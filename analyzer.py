@@ -692,15 +692,14 @@ class CardiovascularAnalyzer:
         
         td_peaks = (peaks / self.ecg_data['fs'])
         RRDistance = distancefinder(td_peaks)
-        RRDistance_ms = [element * 1000 for element in RRDistance]
-        
+        RRDistance_ms = [element * 1000 for element in RRDistance]    
         self.ecg_data.update({
             'peaks': peaks,
             'td_peaks': td_peaks,
             'rr_intervals': RRDistance_ms,
             'peak_detection_method': 'manual_params'
         })
-        
+
         # BP peaks with custom parameters - only if BP channel is configured
         if self.bp_data:
             BP = self.bp_data['raw']
@@ -1360,7 +1359,6 @@ class CardiovascularAnalyzer:
         
         return "\n".join(summary)
     
-    # Add this method to your CardiovascularAnalyzer class in analyzer.py
     def debug_export_peaks(self, filename_prefix="debug"):
         """
         Export R-peak data for debugging comparison
@@ -1370,9 +1368,7 @@ class CardiovascularAnalyzer:
             ecg_raw = self.ecg_data.get('raw', [])
             peaks = self.ecg_data.get('peaks', [])
             
-            print(f"DEBUG FUNCTION: ECG raw data length: {len(ecg_raw)}")
-            print(f"DEBUG FUNCTION: First 3 ECG raw values: {list(ecg_raw[:3])}")
-            print(f"DEBUG FUNCTION: Number of peaks: {len(peaks)}")
+
             if len(peaks) > 0:
                 print(f"DEBUG FUNCTION: First peak index: {peaks[0]}")
             else:
@@ -1393,7 +1389,6 @@ class CardiovascularAnalyzer:
             
             # Convert everything to plain Python lists
             peaks_list = [int(p) for p in peaks]  # Keep original peaks for debug info
-            print(f"DEBUG FUNCTION: First 10 peak indices: {peaks_list[:10]}")
             td_peaks_list = [float(t) for t in windowed_data['ecg_td_peaks']]
             rr_intervals_list = [float(r) for r in windowed_data['ecg_rr_intervals']]
             
@@ -1407,27 +1402,6 @@ class CardiovascularAnalyzer:
                 'rr_intervals_ms': rr_intervals_list
             }
             
-            # Export to text file
-            output_file = f"{filename_prefix}_your_pipeline.txt"
-            with open(output_file, 'w') as f:
-                f.write("=== YOUR PIPELINE DEBUG DATA ===\n")
-                f.write(f"Total R-peaks detected: {debug_data['total_peaks_detected']}\n")
-                f.write(f"Windowed peaks count: {debug_data['windowed_peaks_count']}\n")
-                f.write(f"RR intervals count: {debug_data['windowed_rr_count']}\n")
-                f.write(f"Sampling rate: {debug_data['sampling_rate']} Hz\n\n")
-                
-                f.write("First 20 R-peak times (seconds):\n")
-                for i, time_sec in enumerate(debug_data['peak_times_sec'][:20]):
-                    f.write(f"  Peak {i+1}: {time_sec:.6f}s\n")
-                
-                f.write("\nFirst 20 RR intervals (ms):\n")
-                for i, rr_ms in enumerate(debug_data['rr_intervals_ms'][:20]):
-                    f.write(f"  RR {i+1}: {rr_ms:.3f}ms\n")
-                
-                f.write("\nAll RR intervals (ms):\n")
-                f.write(str(debug_data['rr_intervals_ms']))
-            
-            print(f"Debug data exported to {output_file}")
             
             # Also print first few for immediate comparison
             print("\n=== YOUR PIPELINE - FIRST 10 PEAKS ===")

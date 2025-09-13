@@ -2452,6 +2452,7 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
                 font=dict(family='Inter', size=12, color='black')
             )
             
+            # Add after peak detection in your preview mode
             st.plotly_chart(fig, use_container_width=True)
         
         close_plot_section()

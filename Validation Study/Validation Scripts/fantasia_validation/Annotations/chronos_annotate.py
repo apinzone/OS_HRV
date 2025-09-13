@@ -90,12 +90,12 @@ def extract_peaks_simple():
     })
     
     # Save to CSV
-    output_path = "detected_r_peaks_simple.csv"
-    peaks_df.to_csv(output_path, index=False)
+    # output_path = "detected_r_peaks_simple.csv"
+    # peaks_df.to_csv(output_path, index=False)
     
     print(f"\nSUCCESS!")
     print(f"Detected {len(detected_peaks)} R-peaks")
-    print(f"Saved to: {output_path}")
+    # print(f"Saved to: {output_path}")
     print(f"Time range: {peak_times_seconds[0]:.1f}s to {peak_times_seconds[-1]:.1f}s")
     
     # Show first few peaks
