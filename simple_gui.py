@@ -1215,7 +1215,7 @@ if st.session_state.analyzed and st.session_state.channels_configured:
 
     st.markdown(f"""
     <div class="results-header">
-        <h2 style="margin: 0; color: #155724;">🎉 Analysis Complete</h2>
+        <h2 style="margin: 0; color: #155724;">Analysis Complete</h2>
         <p style="margin: 0.5rem 0 0 0; color: #155724;">Comprehensive cardiovascular analysis finished successfully{scale_note}{file_type_note}</p>
     </div>
     """, unsafe_allow_html=True)
@@ -2766,7 +2766,7 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
                                 st.session_state.analyzed = True
                                 st.session_state.preview_mode = False
                                 st.session_state.analysis_started = False
-                                st.success("🎉 Complete analysis finished successfully!")
+                                st.success("Complete analysis finished successfully!")
                                 st.balloons()
                                 plot_options = [
                                     "Interactive Tachogram",
@@ -2805,7 +2805,7 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
                         st.session_state.analyzed = True
                         st.session_state.preview_mode = False
                         st.session_state.analysis_started = False
-                        st.success("🎉 Analysis with defaults completed!")
+                        st.success("Analysis with defaults completed!")
                         st.balloons()
                         st.rerun()
                     else:
