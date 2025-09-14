@@ -152,7 +152,7 @@ def batch_process_hrv_metrics():
             analyzer.calculate_time_domain()
             analyzer.calculate_frequency_domain()
             
-            # Extract results from your analyzer.results structure
+            # Extract results from analyzer.results structure
             if hasattr(analyzer, 'results') and analyzer.results:
                 results_data = analyzer.results
                 hrv_data = {}
@@ -184,7 +184,7 @@ def batch_process_hrv_metrics():
                         'lf_hf_ratio': fd.get('lf_hf_ratio', np.nan)
                     })
                 
-                # Create result with your specified metrics
+                # Create result 
                 if hrv_data:
                     result = {
                         'filename': edf_file,

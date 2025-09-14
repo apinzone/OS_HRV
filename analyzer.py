@@ -839,15 +839,14 @@ class CardiovascularAnalyzer:
             }
             return
         
-        # Your exact calculations
-        Successive_time_diff = SuccessiveDiff(RRDistance_ms)  # Your function
+        #Metric Calculations
+        Successive_time_diff = SuccessiveDiff(RRDistance_ms) 
         AvgDiff = np.average(Successive_time_diff)
         SDNN = np.std(RRDistance_ms, ddof= 1)
         SDSD = np.std(Successive_time_diff, ddof = 1)
-        NN50 = NNCounter(Successive_time_diff, 50)  # Your function
+        NN50 = NNCounter(Successive_time_diff, 50) 
         pNN50 = (NN50/len(td_peaks))*100 if len(td_peaks) > 0 else 0
-        # Add this in calculate_time_domain() right before RMSSD calculation
-        RMSSD = np.sqrt(np.average(rms(Successive_time_diff)))  # Your function
+        RMSSD = np.sqrt(np.average(rms(Successive_time_diff)))  
         SD1 = RMSSD / np.sqrt(2)
         SD2 = np.sqrt((2*math.pow(SDNN,2) - (0.5*math.pow(RMSSD,2))))
         S = math.pi * SD1 * SD2
@@ -860,10 +859,10 @@ class CardiovascularAnalyzer:
         total_peaks = len(td_peaks)
         HR = np.round(Num_Beats/(Sampling_Time/60),2) if Sampling_Time > 0 else 0
         
-        # Sample entropy with your exact parameters
+        # Sample entropy 
         m = 2
         r = 0.2 * np.std(RRDistance_ms)
-        sampen = SampEn(RRDistance_ms, m, r) if len(RRDistance_ms) > m else 0  # Your function
+        sampen = SampEn(RRDistance_ms, m, r) if len(RRDistance_ms) > m else 0 
         
         self.results['time_domain'] = {
             'num_beats': Num_Beats,
@@ -1022,7 +1021,6 @@ class CardiovascularAnalyzer:
             }
             return
         
-        # Your exact function call with exact parameters
         results = full_sequence_brs(
             sbp=Systolic_Array,
             pi=RRDistance_ms,
@@ -1107,7 +1105,7 @@ class CardiovascularAnalyzer:
         rr_fft_trimmed = rr_fft[:min_length]
         bp_fft_trimmed = bp_fft[:min_length]
     
-        # Use FIXED nperseg=256 to match main.py exactly
+        # Use FIXED nperseg=256
         nperseg = 256
         
         # Only use adaptive sizing if data is genuinely too short
@@ -1121,35 +1119,35 @@ class CardiovascularAnalyzer:
                 return
             nperseg = min_length // 4  # Fallback only if absolutely necessary
     
-        # Band definitions - exactly matching main.py
+        # Band definitions
         lf_band = lambda freqs: (freqs >= 0.04) & (freqs < 0.15)
         hf_band = lambda freqs: (freqs >= 0.15) & (freqs < 0.4)
         
-        # Calculate BP PSD - exactly matching main.py approach
+        # Calculate BP PSD 
         frequencies_bp, psd_bp = welch(bp_fft_trimmed, fs=interp_fs, nperseg=nperseg)
         lf_power_BP = np.trapezoid(psd_bp[lf_band(frequencies_bp)], frequencies_bp[lf_band(frequencies_bp)]) if np.any(lf_band(frequencies_bp)) else 0
         hf_power_BP = np.trapezoid(psd_bp[hf_band(frequencies_bp)], frequencies_bp[hf_band(frequencies_bp)]) if np.any(hf_band(frequencies_bp)) else 0
         
-        # Coherence calculation - exactly matching main.py
+        # Coherence calculation 
         try:
             frequencies_coh, coherence_values = coherence(rr_fft_trimmed, bp_fft_trimmed, fs=interp_fs, nperseg=nperseg)
             lf_coherence = np.mean(coherence_values[lf_band(frequencies_coh)]) if np.any(lf_band(frequencies_coh)) else 0
             hf_coherence = np.mean(coherence_values[hf_band(frequencies_coh)]) if np.any(hf_band(frequencies_coh)) else 0
             
-            # CSD calculation - EXACTLY matching main.py (note: bp_fft, rr_fft order like main.py)
+            # CSD calculation
             frequencies_csd, csd_bp_rr = csd(bp_fft_trimmed, rr_fft_trimmed, fs=interp_fs, nperseg=nperseg)
             _, psd_bp_auto = welch(bp_fft_trimmed, fs=interp_fs, nperseg=nperseg)
             
-            # Transfer function - exactly matching main.py
+            # Transfer function 
             transfer_gain = np.abs(csd_bp_rr) / psd_bp_auto
             
-            # BRS calculations - exactly matching main.py
+            # BRS calculations 
             lf_band_tf = lf_band(frequencies_csd)
             hf_band_tf = hf_band(frequencies_csd)
             brs_lf_tf = np.mean(transfer_gain[lf_band_tf]) if np.any(lf_band_tf) else 0
             brs_hf_tf = np.mean(transfer_gain[hf_band_tf]) if np.any(hf_band_tf) else 0
             
-            # Store results exactly matching your main.py variables
+            # Store results
             self.results['brs_spectral'] = {
                 'brs_lf_tf': brs_lf_tf,
                 'brs_hf_tf': brs_hf_tf,
@@ -1252,7 +1250,7 @@ class CardiovascularAnalyzer:
             'percentage_corrected': len(indices_to_correct) / len(original_rr) * 100
         }
         
-        # Update the RR intervals in ecg_data - THIS IS THE KEY LINE
+        # Update RR intervals in ecg_data 
         self.ecg_data['rr_intervals'] = corrected_rr
         
         return corrected_rr
@@ -1362,70 +1360,9 @@ class CardiovascularAnalyzer:
             summary.append("BP Channel: Not configured")
         summary.append("")
         
-        # ... rest of your get_summary code ...
         
         return "\n".join(summary)
     
-    def debug_export_peaks(self, filename_prefix="debug"):
-        """
-        Export R-peak data for debugging comparison
-        """
-        try:
-            # DEBUG: Print raw data info
-            ecg_raw = self.ecg_data.get('raw', [])
-            peaks = self.ecg_data.get('peaks', [])
-            
-
-            if len(peaks) > 0:
-                print(f"DEBUG FUNCTION: First peak index: {peaks[0]}")
-            else:
-                print(f"DEBUG FUNCTION: First peak index: None")
-            
-            # Check if we have the required data
-            if len(self.ecg_data) == 0:
-                print("No ECG data available")
-                return
-                
-            if len(peaks) == 0:
-                print("No peaks detected")
-                return
-            
-
-            # Get the ACTUAL data used by analysis (windowed data)
-            windowed_data = self.get_windowed_data()
-            
-            # Convert everything to plain Python lists
-            peaks_list = [int(p) for p in peaks]  # Keep original peaks for debug info
-            td_peaks_list = [float(t) for t in windowed_data['ecg_td_peaks']]
-            rr_intervals_list = [float(r) for r in windowed_data['ecg_rr_intervals']]
-            
-            debug_data = {
-                'total_peaks_detected': len(peaks_list),
-                'windowed_peaks_count': len(peaks_list),
-                'windowed_rr_count': len(rr_intervals_list),
-                'sampling_rate': float(self.ecg_data['fs']),
-                'peak_indices': peaks_list,
-                'peak_times_sec': td_peaks_list,
-                'rr_intervals_ms': rr_intervals_list
-            }
-            
-            
-            # Also print first few for immediate comparison
-            print("\n=== YOUR PIPELINE - FIRST 10 PEAKS ===")
-            for i in range(min(10, len(debug_data['peak_times_sec']))):
-                print(f"Peak {i+1}: {debug_data['peak_times_sec'][i]:.6f}s")
-            
-            print("\n=== YOUR PIPELINE - FIRST 10 RR INTERVALS ===")
-            for i in range(min(10, len(debug_data['rr_intervals_ms']))):
-                print(f"RR {i+1}: {debug_data['rr_intervals_ms'][i]:.3f}ms")
-            
-            return debug_data
-            
-        except Exception as e:
-            print(f"Debug function error: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            return None
         
     def validate_with_pantompkins(self):
         if not self.ecg_data or 'peaks' not in self.ecg_data:
@@ -1434,8 +1371,8 @@ class CardiovascularAnalyzer:
         pt_peaks = _ecg_findpeaks_pantompkins(self.ecg_data['raw'], self.ecg_data['fs'])
         your_peaks = self.ecg_data['peaks']
         
-        # Tighter tolerance and amplitude filtering
-        tolerance_samples = int(0.02 * self.ecg_data['fs'])  # 20ms instead of 50ms
+        # 20ms tolerance and amplitude filtering instead of 50ms
+        tolerance_samples = int(0.02 * self.ecg_data['fs'])  
         min_amplitude = np.std(self.ecg_data['raw']) * 2  # Must be 2 std above baseline
         
         missed_peaks = []
@@ -1444,7 +1381,7 @@ class CardiovascularAnalyzer:
             if self.ecg_data['raw'][pt_peak] < min_amplitude:
                 continue
                 
-            # Check if near your peaks
+            # Check if near analyzer peaks
             if not any(abs(pt_peak - your_peak) < tolerance_samples for your_peak in your_peaks):
                 time_stamp = pt_peak / self.ecg_data['fs']
                 missed_peaks.append({
@@ -1456,6 +1393,7 @@ class CardiovascularAnalyzer:
         return missed_peaks
 
     # Pan-Tompkins implementation from NeuroKit2
+
 def _ecg_findpeaks_pantompkins(signal, sampling_rate=1000):
     """Pan-Tompkins peak detection algorithm"""
     diff = np.diff(signal)
@@ -1536,117 +1474,3 @@ def _ecg_findpeaks_peakdetect(detection, sampling_rate=1000):
             NPKI = 0.125 * peak_value + 0.875 * NPKI
     
     return signal_peaks
-
-        # # Channel configuration info
-        # summary.append("=== CHANNEL CONFIGURATION ===")
-        # summary.append(f"File Type: {self.file_type.upper()}")
-        # if self.ecg_data:
-        #     summary.append(f"ECG Channel: {self.ecg_channel} ({self.ecg_data.get('channel_name', 'Unknown')})")
-        #     summary.append(f"ECG Scale: {self.ecg_data.get('detected_scale', 'Unknown')}")
-        # else:
-        #     summary.append("ECG Channel: Not configured")
-            
-        # if self.bp_data:
-        #     summary.append(f"BP Channel: {self.bp_channel} ({self.bp_data.get('channel_name', 'Unknown')})")
-        # else:
-        #     summary.append("BP Channel: Not configured")
-        # summary.append("")
-        
-        # # Time window information
-        # if self.time_window:
-        #     tw = self.time_window
-        #     summary.append("=== ANALYSIS WINDOW ===")
-        #     summary.append(f"Time window: {tw['start_time']:.1f}s to {tw['end_time']:.1f}s")
-        #     summary.append(f"Window duration: {tw['duration']:.1f} seconds ({tw['duration']/60:.1f} minutes)")
-        #     summary.append("")
-        
-        # # Time domain (exactly matching your original print statements)
-        # if 'time_domain' in self.results:
-        #     td = self.results['time_domain']
-        #     if 'error' in td:
-        #         summary.append("=== TIME DOMAIN RESULTS ===")
-        #         summary.append(f"ERROR: {td['error']}")
-        #         summary.append("")
-        #     else:
-        #         summary.append("=== TIME DOMAIN RESULTS ===")
-        #         summary.append(f"n = {td['num_beats']} beats are included for analysis")
-        #         summary.append(f"The total sampling time is {td['sampling_time']:.3f} seconds")
-        #         summary.append(f"The average heart rate during the sampling time is = {td['hr']} BPM")
-        #         summary.append(f"the mean difference between successive R-R intervals is = {td['avg_diff']:.3f} ms")
-        #         summary.append(f"The mean R-R Interval duration is {td['mean_rr']:.3f} ms")
-        #         summary.append(f"pNN50 = {td['pnn50']:.3f} %")
-        #         summary.append(f"RMSSD = {td['rmssd']:.3f} ms")
-        #         summary.append(f"SDNN = {td['sdnn']:.3f} ms")
-        #         summary.append(f"SDSD = {td['sdsd']:.3f} ms")
-        #         summary.append(f"Sample Entropy = {td['sample_entropy']}")
-        #         summary.append(f"SD1 = {td['sd1']:.3f} ms")
-        #         summary.append(f"SD2 = {td['sd2']:.3f} ms")
-        #         summary.append(f"SD1/SD2 = {td['sd1_sd2_ratio']:.3f}")
-        #         summary.append(f"The area of the ellipse fitted over the Poincaré Plot (S) is {td['ellipse_area']:.3f} ms^2")
-        #         summary.append("")
-        
-        # # Blood pressure info
-        # windowed_data = self.get_windowed_data()
-        # if len(windowed_data['bp_systolic']) > 0:
-        #     Avg_BP = np.round((np.average(windowed_data['bp_systolic'])),3)
-        #     SD_BP = np.round((np.std(windowed_data['bp_systolic'])),3)
-        #     summary.append("=== BLOOD PRESSURE ===")
-        #     summary.append(f"The average systolic blood pressure during the sampling time is {Avg_BP} + - {SD_BP} mmHg")
-        #     summary.append(f"{len(windowed_data['bp_systolic'])} pressure waves are included in the analysis")
-        #     summary.append("")
-        
-        # # Frequency domain 
-        # if 'frequency_domain' in self.results:
-        #     fd = self.results['frequency_domain']
-        #     if 'error' in fd:
-        #         summary.append("=== FREQUENCY DOMAIN ===")
-        #         summary.append(f"ERROR: {fd['error']}")
-        #         summary.append("")
-        #     else:
-        #         summary.append("=== FREQUENCY DOMAIN ===")
-        #         summary.append(f"LF Power: {fd['lf_power']:.2f} ms²")
-        #         summary.append(f"HF Power: {fd['hf_power']:.2f} ms²")
-        #         summary.append(f"Total Power: {fd['total_power']:.2f} ms²")
-        #         summary.append(f"LF/HF Ratio: {fd['lf_hf_ratio']:.2f}")
-        #         summary.append(f"LF Power: {fd['lf_nu']:.2f} n.u.")
-        #         summary.append(f"HF Power: {fd['hf_nu']:.2f} n.u.")
-        #         summary.append("")
-        
-        # # BRS sequence 
-        # if 'brs_sequence' in self.results:
-        #     brs = self.results['brs_sequence']
-        #     if 'error' in brs:
-        #         summary.append("=== BRS SEQUENCE METHOD ===")
-        #         summary.append(f"ERROR: {brs['error']}")
-        #         summary.append("")
-        #     else:
-        #         summary.append("=== BRS SEQUENCE METHOD ===")
-        #         summary.append(f"BRS (mean): {brs['BRS_mean']:.2f} ms/mmHg")
-        #         summary.append(f"BEI: {brs['BEI']:.2f}")
-        #         summary.append(f"Valid BRS sequences: {brs['num_sequences']}")
-        #         summary.append(f"Total SAP ramps: {brs['num_sbp_ramps']}")
-        #         summary.append(f"Up BRS sequences: {brs['n_up']}")
-        #         summary.append(f"Down BRS sequences: {brs['n_down']}")
-        #         summary.append(f"Best delay: {brs['best_delay']} beats")
-        #         summary.append("")
-        
-        # # BRS spectral (matching your original print format)
-        # if 'brs_spectral' in self.results:
-        #     brs_spec = self.results['brs_spectral']
-        #     if 'error' in brs_spec:
-        #         summary.append("=== BRS CROSS-SPECTRAL METHOD ===")
-        #         summary.append(f"ERROR: {brs_spec['error']}")
-        #         summary.append("")
-        #     else:
-        #         summary.append("=== BRS CROSS-SPECTRAL METHOD ===")
-        #         if brs_spec['valid_lf']:
-        #             summary.append(f"Spectral BRS (Transfer Function, LF): {brs_spec['brs_lf_tf']:.3f} ms/mmHg (LF coherence OK)")
-        #         else:
-        #             summary.append(f"Low coherence ({brs_spec['lf_coherence']:.3f}) – Spectral BRS not reliable")
-                
-        #         if brs_spec['valid_hf']:
-        #             summary.append(f"Spectral BRS (Transfer Function, HF): {brs_spec['brs_hf_tf']:.3f} ms/mmHg (HF coherence OK)")
-        #         else:
-        #             summary.append(f"Low HF coherence ({brs_spec['hf_coherence']:.3f}) – HF BRS not reliable")
-        
-        # return "\n".join(summary)

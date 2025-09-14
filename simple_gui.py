@@ -897,9 +897,9 @@ with st.sidebar:
         config_info = f"**📁 File Type:** {getattr(analyzer, 'file_type', 'Unknown').upper()}\n\n"
         if analyzer.ecg_data:
             scale_info = f" ({analyzer.ecg_data['detected_scale']} detected)" if 'detected_scale' in analyzer.ecg_data else ""
-            config_info += f"⚡ **ECG:** Channel {analyzer.ecg_channel} - {analyzer.ecg_data['channel_name']}{scale_info}\n\n"
+            config_info += f"**ECG:** Channel {analyzer.ecg_channel} - {analyzer.ecg_data['channel_name']}{scale_info}\n\n"
         if analyzer.bp_data:
-            config_info += f"🩸 **BP:** Channel {analyzer.bp_channel} - {analyzer.bp_data['channel_name']}"
+            config_info += f"**BP:** Channel {analyzer.bp_channel} - {analyzer.bp_data['channel_name']}"
 
         st.markdown(config_info)
         st.markdown('</div>', unsafe_allow_html=True)
@@ -990,7 +990,7 @@ with st.sidebar:
         st.markdown("**Parameter Settings:**")
 
         # ECG Parameters
-        with st.expander("⚡ ECG R-peak Detection", expanded=True):
+        with st.expander("ECG R-peak Detection", expanded=True):
             
             # Calculate dynamic ECG parameters based on signal characteristics
             if hasattr(st.session_state.analyzer, 'ecg_data') and 'raw' in st.session_state.analyzer.ecg_data:
@@ -1152,7 +1152,7 @@ with st.sidebar:
                     signal_range = np.max(ecg_signal) - np.median(ecg_signal)
                     sample_rate = st.session_state.analyzer.ecg_data['fs']
                     
-                    # Calculate your specified sensitive parameters
+                    # Calculate sensitive parameters
                     sensitive_height = 0.45 * signal_range
                     sensitive_distance_ms = 250
                     sensitive_prominence = 1.5 * sensitive_height
@@ -1177,7 +1177,7 @@ with st.sidebar:
                     st.warning("Load ECG data first to calculate sensitive parameters")
 
         # BP Parameters
-        with st.expander("🩸 BP Systolic Detection", expanded=True):
+        with st.expander("BP Systolic Detection", expanded=True):
             bp_height_default = st.session_state.get('bp_height', 110)
             bp_distance_default = st.session_state.get('bp_distance', 100)
             bp_prominence_default = st.session_state.get('bp_prominence', 5)
@@ -1235,7 +1235,7 @@ with st.sidebar:
     
     # Plot Selection (only if analyzed)
     if st.session_state.analyzed:
-        st.markdown("## 📊 Visualizations")
+        st.markdown("## Visualizations")
         
         plot_options = [
             "Interactive Tachogram",
@@ -1254,7 +1254,7 @@ with st.sidebar:
             help="Choose which plots to generate"
         )
 
-        if st.button("🎨 Generate Plots", use_container_width=True, type="primary"):
+        if st.button("Generate Plots", use_container_width=True, type="primary"):
             st.session_state.selected_plots = selected_plots
             st.rerun()
 
@@ -1349,12 +1349,12 @@ if st.session_state.analyzed and st.session_state.channels_configured:
             fig.add_hline(y=mean_rr - std_rr, line_dash="dot", line_color=COLORS['secondary'], 
                         line_width=1.5, opacity=0.6)
             
-            # Add integrated time domain metrics panel
+            #integrated time domain metrics panel
             td_results = st.session_state.analyzer.results['time_domain']
             if 'error' not in td_results:
                 metrics_text = "<b>Time Domain Metrics</b><br><br>"
                 
-                # Add recording window info
+                # recording window info
                 if 'time_window' in st.session_state:
                     tw = st.session_state.time_window
                     metrics_text += f"Window: {tw['start_time']:.0f}-{tw['end_time']:.0f}s ({tw['duration']:.0f}s)<br><br>"
@@ -1406,7 +1406,7 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                         # Create histogram using Plotly instead of matplotlib
                         fig = go.Figure()
                         
-                        # Add histogram
+                        # histogram
                         fig.add_trace(go.Histogram(
                             x=rr_intervals,
                             nbinsx=30,
@@ -1480,7 +1480,7 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                     lf_mask = (frequencies >= (0.04 - eps)) & (frequencies <= (0.15 + eps))
                     hf_mask = (frequencies >= (0.15 - eps)) & (frequencies <= (0.40 + eps))
 
-                    # Add band fills using same approach as original but in Plotly
+                    # Add band fills 
                     if np.any(vlf_mask):
                         fig.add_trace(go.Scatter(
                             x=frequencies[vlf_mask], 
@@ -2493,7 +2493,6 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
                 font=dict(family='Inter', size=12, color='black')
             )
             
-            # Add after peak detection in your preview mode
             st.plotly_chart(fig, use_container_width=True)
         
         close_plot_section()
