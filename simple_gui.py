@@ -49,32 +49,35 @@ COLORS = {
 }
 
 def apply_professional_layout(fig, title, xaxis_title, yaxis_title, height=500):
-    """Apply consistent professional styling to all plots"""
+    """Apply consistent professional styling to all plots - updated for better legibility"""
     fig.update_layout(
         title=dict(
             text=title,
-            font=dict(size=16, weight=600, family="Inter"),
+            font=dict(size=18, color='black', family='Inter'),
             x=0.5,
             xanchor='center'
         ),
         xaxis=dict(
-            title=dict(text=xaxis_title, font=dict(size=12, weight=500, color="black")),
-            gridcolor=COLORS['grid'],
+            title=dict(text=xaxis_title, font=dict(size=14, color='black', family='Inter')),
+            tickfont=dict(size=12, color='black', family='Inter'),
+            gridcolor='rgba(0,0,0,0.1)',
             showgrid=True,
             zeroline=False
         ),
         yaxis=dict(
-            title=dict(text=yaxis_title, font=dict(size=12, weight=500, color="black")),
-            gridcolor=COLORS['grid'],
+            title=dict(text=yaxis_title, font=dict(size=14, color='black', family='Inter')),
+            tickfont=dict(size=12, color='black', family='Inter'),
+            gridcolor='rgba(0,0,0,0.1)',
             showgrid=True,
             zeroline=False
         ),
-        plot_bgcolor=COLORS['background'],
+        plot_bgcolor='white',
         paper_bgcolor='white',
-        font=dict(family="Inter, sans-serif", size=11, color="black"),
+        font=dict(family='Inter', size=12, color='black'),
         height=height,
         margin=dict(l=60, r=60, t=60, b=60),
-        hovermode='x unified'
+        hovermode='x unified',
+        showlegend=False
     )
     return fig
 
@@ -518,7 +521,7 @@ def show_professional_header():
             <h1 style="margin: 0; font-size: 48px;">ChronOS</h1>
         </div>
         <p>Professional HRV & Baroreflex Sensitivity Analysis Platform</p>
-        <div class="version-info">Version 1.3 | Advanced Peak Detection | HRV and BRS Analysis</div>
+        <div class="version-info">Version 1.4 | Advanced Peak Detection | HRV and BRS Analysis</div>
     </div>
     """.format(get_base64_of_image("logo.png")), unsafe_allow_html=True)
 
@@ -840,23 +843,6 @@ with st.sidebar:
         help="Choose the channel containing blood pressure data"
     )
     
-    # Show what analysis will be available
-    ecg_selected = ecg_selection != "None"
-    bp_selected = bp_selection != "None"
-    
-    if ecg_selected or bp_selected:
-        st.markdown("### 📊 Available Analyses:")
-        available_analyses = []
-        if ecg_selected:
-            available_analyses.extend(["Time Domain HRV", "Frequency Domain HRV"])
-        if ecg_selected and bp_selected:
-            available_analyses.extend(["BRS Sequence Method", "BRS Spectral Method"])
-        elif bp_selected and not ecg_selected:
-            available_analyses.append("Blood Pressure Analysis")
-        
-        for analysis in available_analyses:
-            st.markdown(f"- {analysis}")
-    
     # Configure button
     if st.button("Configure Channels", type="primary", use_container_width=True):
         try:
@@ -1020,9 +1006,20 @@ with st.sidebar:
                     sample_rate = 256  # Default fallback
                 
                 # Adaptive defaults
-                ecg_height_default = 0.55 * signal_range
-                ecg_prominence_default = 0.6 * ecg_height_default
-                ecg_distance_default = int(0.25 * sample_rate)
+                if (st.session_state.get('apply_sensitive', False) or 
+                    st.session_state.get('sensitive_height') is not None):
+                    # Use stored sensitive values
+                    ecg_height_default = st.session_state.get('sensitive_height', 0.55 * signal_range)
+                    ecg_prominence_default = st.session_state.get('sensitive_prominence', 0.6 * ecg_height_default)
+                    ecg_distance_default = int((st.session_state.get('sensitive_distance_ms', 250) / 1000) * sample_rate)
+                    # Only clear apply_sensitive flag, keep the values stored
+                    if st.session_state.get('apply_sensitive', False):
+                        st.session_state.apply_sensitive = False
+                else:
+                    # Your existing default calculations
+                    ecg_height_default = 0.55 * signal_range
+                    ecg_prominence_default = 0.6 * ecg_height_default
+                    ecg_distance_default = int(0.25 * sample_rate)
                 
                 # Store defaults for reset functionality
                 st.session_state.ecg_defaults = {
@@ -1069,14 +1066,19 @@ with st.sidebar:
 
             # Restore Defaults Button
             if st.button("🔄 Restore ECG Defaults", help="Reset sliders to calculated optimal values", key="restore_ecg"):
+                # Clear sensitive parameters
+                for key in ['apply_sensitive', 'sensitive_height', 'sensitive_distance_ms', 'sensitive_prominence']:
+                    if key in st.session_state:
+                        del st.session_state[key]
+                
                 # Clear the slider session state keys
-                for key in ['ecg_height', 'ecg_prominence', 'ecg_distance']:
+                for key in ['ecg_height', 'ecg_prominence', 'ecg_distance', 'ecg_distance_ms']:
                     if key in st.session_state:
                         del st.session_state[key]
                 
                 # Increment reset counter to force new slider instances
                 st.session_state.ecg_reset_counter += 1
-                st.success("✅ ECG parameters restored to defaults!")
+                st.success("Parameters restored to conservative defaults!")
                 st.rerun()
 
             # Use the reset counter in slider keys to force recreation
@@ -1094,15 +1096,39 @@ with st.sidebar:
                 format="%.4f"
             )
 
-            ecg_distance = st.slider(
-                "Min Distance", 
-                min_value=dist_min, 
-                max_value=dist_max, 
-                value=ecg_distance_default, 
-                step=10,
-                key=f"ecg_distance{reset_suffix}",  # Dynamic key
-                help="Min samples between peaks (auto-scaled for 250ms default)"
-            )
+            # Distance slider - convert to/from milliseconds for display
+            if hasattr(st.session_state.analyzer, 'ecg_data') and 'fs' in st.session_state.analyzer.ecg_data:
+                sample_rate = st.session_state.analyzer.ecg_data['fs']
+                
+                # Convert sample-based limits to milliseconds
+                dist_min_ms = int((dist_min / sample_rate) * 1000)
+                dist_max_ms = int((dist_max / sample_rate) * 1000)
+                ecg_distance_default_ms = int((ecg_distance_default / sample_rate) * 1000)
+                
+                # Slider in milliseconds
+                ecg_distance_ms = st.slider(
+                    "Min Distance (ms)", 
+                    min_value=dist_min_ms, 
+                    max_value=dist_max_ms, 
+                    value=ecg_distance_default_ms, 
+                    step=10,
+                    key=f"ecg_distance_ms{reset_suffix}",
+                    help="Minimum time between R-peaks (physiological refractory period)"
+                )
+                
+                # Convert back to samples for internal use
+                ecg_distance = int((ecg_distance_ms / 1000) * sample_rate)
+            else:
+                # Fallback when no ECG data loaded
+                ecg_distance_ms = st.slider(
+                    "Min Distance (ms)", 
+                    min_value=100, 
+                    max_value=800, 
+                    value=250, 
+                    step=10,
+                    help="Minimum time between R-peaks - will be converted to samples when ECG is loaded"
+                )
+                ecg_distance = 64  # Default fallback in samples
 
             ecg_prominence = st.slider(
                 "Prominence", 
@@ -1114,6 +1140,42 @@ with st.sidebar:
                 help="Peak prominence (auto-scaled to signal characteristics)",
                 format="%.4f"
             )
+
+            # Sensitive Parameters Button 
+            st.markdown("---")
+            if st.button("Apply Sensitive Parameters", use_container_width=True, 
+                         help="Set parameters for maximum sensitivity (45% signal range, 250ms distance, 150% prominence)"):
+                
+                # Calculate sensitive parameters
+                if hasattr(st.session_state.analyzer, 'ecg_data') and 'raw' in st.session_state.analyzer.ecg_data:
+                    ecg_signal = st.session_state.analyzer.ecg_data['raw']
+                    signal_range = np.max(ecg_signal) - np.median(ecg_signal)
+                    sample_rate = st.session_state.analyzer.ecg_data['fs']
+                    
+                    # Calculate your specified sensitive parameters
+                    sensitive_height = 0.45 * signal_range
+                    sensitive_distance_ms = 250
+                    sensitive_prominence = 1.5 * sensitive_height
+                    
+                    # Clear existing slider states and set new values
+                    for key in ['ecg_height', 'ecg_prominence', 'ecg_distance_ms']:
+                        if key in st.session_state:
+                            del st.session_state[key]
+                    
+                    # Store the sensitive values for next reset
+                    st.session_state.sensitive_height = sensitive_height
+                    st.session_state.sensitive_distance_ms = sensitive_distance_ms
+                    st.session_state.sensitive_prominence = sensitive_prominence
+                    st.session_state.apply_sensitive = True
+
+                    # Force slider recreation by incrementing reset counter
+                    st.session_state.ecg_reset_counter += 1
+                    
+                    st.success(f"Sensitive parameters applied: Height={sensitive_height:.3f}, Distance={sensitive_distance_ms}ms, Prominence={sensitive_prominence:.3f}")
+                    st.rerun()
+                else:
+                    st.warning("Load ECG data first to calculate sensitive parameters")
+
         # BP Parameters
         with st.expander("🩸 BP Systolic Detection", expanded=True):
             bp_height_default = st.session_state.get('bp_height', 110)
@@ -1220,16 +1282,6 @@ if st.session_state.analyzed and st.session_state.channels_configured:
     </div>
     """, unsafe_allow_html=True)
     
-    # Time window info if applicable
-    if 'time_window' in st.session_state:
-        tw = st.session_state.time_window
-        st.markdown(f"""
-        <div class="window-info">
-            <strong>🎯 Analysis Window:</strong> {tw['start_time']:.1f}s to {tw['end_time']:.1f}s 
-            ({tw['duration']:.1f} seconds = {tw['duration']/60:.1f} minutes)
-        </div>
-        """, unsafe_allow_html=True)
-    
     # Results in two columns
     # col1, col2 = st.columns([1, 2])
     
@@ -1250,128 +1302,99 @@ if st.session_state.analyzed and st.session_state.channels_configured:
 
 
     
-    st.markdown("### 📊 Interactive Visualizations")
+    st.markdown("### Analysis Results 📋")
     
+
     # Display selected plots with professional styling
-    if 'selected_plots' in st.session_state:
-        if "Interactive Tachogram" in st.session_state.selected_plots:
-            with st.container(border=True, key="tachogram_container"):
+    if "Interactive Tachogram" in st.session_state.selected_plots:
+        with st.container(border=True, key="tachogram_container"):
 
-                create_professional_plot_header(
-                    "Heart Rate Variability Tachogram",
-                    "Interactive visualization of RR interval variations over time"
-                )
-
-                col1, col2 = st.columns([0.3, 0.7])
-                with col1:
-                    td_results = st.session_state.analyzer.results['time_domain']
-                    if 'error' not in td_results:
-                        # Time Domain Metrics
-                        st.markdown(f"""
-                        <div class="invis-card">
-                            <h2> 📊 HRV Metrics </h2>
-                            <h4>Basic Measures</h4>
-                            <p><strong>Beats:</strong> {td_results.get('num_beats', 'N/A')}</p>
-                            <p><strong>Mean RR:</strong> {td_results.get('mean_rr', 'N/A'):.1f} ms</p>
-                            <p><strong>HR:</strong> {td_results.get('hr', 'N/A'):.1f} BPM</p>
-                            <br>
-                            <h4>Time Domain Metrics</h4>
-                            <p><strong>Mean RR:</strong> {td_results.get('mean_rr', 'N/A'):.1f} ms</p>
-                            <p><strong>RMSSD:</strong> {td_results.get('rmssd', 'N/A'):.1f} ms</p>
-                            <p><strong>SDNN:</strong> {td_results.get('sdnn', 'N/A'):.1f} ms</p>
-                            <p><strong>SDSD:</strong> {td_results.get('sdsd', 'N/A'):.1f} ms</p>
-                            <p><strong>pNN50:</strong> {td_results.get('pnn50', 'N/A'):.1f} %</p>
-                        </div>
-                        """, unsafe_allow_html=True)
+            fig = go.Figure()
+            
+            rr_intervals = np.array(st.session_state.analyzer.ecg_data['rr_intervals'])
+            time_points = np.array(st.session_state.analyzer.ecg_data['td_peaks'][:-1])
+            
+            # Filter data to analysis window if specified
+            if 'time_window' in st.session_state:
+                tw = st.session_state.time_window
+                # Create mask for data within the analysis window
+                window_mask = (time_points >= tw['start_time']) & (time_points <= tw['end_time'])
+                # Filter both time points and RR intervals to the window
+                time_points_filtered = time_points[window_mask]
+                rr_intervals_filtered = rr_intervals[window_mask]
+            else:
+                # Use all data if no window specified
+                time_points_filtered = time_points
+                rr_intervals_filtered = rr_intervals
+            
+            # Enhanced RR intervals trace (using filtered data)
+            fig.add_trace(go.Scatter(
+                x=time_points_filtered,
+                y=rr_intervals_filtered,
+                mode='lines+markers',
+                name='RR Intervals',
+                line=dict(color='#3498db', width=2.5),
+                marker=dict(size=5, color='#3498db', opacity=0.8),
+                hovertemplate='<b>Time:</b> %{x:.1f}s<br><b>RR:</b> %{y:.1f}ms<extra></extra>'
+            ))
+            
+            # Reference lines without annotations (using filtered data statistics)
+            mean_rr = np.mean(rr_intervals_filtered)
+            std_rr = np.std(rr_intervals_filtered, ddof=1)
+            
+            fig.add_hline(y=mean_rr, line_dash="dash", line_color=COLORS['secondary'], 
+                        line_width=2, opacity=0.8)
+            fig.add_hline(y=mean_rr + std_rr, line_dash="dot", line_color=COLORS['secondary'], 
+                        line_width=1.5, opacity=0.6)
+            fig.add_hline(y=mean_rr - std_rr, line_dash="dot", line_color=COLORS['secondary'], 
+                        line_width=1.5, opacity=0.6)
+            
+            # Add integrated time domain metrics panel
+            td_results = st.session_state.analyzer.results['time_domain']
+            if 'error' not in td_results:
+                metrics_text = "<b>Time Domain Metrics</b><br><br>"
                 
-                with col2:
-                    fig = go.Figure()
-                    
-                    rr_intervals = st.session_state.analyzer.ecg_data['rr_intervals']
-                    time_points = st.session_state.analyzer.ecg_data['td_peaks'][:-1]
-                    
-                    # Enhanced RR intervals trace
-                    fig.add_trace(go.Scatter(
-                        x=time_points,
-                        y=rr_intervals,
-                        mode='lines+markers',
-                        name='RR Intervals',
-                        line=dict(color=COLORS['rr'], width=2.5),
-                        marker=dict(size=4, color=COLORS['rr'], opacity=0.8),
-                        hovertemplate='<b>Time:</b> %{x:.1f}s<br><b>RR:</b> %{y:.1f}ms<extra></extra>'
-                    ))
-                    
-                    # Highlight analysis window with professional styling
-                    if 'time_window' in st.session_state:
-                        tw = st.session_state.time_window
-                        fig.add_vrect(
-                            x0=tw['start_time'], x1=tw['end_time'],
-                            fillcolor=COLORS['window'], opacity=0.3,
-                            line=dict(color=COLORS['warning'], width=2),
-                            annotation_text="Analysis Window", 
-                            annotation_position="top left",
-                            annotation=dict(font=dict(size=12, color=COLORS['warning']))
-                        )
-                    
-                    # Enhanced statistics reference lines
-                    mean_rr = np.mean(rr_intervals)
-                    std_rr = np.std(rr_intervals,ddof=1)
-                    
-                    fig.add_hline(y=mean_rr, line_dash="dash", line_color=COLORS['success'], 
-                                line_width=2, opacity=0.8,
-                                annotation_text=f"Mean: {mean_rr:.1f}ms")
-                    fig.add_hline(y=mean_rr + std_rr, line_dash="dot", line_color=COLORS['secondary'], 
-                                line_width=1.5, opacity=0.6,
-                                annotation_text=f"+1σ: {mean_rr + std_rr:.1f}ms")
-                    fig.add_hline(y=mean_rr - std_rr, line_dash="dot", line_color=COLORS['secondary'], 
-                                line_width=1.5, opacity=0.6,
-                                annotation_text=f"-1σ: {mean_rr - std_rr:.1f}ms")
-                    
-                    # metrics panel 
-                    # metrics_text = "<b>📊 HRV Metrics</b><br><br>"
-                    # if 'time_domain' in st.session_state.analyzer.results:
-                    #     td = st.session_state.analyzer.results['time_domain']
-                    #     if 'error' not in td:
-                    #         metrics_text += f"<b>Basic Measures</b><br>"
-                    #         metrics_text += f"Beats: {td['num_beats']}<br>"
-                    #         metrics_text += f"Mean RR: {td['mean_rr']:.1f} ms<br>"
-                    #         metrics_text += f"HR: {td['hr']:.1f} BPM<br><br>"
-                            
-                    #         metrics_text += f"<b>Time Domain</b><br>"
-                    #         metrics_text += f"RMSSD: {td['rmssd']:.1f} ms<br>"
-                    #         metrics_text += f"SDNN: {td['sdnn']:.1f} ms<br>"
-                    #         metrics_text += f"SDNN: {td['sdsd']:.1f} ms<br>"
-                    #         metrics_text += f"pNN50: {td['pnn50']:.1f}%<br>"
-                            
-                    
-                    # fig.add_annotation(
-                    #     x=1.02, y=1.0, xref="paper", yref="paper",
-                    #     text=metrics_text, showarrow=False,
-                    #     font=dict(family="Inter", size=11, color="#1e293b"),
-                    #     align="left", bgcolor="rgba(255, 255, 255, 0.95)",
-                    #     bordercolor="rgba(108, 117, 125, 0.3)", borderwidth=1, borderpad=15,
-                    #     xanchor="left", yanchor="top"
-                    # )
-                    
-                    # Apply professional layout
-                    fig = apply_professional_layout(
-                        fig, 
-                        f'Heart Rate Variability Analysis (μ={mean_rr:.1f}±{std_rr:.1f}ms)',
-                        'Time (seconds)', 
-                        'RR Interval (ms)', 
-                        height=600
-                    )
-                    fig.update_layout() 
-                    
-                    st.plotly_chart(fig, use_container_width=True)
-                    close_plot_section()
+                # Add recording window info
+                if 'time_window' in st.session_state:
+                    tw = st.session_state.time_window
+                    metrics_text += f"Window: {tw['start_time']:.0f}-{tw['end_time']:.0f}s ({tw['duration']:.0f}s)<br><br>"
+                else:
+                    metrics_text += f"Window: Full Recording<br><br>"
+                
+                metrics_text += f"R-R Intervals: {len(rr_intervals_filtered)}<br><br>"
+                metrics_text += f"HR: {td_results['hr']:.1f} BPM<br><br>"
+                metrics_text += f"Mean RR: {td_results['mean_rr']:.1f} ms<br><br>"
+                metrics_text += f"RMSSD: {td_results['rmssd']:.1f} ms<br><br>"
+                metrics_text += f"SDNN: {td_results['sdnn']:.1f} ms<br><br>"
+                metrics_text += f"SDSD: {td_results['sdsd']:.1f} ms<br><br>"
+                metrics_text += f"pNN50: {td_results['pnn50']:.1f} %"
+
+                fig.add_annotation(
+                    x=1.02, y=0.5, xref="paper", yref="paper",
+                    text=metrics_text, showarrow=False,
+                    font=dict(family="Inter", size=13, color="black"),
+                    align="left", bgcolor="rgba(255, 255, 255, 0.95)",
+                    bordercolor="rgba(0, 0, 0, 0.2)", borderwidth=1, borderpad=20,
+                    xanchor="left", yanchor="middle"
+                )
+            
+            # Apply updated professional layout
+            fig = apply_professional_layout(
+                fig, 
+                f'Interactive R-R Interval Tachogram with Time Domain Results',
+                'Time (seconds)', 
+                'RR Interval (ms)', 
+                height=600
+            )
+            
+            # Extend right margin to accommodate metrics
+            fig.update_layout(margin=dict(l=60, r=250, t=60, b=60))
+            
+            st.plotly_chart(fig, use_container_width=True)
+            close_plot_section()
             
             if "RRI Histogram" in st.session_state.selected_plots:
                 with st.container(border=True):
-                    create_professional_plot_header(
-                        "RRI Histogram",
-                        "Distribution of RR intervals"
-                    )
                     
                     if hasattr(st.session_state.analyzer, 'ecg_data') and 'rr_intervals' in st.session_state.analyzer.ecg_data:
                         rr_intervals = st.session_state.analyzer.ecg_data['rr_intervals']
@@ -1380,58 +1403,46 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                         rr_mean = np.mean(rr_intervals)
                         rr_std = np.std(rr_intervals, ddof=1)
                         
-                        # Create histogram 
-                        plt.rcParams.update({
-                            'font.family': 'sans-serif',
-                            'font.size': 11,
-                            'axes.titlesize': 16,
-                            'axes.titleweight': 'bold',
-                            'axes.labelsize': 12,
-                            'axes.labelweight': '500',
-                            'axes.facecolor': '#f8f9fa',
-                            'figure.facecolor': 'white'
-                        })
+                        # Create histogram using Plotly instead of matplotlib
+                        fig = go.Figure()
                         
-                        fig, ax = plt.subplots(figsize=(12, 6))
+                        # Add histogram
+                        fig.add_trace(go.Histogram(
+                            x=rr_intervals,
+                            nbinsx=30,
+                            marker=dict(color='#3498db', opacity=0.7, line=dict(color='#2980b9', width=0.5)),
+                            name='RR Intervals',
+                            showlegend=False
+                        ))
                         
-                        # Create histogram
-                        counts, bins, patches = ax.hist(rr_intervals, bins=30, 
-                                                    color='#3498db', alpha=0.7, 
-                                                    edgecolor='#2980b9', linewidth=0.5)
+                        # Add mean line using add_vline (simpler approach)
+                        fig.add_vline(
+                            x=rr_mean, 
+                            line=dict(color='#e74c3c', width=2, dash='dash'),
+                            name=f'Mean: {rr_mean:.1f} ± {rr_std:.1f} ms'
+                        )
                         
-                        # Add mean line
-                        ax.axvline(rr_mean, color='#e74c3c', linestyle='--', linewidth=2,
-                                label=f'Mean: {rr_mean:.1f} ms')
+                        # Apply same layout as tachogram  
+                        fig = apply_professional_layout(
+                            fig, 
+                            f'RR Interval Distribution (n={len(rr_intervals)})',
+                            'RR Interval (ms)', 
+                            'Frequency', 
+                            height=600
+                        )
                         
-                        # Styling
-                        ax.set_xlabel('RR Interval (ms)', fontsize=12, fontweight='500')
-                        ax.set_ylabel('Frequency', fontsize=12, fontweight='500')
-                        ax.set_title(f'RR Interval Distribution (n={len(rr_intervals)})', 
-                                    fontsize=16, fontweight='bold', pad=20)
+                        # Add legend manually using annotation (positioned like original)
+                        fig.add_annotation(
+                            x=0.98, y=0.98, xref="paper", yref="paper",
+                            text=f'<span style="color:#e74c3c">- - - -</span> Mean: {rr_mean:.1f} ± {rr_std:.1f} ms',
+                            showarrow=False,
+                            font=dict(family="Inter", size=14, color="black"),  # Bigger black text
+                            bgcolor="rgba(255, 255, 255, 0.8)",
+                            borderpad=10,  # More padding for bigger appearance
+                            xanchor="right", yanchor="top"
+)
                         
-                        # Add statistics text box
-                        stats_text = f'Mean: {rr_mean:.1f} ms\nStd: {rr_std:.1f} ms\nCount: {len(rr_intervals)}'
-                        ax.text(0.02, 0.98, stats_text, transform=ax.transAxes,
-                                verticalalignment='top', horizontalalignment='left',
-                                bbox=dict(boxstyle='round,pad=0.8', facecolor='white', 
-                                        alpha=0.95, edgecolor='#dee2e6', linewidth=1),
-                                fontsize=11, fontweight='500')
-                        
-                        # Grid and spines
-                        ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
-                        ax.set_axisbelow(True)
-                        ax.spines['top'].set_visible(False)
-                        ax.spines['right'].set_visible(False)
-                        ax.spines['left'].set_linewidth(0.8)
-                        ax.spines['bottom'].set_linewidth(0.8)
-                        
-                        # Legend
-                        legend = ax.legend(loc='upper right', frameon=True, fancybox=True, shadow=True)
-                        legend.get_frame().set_facecolor('white')
-                        legend.get_frame().set_alpha(0.9)
-                        
-                        plt.tight_layout()
-                        st.pyplot(fig)
+                        st.plotly_chart(fig, use_container_width=True)
                         
                     else:
                         st.error("❌ No RR interval data available. Complete peak detection analysis first.")
@@ -1441,52 +1452,15 @@ if st.session_state.analyzed and st.session_state.channels_configured:
         
         if "Frequency Domain" in st.session_state.selected_plots:
             with st.container(border=True):
-                create_professional_plot_header(
-                    "Frequency Domain Analysis",
-                    "Power spectral density analysis of heart rate variability"
-                )
-
-                col1, col2 = st.columns([0.3, 0.7])
-                with col1:
-                    results = st.session_state.analyzer.results
-                    if 'frequency_domain' in results and 'error' not in results['frequency_domain']:
-                        fd = results['frequency_domain']
-                        # Time Domain Metrics
-                        st.markdown(f"""
-                        <div class="invis-card">
-                            <h4> 📊 Frequency Domain HRV Metrics </h4>
-                            <p><strong>VLF Power:</strong> {fd.get('vlf_power', 'N/A'):.2f} ms²</p>
-                            <p><strong>LF Power:</strong> {fd.get('lf_power', 'N/A'):.2f} ms²</p>
-                            <p><strong>HF Power:</strong> {fd.get('hf_power', 'N/A'):.2f} ms²</p>
-                            <p><strong>Total Power:</strong> {fd.get('total_power', 'N/A'):.2f} ms²</p>
-                            <p><strong>LF/HF Ratio:</strong> {fd.get('lf_hf_ratio', 'N/A'):.2f}</p>
-                            <p><strong>LF n.u.:</strong> {fd.get('lf_nu', 'N/A'):.2f}</p>
-                            <p><strong>HF n.u.:</strong> {fd.get('hf_nu', 'N/A'):.2f}</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-
-            
-            with col2:
+                
                 freq_data = st.session_state.analyzer.results['frequency_domain']
                 if 'error' not in freq_data:
-                    # Enhanced matplotlib styling
-                    plt.style.use('default')
-                    plt.rcParams.update({
-                        'font.family': 'sans-serif',
-                        'font.size': 11,
-                        'axes.titlesize': 16,
-                        'axes.titleweight': 'bold',
-                        'axes.labelsize': 12,
-                        'axes.labelweight': '500',
-                        'axes.facecolor': '#f8f9fa',
-                        'figure.facecolor': 'white'
-                    })
+                    fig = go.Figure()
                     
-                    fig, ax = plt.subplots(figsize=(14, 7))
                     frequencies = np.asarray(freq_data['frequencies'], dtype=float)
                     psd = np.asarray(freq_data['psd'], dtype=float)
 
-                    # Clean + strictly increasing + unique x
+                    # Clean data (same as original)
                     good = np.isfinite(frequencies) & np.isfinite(psd) & (frequencies > 0)
                     frequencies, psd = frequencies[good], psd[good]
                     order = np.argsort(frequencies)
@@ -1494,68 +1468,108 @@ if st.session_state.analyzed and st.session_state.channels_configured:
                     frequencies, uniq_idx = np.unique(frequencies, return_index=True)
                     psd = psd[uniq_idx]
 
-                    # Band masks with epsilon ~ half a bin to "touch" edges
+                    # Scale exactly like original
+                    scale = 1e6
+                    psd_scaled = psd * scale
+
+                    # Create band masks exactly like original
                     df = np.median(np.diff(frequencies))
                     eps = float(df) * 0.51 if np.isfinite(df) and df > 0 else 1e-12
 
                     vlf_mask = (frequencies >= (0.003 - eps)) & (frequencies <= (0.04 + eps))
-                    lf_mask  = (frequencies >= (0.04  - eps)) & (frequencies <= (0.15 + eps))
-                    hf_mask  = (frequencies >= (0.15  - eps)) & (frequencies <= (0.40 + eps))
+                    lf_mask = (frequencies >= (0.04 - eps)) & (frequencies <= (0.15 + eps))
+                    hf_mask = (frequencies >= (0.15 - eps)) & (frequencies <= (0.40 + eps))
 
-                    scale = 1e6
-                    baseline = np.zeros_like(psd)
+                    # Add band fills using same approach as original but in Plotly
+                    if np.any(vlf_mask):
+                        fig.add_trace(go.Scatter(
+                            x=frequencies[vlf_mask], 
+                            y=psd_scaled[vlf_mask],
+                            fill='tozeroy', 
+                            fillcolor='rgba(149, 165, 166, 0.4)',
+                            mode='none',
+                            line=dict(width=0),
+                            name='VLF (0.003–0.04 Hz)',
+                            showlegend=True
+                        ))
 
-                    p_vlf = _band_fill(ax, frequencies, psd, 0.003, 0.04, scale=scale,
-                                    facecolor='#95a5a6', alpha=0.4, label='VLF (0.003–0.04 Hz)')
-                    p_lf  = _band_fill(ax, frequencies, psd, 0.04,  0.15, scale=scale,
-                                    facecolor='#346edb', alpha=0.5, label='LF (0.04–0.15 Hz)')
-                    p_hf  = _band_fill(ax, frequencies, psd, 0.15,  0.40, scale=scale,
-                                    facecolor='#e74c3c', alpha=0.5, label='HF (0.15–0.40 Hz)')
+                    if np.any(lf_mask):
+                        fig.add_trace(go.Scatter(
+                            x=frequencies[lf_mask], 
+                            y=psd_scaled[lf_mask],
+                            fill='tozeroy', 
+                            fillcolor='rgba(52, 152, 219, 0.5)',
+                            mode='none',
+                            line=dict(width=0),
+                            name='LF (0.04–0.15 Hz)',
+                            showlegend=True
+                        ))
 
-                    # PSD curve 
-                    ax.plot(frequencies, psd*scale, color='#2c3e50', linewidth=2.5, label='PSD', zorder=5)
-                    
-                    #Graph styling
-                    ax.set_xlabel('Frequency (Hz)', fontsize=12, fontweight='500')
-                    ax.set_ylabel('Power Spectral Density (ms²/Hz)', fontsize=12, fontweight='500')
-                    ax.set_title('Heart Rate Variability - Frequency Domain Analysis', 
-                                fontsize=16, fontweight='bold', pad=20)
-                    ax.set_xlim(0, 0.5)
-                    
-                    # Legend
-                    legend_handles = [
-                        Patch(facecolor='#95a5a6', edgecolor='none', alpha=0.4, label='VLF (0.003–0.04 Hz)'),
-                        Patch(facecolor='#346edb', edgecolor='none', alpha=0.5, label='LF (0.04–0.15 Hz)'),
-                        Patch(facecolor='#e74c3c', edgecolor='none', alpha=0.5, label='HF (0.15–0.40 Hz)'),
-                        Line2D([0], [0], color='#2c3e50', linewidth=2.5, label='PSD')
-                    ]
+                    if np.any(hf_mask):
+                        fig.add_trace(go.Scatter(
+                            x=frequencies[hf_mask], 
+                            y=psd_scaled[hf_mask],
+                            fill='tozeroy', 
+                            fillcolor='rgba(231, 76, 60, 0.5)',
+                            mode='none',
+                            line=dict(width=0),
+                            name='HF (0.15–0.40 Hz)',
+                            showlegend=True
+                        ))
 
-                    legend = ax.legend(
-                        handles=legend_handles,
-                        loc='upper right',
-                        frameon=True,
-                        fancybox=True,
-                        shadow=True,
-                        fontsize=10,
-                        handlelength=1.8,
-                        borderaxespad=0.8
+                    # Main PSD curve (same as original)
+                    fig.add_trace(go.Scatter(
+                        x=frequencies, 
+                        y=psd_scaled,
+                        mode='lines',
+                        line=dict(color='#2c3e50', width=2.5),
+                        name='PSD',
+                        showlegend=True
+                    ))
+
+                    # Add metrics panel
+                    fd = freq_data
+                    metrics_text = "<b>Frequency Domain Metrics</b><br><br>"
+                    metrics_text += f"VLF Power: {fd.get('vlf_power', 0):.2f} ms²<br><br>"
+                    metrics_text += f"LF Power: {fd.get('lf_power', 0):.2f} ms²<br><br>"
+                    metrics_text += f"HF Power: {fd.get('hf_power', 0):.2f} ms²<br><br>"
+                    metrics_text += f"Total Power: {fd.get('total_power', 0):.2f} ms²<br><br>"
+                    metrics_text += f"LF/HF Ratio: {fd.get('lf_hf_ratio', 0):.2f}<br><br>"
+                    metrics_text += f"LF n.u.: {fd.get('lf_nu', 0):.2f}<br><br>"
+                    metrics_text += f"HF n.u.: {fd.get('hf_nu', 0):.2f}"
+
+                    fig.add_annotation(
+                        x=1.02, y=0.5, xref="paper", yref="paper",
+                        text=metrics_text, showarrow=False,
+                        font=dict(family="Inter", size=13, color="black"),
+                        align="left", bgcolor="rgba(255, 255, 255, 0.95)",
+                        bordercolor="rgba(0, 0, 0, 0.2)", borderwidth=1, borderpad=20,
+                        xanchor="left", yanchor="middle"
                     )
-                    legend.get_frame().set_facecolor('white')
-                    legend.get_frame().set_alpha(0.9)
 
-                    
-                    #Grid
-                    ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
-                    ax.set_axisbelow(True)
-                    
-                    # Remove top and right spines
-                    ax.spines['top'].set_visible(False)
-                    ax.spines['right'].set_visible(False)
-                    ax.spines['left'].set_linewidth(0.8)
-                    ax.spines['bottom'].set_linewidth(0.8)
-                    
-                    plt.tight_layout()
-                    st.pyplot(fig)
+                    # Apply layout
+                    fig = apply_professional_layout(
+                        fig, 
+                        'Heart Rate Variability - Frequency Domain Analysis',
+                        'Frequency (Hz)', 
+                        'Power Spectral Density (ms²/Hz)', 
+                        height=600
+                    )
+
+                    # Set limits and margins exactly like original
+                    fig.update_xaxes(range=[0, 0.5])
+                    fig.update_yaxes(tickformat='.1e')  # This will show scientific notation like 1.0e+10
+                    fig.update_layout(
+                        margin=dict(l=60, r=250, t=60, b=60),
+                        showlegend=True,
+                        legend=dict(
+                            x=0.98, y=0.98, xanchor='right', yanchor='top',
+                            bgcolor='rgba(255, 255, 255, 0.9)',
+                            bordercolor='rgba(0, 0, 0, 0.2)', borderwidth=1
+                        )
+                    )
+
+                    st.plotly_chart(fig, use_container_width=True)
                 else:
                     st.error(f"Frequency domain analysis error: {freq_data['error']}")
                 
@@ -1564,118 +1578,145 @@ if st.session_state.analyzed and st.session_state.channels_configured:
 
         if "Poincaré Plot" in st.session_state.selected_plots:
             with st.container(border=True):
+                
+                fig = go.Figure()
+                
+                RRDistance_ms = st.session_state.analyzer.ecg_data['rr_intervals']
+                RRIplusOne = Poincare(RRDistance_ms)
+                
+                EllipseCenterX = np.average(np.delete(RRDistance_ms, -1))
+                EllipseCenterY = np.average(RRIplusOne)
+                Center_coords = EllipseCenterX, EllipseCenterY
+                
+                z = np.polyfit(np.delete(RRDistance_ms, -1), RRIplusOne, 1)
+                p = np.poly1d(z)
+                slope = z[0]
+                theta = np.degrees(np.arctan(slope))
+                theta_rad = np.radians(theta)
+                
+                # Enhanced scatter plot
+                fig.add_trace(go.Scatter(
+                    x=np.delete(RRDistance_ms, -1),
+                    y=RRIplusOne,
+                    mode='markers',
+                    marker=dict(size=6, color='#3498db', opacity=0.7, line=dict(color='white', width=0.5)),
+                    name='RR Data Points',
+                    showlegend=True
+                ))
+                
+                # Identity line
+                fig.add_trace(go.Scatter(
+                    x=np.delete(RRDistance_ms, -1),
+                    y=p(np.delete(RRDistance_ms, -1)),
+                    mode='lines',
+                    line=dict(color='#e74c3c', width=3),
+                    name='Identity Line',
+                    opacity=0.5,
+                    showlegend=True
+                ))
+                
+                # Get SD values and add ellipse and axis lines
+                if 'time_domain' in st.session_state.analyzer.results:
+                    td_results = st.session_state.analyzer.results['time_domain']
+                    sd1 = td_results['sd1']
+                    sd2 = td_results['sd2']
+                    
+                    # Create ellipse points manually
+                    t = np.linspace(0, 2*np.pi, 100)
+                    ellipse_x = sd2 * np.cos(t)
+                    ellipse_y = sd1 * np.sin(t)
+                    
+                    # Rotate ellipse
+                    cos_angle = np.cos(theta_rad)
+                    sin_angle = np.sin(theta_rad)
+                    ellipse_x_rot = ellipse_x * cos_angle - ellipse_y * sin_angle + EllipseCenterX
+                    ellipse_y_rot = ellipse_x * sin_angle + ellipse_y * cos_angle + EllipseCenterY
+                    
+                    # Add ellipse as a line trace
+                    fig.add_trace(go.Scatter(
+                        x=ellipse_x_rot,
+                        y=ellipse_y_rot,
+                        mode='lines',
+                        line=dict(color='#2c3e50', width=2.5),
+                        name='Ellipse',
+                        showlegend=True
+                    ))
+                    
+                    # SD2 axis line
+                    x_sd2 = [EllipseCenterX, EllipseCenterX + sd2 * np.cos(theta_rad)]
+                    y_sd2 = [EllipseCenterY, EllipseCenterY + sd2 * np.sin(theta_rad)]
+                    fig.add_trace(go.Scatter(
+                        x=x_sd2, y=y_sd2,
+                        mode='lines',
+                        line=dict(color='#3498db', width=3.5),
+                        name='SD2 (Long-term)',
+                        showlegend=True
+                    ))
+                    
+                    # SD1 axis line  
+                    x_sd1 = [EllipseCenterX, EllipseCenterX - sd1 * np.sin(theta_rad)]
+                    y_sd1 = [EllipseCenterY, EllipseCenterY + sd1 * np.cos(theta_rad)]
+                    fig.add_trace(go.Scatter(
+                        x=x_sd1, y=y_sd1,
+                        mode='lines',
+                        line=dict(color='#27ae60', width=3.5),
+                        name='SD1 (Short-term)',
+                        showlegend=True
+                    ))
+                
+                # Add integrated nonlinear metrics panel
+                td_results = st.session_state.analyzer.results['time_domain']
+                if 'error' not in td_results:
+                    metrics_text = "<b>Nonlinear Metrics</b><br><br>"
+                    metrics_text += f"SD1: {td_results.get('sd1', 0):.1f} ms<br><br>"
+                    metrics_text += f"SD2: {td_results.get('sd2', 0):.1f} ms<br><br>"
+                    metrics_text += f"SD1/SD2: {td_results.get('sd1_sd2_ratio', 0):.3f}<br><br>"
+                    metrics_text += f"Ellipse Area: {td_results.get('ellipse_area', 0):.1f} ms²<br><br>"
+                    metrics_text += f"Sample Entropy: {td_results.get('sample_entropy', 0):.3f}"
 
-                create_professional_plot_header(
-                    "Poincaré Plot Analysis",
-                    "Nonlinear analysis of heart rate variability patterns"
+                    fig.add_annotation(
+                        x=1.02, y=0.5, xref="paper", yref="paper",
+                        text=metrics_text, showarrow=False,
+                        font=dict(family="Inter", size=13, color="black"),
+                        align="left", bgcolor="rgba(255, 255, 255, 0.95)",
+                        bordercolor="rgba(0, 0, 0, 0.2)", borderwidth=1, borderpad=20,
+                        xanchor="left", yanchor="middle"
+                    )
+                
+                # Apply same layout as other plots
+                # Apply same layout as other plots
+                fig = apply_professional_layout(
+                    fig, 
+                    'Poincaré Plot - Nonlinear HRV Analysis',
+                    'RR Interval (ms)', 
+                    'RR Interval + 1 (ms)', 
+                    height=600
                 )
 
-                col1, col2 = st.columns([0.3, 0.7])
-                with col1:
-                    td_results = st.session_state.analyzer.results['time_domain']
-                    if 'error' not in td_results:
-                        # Nonlinear Metrics
-                        st.markdown(f"""
-                        <div class="invis-card">
-                            <h4> 📊 Nonlinear Metrics </h4>
-                            <p><strong>SD1:</strong> {td_results.get('sd1', 'N/A'):.1f} ms</p>
-                            <p><strong>SD2:</strong> {td_results.get('sd2', 'N/A'):.1f} ms</p>
-                            <p><strong>SD1/SD2:</strong> {td_results.get('sd1_sd2_ratio', 'N/A'):.3f}</p>
-                            <p><strong>Ellipse Area:</strong> {td_results.get('ellipse_area', 'N/A'):.1f} ms²</p>
-                            <p><strong>Sample Entropy:</strong> {td_results.get('sample_entropy', 'N/A'):.3f}</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-            
-                with col2:
-                        plt.rcParams.update({
-                            'font.family': 'sans-serif',
-                            'font.size': 11,
-                            'axes.titlesize': 16,
-                            'axes.titleweight': 'bold',
-                            'axes.labelsize': 12,
-                            'axes.labelweight': '500',
-                            'axes.facecolor': '#f8f9fa',
-                            'figure.facecolor': 'white'
-                        })
-                        
-                        fig, ax = plt.subplots(figsize=(11, 9))
-                        
-                        RRDistance_ms = st.session_state.analyzer.ecg_data['rr_intervals']
-                        RRIplusOne = Poincare(RRDistance_ms)
-                        
-                        EllipseCenterX = np.average(np.delete(RRDistance_ms, -1))
-                        EllipseCenterY = np.average(RRIplusOne)
-                        Center_coords = EllipseCenterX, EllipseCenterY
-                        
-                        z = np.polyfit(np.delete(RRDistance_ms, -1), RRIplusOne, 1)
-                        p = np.poly1d(z)
-                        slope = z[0]
-                        theta = np.degrees(np.arctan(slope))
-                        theta_rad = np.radians(theta)
-                        
-                        # Enhanced scatter plot with better styling
-                        scatter = ax.scatter(np.delete(RRDistance_ms, -1), RRIplusOne, 
-                                            alpha=0.7, s=30, c='#667eea', edgecolors='white', 
-                                            linewidth=0.5, zorder=5)
-                        
-                        # Professional identity line
-                        ax.plot(np.delete(RRDistance_ms, -1), p(np.delete(RRDistance_ms, -1)), 
-                            color="#e74c3c", linewidth=3, label='Identity Line', 
-                            alpha=0.5, zorder=8)
-                        
-                        # Get SD values and draw enhanced ellipse
-                        if 'time_domain' in st.session_state.analyzer.results:
-                            td_results = st.session_state.analyzer.results['time_domain']
-                            sd1 = td_results['sd1']
-                            sd2 = td_results['sd2']
-                            
-                            # Enhanced ellipse with professional styling
-                            from matplotlib.patches import Ellipse
-                            e = Ellipse(xy=Center_coords, width=sd2*2, height=sd1*2, angle=theta,
-                                        edgecolor='#2c3e50', facecolor='none', linewidth=2.5, 
-                                        alpha=0.8, linestyle='-', zorder=10)
-                            ax.add_patch(e)
-                            
-                            # Enhanced axis lines with better colors
-                            x_sd2 = [EllipseCenterX, EllipseCenterX + sd2 * np.cos(theta_rad)]
-                            y_sd2 = [EllipseCenterY, EllipseCenterY + sd2 * np.sin(theta_rad)]
-                            ax.plot(x_sd2, y_sd2, color='#3498db', linewidth=3.5, 
-                                    label='SD2 (Long-term)', alpha=0.9, zorder=9)
-                            
-                            x_sd1 = [EllipseCenterX, EllipseCenterX - sd1 * np.sin(theta_rad)]
-                            y_sd1 = [EllipseCenterY, EllipseCenterY + sd1 * np.cos(theta_rad)]
-                            ax.plot(x_sd1, y_sd1, color='#27ae60', linewidth=3.5, 
-                                    label='SD1 (Short-term)', alpha=0.9, zorder=9)
-                        
-                        # Professional styling
-                        ax.set_xlabel("RR Interval (ms)", fontsize=12, fontweight='500')
-                        ax.set_ylabel("RR Interval + 1 (ms)", fontsize=12, fontweight='500')
-                        ax.set_title('Poincaré Plot - Nonlinear HRV Analysis', 
-                                    fontsize=16, fontweight='bold', pad=20)
-                        
-                        # Enhanced grid and spines
-                        ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
-                        ax.set_axisbelow(True)
-                        
-                        # Remove top and right spines
-                        ax.spines['top'].set_visible(False)
-                        ax.spines['right'].set_visible(False)
-                        ax.spines['left'].set_linewidth(0.8)
-                        ax.spines['bottom'].set_linewidth(0.8)
-                        
-                        # Enhanced legend
-                        legend = ax.legend(loc='upper right', frameon=True, fancybox=True, 
-                                        shadow=True, fontsize=11)
-                        legend.get_frame().set_facecolor('white')
-                        legend.get_frame().set_alpha(0.9)
-                        
-                        # Equal aspect ratio for proper ellipse display
-                        ax.set_aspect('equal', adjustable='box')
-                        
-                        plt.tight_layout()
-                        st.pyplot(fig)
-                        close_plot_section()
-        
+                # Calculate ranges first
+                rr_x_min = np.min(np.delete(RRDistance_ms, -1))
+                rr_x_max = np.max(np.delete(RRDistance_ms, -1))
+                rr_y_min = np.min(RRIplusOne)
+                rr_y_max = np.max(RRIplusOne)
+
+                # Set layout WITHOUT equal aspect ratio
+                fig.update_layout(
+                    margin=dict(l=60, r=250, t=60, b=60),
+                    showlegend=True,
+                    legend=dict(
+                        x=0.02, y=0.98, xanchor='left', yanchor='top',
+                        bgcolor='rgba(255, 255, 255, 0.9)',
+                        bordercolor='rgba(0, 0, 0, 0.2)', borderwidth=1
+                    )
+                )
+
+                # Set axis ranges without aspect ratio constraint
+                fig.update_xaxes(range=[rr_x_min - 50, rr_x_max + 50])
+                fig.update_yaxes(range=[rr_y_min - 50, rr_y_max + 50])
+
+                st.plotly_chart(fig, use_container_width=True)
+                close_plot_section()
+                
         if "BRS Time Domain Visualization" in st.session_state.selected_plots:
             with st.container(border=True):
                 create_professional_plot_header(
@@ -2456,7 +2497,33 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
             st.plotly_chart(fig, use_container_width=True)
         
         close_plot_section()
-    
+
+        # Pan-Tompkins validation results 
+        if hasattr(st.session_state.analyzer, 'ecg_data') and 'pantompkins_validation' in st.session_state.analyzer.ecg_data:
+            validation_data = st.session_state.analyzer.ecg_data['pantompkins_validation']
+            missed_peaks = validation_data['missed_peaks']
+            
+            if len(missed_peaks) == 0:
+                st.markdown("""
+                <div class="window-info">
+                    <strong>✅ Pan-Tompkins validation:</strong> No additional peaks detected
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                <div class="warning-box">
+                    <strong>⚠️ Pan-Tompkins validation:</strong> {len(missed_peaks)} potential missed R-peaks detected
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Show timestamps for investigation
+                times_str = ", ".join([f"{peak['time_seconds']:.1f}s" for peak in missed_peaks[:5]])
+                if len(missed_peaks) > 5:
+                    times_str += f" (+{len(missed_peaks)-5} more)"
+                
+                st.info(f"🔍 **Investigate:** Potential R-peaks at {times_str}")
+                st.info("💡 **Suggestion:** Consider lowering height threshold if visual inspection confirms these are valid R-peaks")
+                
     # BP peak detection stats
     bp_peaks = st.session_state.analyzer.bp_data.get('peaks', [])
     bp_time_data = st.session_state.analyzer.bp_data.get('time', [])
@@ -2484,7 +2551,7 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
                 mode='lines',
                 name='Blood Pressure',
                 line=dict(color='#e74c3c', width=1),
-                opacity=0.7
+                opacity=0.8
             ))
             
             # Add detected peaks
@@ -2512,19 +2579,39 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
             duration_min = bp_time_data[-1] / 60 if len(bp_time_data) > 0 else 0
             
             fig.update_layout(
-                title=f'BP Peak Detection - Full Recording ({duration_min:.1f} min)',
-                xaxis_title='Time (s)',
-                yaxis_title='Blood Pressure (mmHg)',
+                title=dict(
+                    text=f'BP Peak Detection - Full Recording ({duration_min:.1f} min) - {len(bp_peaks)} systolic peaks detected',
+                    font=dict(size=18, color='black', family='Inter'),
+                    x=0.5,
+                    xanchor='center'
+                ),
+                xaxis=dict(
+                    title=dict(text='Time (s)', font=dict(size=14, color='black', family='Inter')),
+                    tickfont=dict(size=12, color='black', family='Inter'),
+                    gridcolor='rgba(0,0,0,0.1)',
+                    showgrid=True,
+                    zeroline=False
+                ),
+                yaxis=dict(
+                    title=dict(text='Blood Pressure (mmHg)', font=dict(size=14, color='black', family='Inter')),
+                    tickfont=dict(size=12, color='black', family='Inter'),
+                    gridcolor='rgba(0,0,0,0.1)',
+                    showgrid=True,
+                    zeroline=False
+                ),
                 height=400,
-                showlegend=True,
+                showlegend=False,
                 hovermode='x unified',
-                plot_bgcolor='rgba(248,249,250,0.8)'
+                plot_bgcolor='white',
+                paper_bgcolor='white',
+                margin=dict(l=10, r=10, t=50, b=10),
+                font=dict(family='Inter', size=12, color='black')
             )
             
             st.plotly_chart(fig, use_container_width=True)
         
         close_plot_section()
-    
+
     # Enhanced RR Interval Tachogram Preview
     if len(peaks) > 1 and 'rr_intervals' in st.session_state.analyzer.ecg_data:
         rr_intervals = st.session_state.analyzer.ecg_data['rr_intervals']
@@ -2539,7 +2626,7 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
             mode='lines+markers',
             name='RR Intervals',
             line=dict(color='#9b59b6', width=2),
-            marker=dict(size=4, color='#8e44ad')
+            marker=dict(size=5, color='#8e44ad')
         ))
         
         # Highlight analysis window
@@ -2662,7 +2749,7 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
                     Please adjust the window or peak detection parameters.
                 </div>
                 """, unsafe_allow_html=True)
-                
+
     close_plot_section()
         
     # Display results if available
@@ -2879,7 +2966,7 @@ st.markdown(f"""
              alt="ChronOS Logo"/>
         <div>
             <p style="margin: 0; font-size: 0.9rem;">
-                <strong>ChronOS v1.3</strong> | Professional HRV & BRS Analysis Platform<br>
+                <strong>ChronOS v1.4</strong> | Professional HRV & BRS Analysis Platform<br>
                 Built with Streamlit • Enhanced User Experience • Advanced Peak Detection • Time Window Selection
             </p>
         </div>

@@ -700,6 +700,13 @@ class CardiovascularAnalyzer:
             'peak_detection_method': 'manual_params'
         })
 
+        missed_peaks = self.validate_with_pantompkins()
+        self.ecg_data['pantompkins_validation'] = {
+            'missed_peaks': missed_peaks,
+            'total_missed': len(missed_peaks)
+        }
+
+
         # BP peaks with custom parameters - only if BP channel is configured
         if self.bp_data:
             BP = self.bp_data['raw']
@@ -1420,116 +1427,226 @@ class CardiovascularAnalyzer:
             traceback.print_exc()
             return None
         
-        # Channel configuration info
-        summary.append("=== CHANNEL CONFIGURATION ===")
-        summary.append(f"File Type: {self.file_type.upper()}")
-        if self.ecg_data:
-            summary.append(f"ECG Channel: {self.ecg_channel} ({self.ecg_data.get('channel_name', 'Unknown')})")
-            summary.append(f"ECG Scale: {self.ecg_data.get('detected_scale', 'Unknown')}")
-        else:
-            summary.append("ECG Channel: Not configured")
-            
-        if self.bp_data:
-            summary.append(f"BP Channel: {self.bp_channel} ({self.bp_data.get('channel_name', 'Unknown')})")
-        else:
-            summary.append("BP Channel: Not configured")
-        summary.append("")
+    def validate_with_pantompkins(self):
+        if not self.ecg_data or 'peaks' not in self.ecg_data:
+            return []
         
-        # Time window information
-        if self.time_window:
-            tw = self.time_window
-            summary.append("=== ANALYSIS WINDOW ===")
-            summary.append(f"Time window: {tw['start_time']:.1f}s to {tw['end_time']:.1f}s")
-            summary.append(f"Window duration: {tw['duration']:.1f} seconds ({tw['duration']/60:.1f} minutes)")
-            summary.append("")
+        pt_peaks = _ecg_findpeaks_pantompkins(self.ecg_data['raw'], self.ecg_data['fs'])
+        your_peaks = self.ecg_data['peaks']
         
-        # Time domain (exactly matching your original print statements)
-        if 'time_domain' in self.results:
-            td = self.results['time_domain']
-            if 'error' in td:
-                summary.append("=== TIME DOMAIN RESULTS ===")
-                summary.append(f"ERROR: {td['error']}")
-                summary.append("")
-            else:
-                summary.append("=== TIME DOMAIN RESULTS ===")
-                summary.append(f"n = {td['num_beats']} beats are included for analysis")
-                summary.append(f"The total sampling time is {td['sampling_time']:.3f} seconds")
-                summary.append(f"The average heart rate during the sampling time is = {td['hr']} BPM")
-                summary.append(f"the mean difference between successive R-R intervals is = {td['avg_diff']:.3f} ms")
-                summary.append(f"The mean R-R Interval duration is {td['mean_rr']:.3f} ms")
-                summary.append(f"pNN50 = {td['pnn50']:.3f} %")
-                summary.append(f"RMSSD = {td['rmssd']:.3f} ms")
-                summary.append(f"SDNN = {td['sdnn']:.3f} ms")
-                summary.append(f"SDSD = {td['sdsd']:.3f} ms")
-                summary.append(f"Sample Entropy = {td['sample_entropy']}")
-                summary.append(f"SD1 = {td['sd1']:.3f} ms")
-                summary.append(f"SD2 = {td['sd2']:.3f} ms")
-                summary.append(f"SD1/SD2 = {td['sd1_sd2_ratio']:.3f}")
-                summary.append(f"The area of the ellipse fitted over the Poincaré Plot (S) is {td['ellipse_area']:.3f} ms^2")
-                summary.append("")
+        # Tighter tolerance and amplitude filtering
+        tolerance_samples = int(0.02 * self.ecg_data['fs'])  # 20ms instead of 50ms
+        min_amplitude = np.std(self.ecg_data['raw']) * 2  # Must be 2 std above baseline
         
-        # Blood pressure info
-        windowed_data = self.get_windowed_data()
-        if len(windowed_data['bp_systolic']) > 0:
-            Avg_BP = np.round((np.average(windowed_data['bp_systolic'])),3)
-            SD_BP = np.round((np.std(windowed_data['bp_systolic'])),3)
-            summary.append("=== BLOOD PRESSURE ===")
-            summary.append(f"The average systolic blood pressure during the sampling time is {Avg_BP} + - {SD_BP} mmHg")
-            summary.append(f"{len(windowed_data['bp_systolic'])} pressure waves are included in the analysis")
-            summary.append("")
-        
-        # Frequency domain 
-        if 'frequency_domain' in self.results:
-            fd = self.results['frequency_domain']
-            if 'error' in fd:
-                summary.append("=== FREQUENCY DOMAIN ===")
-                summary.append(f"ERROR: {fd['error']}")
-                summary.append("")
-            else:
-                summary.append("=== FREQUENCY DOMAIN ===")
-                summary.append(f"LF Power: {fd['lf_power']:.2f} ms²")
-                summary.append(f"HF Power: {fd['hf_power']:.2f} ms²")
-                summary.append(f"Total Power: {fd['total_power']:.2f} ms²")
-                summary.append(f"LF/HF Ratio: {fd['lf_hf_ratio']:.2f}")
-                summary.append(f"LF Power: {fd['lf_nu']:.2f} n.u.")
-                summary.append(f"HF Power: {fd['hf_nu']:.2f} n.u.")
-                summary.append("")
-        
-        # BRS sequence 
-        if 'brs_sequence' in self.results:
-            brs = self.results['brs_sequence']
-            if 'error' in brs:
-                summary.append("=== BRS SEQUENCE METHOD ===")
-                summary.append(f"ERROR: {brs['error']}")
-                summary.append("")
-            else:
-                summary.append("=== BRS SEQUENCE METHOD ===")
-                summary.append(f"BRS (mean): {brs['BRS_mean']:.2f} ms/mmHg")
-                summary.append(f"BEI: {brs['BEI']:.2f}")
-                summary.append(f"Valid BRS sequences: {brs['num_sequences']}")
-                summary.append(f"Total SAP ramps: {brs['num_sbp_ramps']}")
-                summary.append(f"Up BRS sequences: {brs['n_up']}")
-                summary.append(f"Down BRS sequences: {brs['n_down']}")
-                summary.append(f"Best delay: {brs['best_delay']} beats")
-                summary.append("")
-        
-        # BRS spectral (matching your original print format)
-        if 'brs_spectral' in self.results:
-            brs_spec = self.results['brs_spectral']
-            if 'error' in brs_spec:
-                summary.append("=== BRS CROSS-SPECTRAL METHOD ===")
-                summary.append(f"ERROR: {brs_spec['error']}")
-                summary.append("")
-            else:
-                summary.append("=== BRS CROSS-SPECTRAL METHOD ===")
-                if brs_spec['valid_lf']:
-                    summary.append(f"Spectral BRS (Transfer Function, LF): {brs_spec['brs_lf_tf']:.3f} ms/mmHg (LF coherence OK)")
-                else:
-                    summary.append(f"Low coherence ({brs_spec['lf_coherence']:.3f}) – Spectral BRS not reliable")
+        missed_peaks = []
+        for pt_peak in pt_peaks:
+            # Check amplitude first
+            if self.ecg_data['raw'][pt_peak] < min_amplitude:
+                continue
                 
-                if brs_spec['valid_hf']:
-                    summary.append(f"Spectral BRS (Transfer Function, HF): {brs_spec['brs_hf_tf']:.3f} ms/mmHg (HF coherence OK)")
-                else:
-                    summary.append(f"Low HF coherence ({brs_spec['hf_coherence']:.3f}) – HF BRS not reliable")
+            # Check if near your peaks
+            if not any(abs(pt_peak - your_peak) < tolerance_samples for your_peak in your_peaks):
+                time_stamp = pt_peak / self.ecg_data['fs']
+                missed_peaks.append({
+                    'sample_index': pt_peak,
+                    'time_seconds': time_stamp,
+                    'amplitude': self.ecg_data['raw'][pt_peak]
+                })
         
-        return "\n".join(summary)
+        return missed_peaks
+
+    # Pan-Tompkins implementation from NeuroKit2
+def _ecg_findpeaks_pantompkins(signal, sampling_rate=1000):
+    """Pan-Tompkins peak detection algorithm"""
+    diff = np.diff(signal)
+    squared = diff * diff
+    
+    N = int(0.12 * sampling_rate)
+    mwa = _ecg_findpeaks_MWA(squared, N)
+    mwa[: int(0.2 * sampling_rate)] = 0
+    
+    mwa_peaks = _ecg_findpeaks_peakdetect(mwa, sampling_rate)
+    mwa_peaks = np.array(mwa_peaks, dtype="int")
+    return mwa_peaks
+
+def _ecg_findpeaks_MWA(signal, window_size):
+    """Moving window average for Pan-Tompkins"""
+    from scipy import ndimage
+    window_size = int(window_size)
+    
+    mwa = ndimage.uniform_filter1d(
+        signal, window_size, origin=(window_size - 1) // 2
+    )
+    
+    # Compute actual moving averages for the first `window_size - 1` elements
+    head_size = min(window_size - 1, len(signal))
+    mwa[:head_size] = np.cumsum(signal[:head_size]) / np.linspace(
+        1, head_size, head_size
+    )
+    
+    return mwa
+
+def _ecg_findpeaks_peakdetect(detection, sampling_rate=1000):
+    """Peak detection with thresholding for Pan-Tompkins"""
+    from scipy.signal import find_peaks
+    from collections import deque
+    
+    min_peak_distance = int(0.3 * sampling_rate)
+    min_missed_distance = int(0.25 * sampling_rate)
+    
+    signal_peaks = []
+    
+    SPKI = 0.0
+    NPKI = 0.0
+    
+    last_peak = 0
+    last_index = -1
+    
+    peaks, _ = find_peaks(detection, plateau_size=(1, 1))
+    for index, peak in enumerate(peaks):
+        peak_value = detection[peak]
+        
+        threshold_I1 = NPKI + 0.25 * (SPKI - NPKI)
+        if peak_value > threshold_I1 and peak > last_peak + min_peak_distance:
+            signal_peaks.append(peak)
+            
+            # RR_missed threshold based on previous eight R-R intervals
+            if len(signal_peaks) > 9:
+                RR_ave = (signal_peaks[-2] - signal_peaks[-10]) // 8
+                RR_missed = int(1.66 * RR_ave)
+                if peak - last_peak > RR_missed:
+                    missed_peaks = peaks[last_index + 1 : index]
+                    missed_peaks = missed_peaks[
+                        (missed_peaks > last_peak + min_missed_distance)
+                        & (missed_peaks < peak - min_missed_distance)
+                    ]
+                    threshold_I2 = 0.5 * threshold_I1
+                    missed_peaks = missed_peaks[detection[missed_peaks] > threshold_I2]
+                    if len(missed_peaks) > 0:
+                        signal_peaks[-1] = missed_peaks[
+                            np.argmax(detection[missed_peaks])
+                        ]
+                        signal_peaks.append(peak)
+            
+            last_peak = peak
+            last_index = index
+            
+            SPKI = 0.125 * peak_value + 0.875 * SPKI
+        else:
+            NPKI = 0.125 * peak_value + 0.875 * NPKI
+    
+    return signal_peaks
+
+        # # Channel configuration info
+        # summary.append("=== CHANNEL CONFIGURATION ===")
+        # summary.append(f"File Type: {self.file_type.upper()}")
+        # if self.ecg_data:
+        #     summary.append(f"ECG Channel: {self.ecg_channel} ({self.ecg_data.get('channel_name', 'Unknown')})")
+        #     summary.append(f"ECG Scale: {self.ecg_data.get('detected_scale', 'Unknown')}")
+        # else:
+        #     summary.append("ECG Channel: Not configured")
+            
+        # if self.bp_data:
+        #     summary.append(f"BP Channel: {self.bp_channel} ({self.bp_data.get('channel_name', 'Unknown')})")
+        # else:
+        #     summary.append("BP Channel: Not configured")
+        # summary.append("")
+        
+        # # Time window information
+        # if self.time_window:
+        #     tw = self.time_window
+        #     summary.append("=== ANALYSIS WINDOW ===")
+        #     summary.append(f"Time window: {tw['start_time']:.1f}s to {tw['end_time']:.1f}s")
+        #     summary.append(f"Window duration: {tw['duration']:.1f} seconds ({tw['duration']/60:.1f} minutes)")
+        #     summary.append("")
+        
+        # # Time domain (exactly matching your original print statements)
+        # if 'time_domain' in self.results:
+        #     td = self.results['time_domain']
+        #     if 'error' in td:
+        #         summary.append("=== TIME DOMAIN RESULTS ===")
+        #         summary.append(f"ERROR: {td['error']}")
+        #         summary.append("")
+        #     else:
+        #         summary.append("=== TIME DOMAIN RESULTS ===")
+        #         summary.append(f"n = {td['num_beats']} beats are included for analysis")
+        #         summary.append(f"The total sampling time is {td['sampling_time']:.3f} seconds")
+        #         summary.append(f"The average heart rate during the sampling time is = {td['hr']} BPM")
+        #         summary.append(f"the mean difference between successive R-R intervals is = {td['avg_diff']:.3f} ms")
+        #         summary.append(f"The mean R-R Interval duration is {td['mean_rr']:.3f} ms")
+        #         summary.append(f"pNN50 = {td['pnn50']:.3f} %")
+        #         summary.append(f"RMSSD = {td['rmssd']:.3f} ms")
+        #         summary.append(f"SDNN = {td['sdnn']:.3f} ms")
+        #         summary.append(f"SDSD = {td['sdsd']:.3f} ms")
+        #         summary.append(f"Sample Entropy = {td['sample_entropy']}")
+        #         summary.append(f"SD1 = {td['sd1']:.3f} ms")
+        #         summary.append(f"SD2 = {td['sd2']:.3f} ms")
+        #         summary.append(f"SD1/SD2 = {td['sd1_sd2_ratio']:.3f}")
+        #         summary.append(f"The area of the ellipse fitted over the Poincaré Plot (S) is {td['ellipse_area']:.3f} ms^2")
+        #         summary.append("")
+        
+        # # Blood pressure info
+        # windowed_data = self.get_windowed_data()
+        # if len(windowed_data['bp_systolic']) > 0:
+        #     Avg_BP = np.round((np.average(windowed_data['bp_systolic'])),3)
+        #     SD_BP = np.round((np.std(windowed_data['bp_systolic'])),3)
+        #     summary.append("=== BLOOD PRESSURE ===")
+        #     summary.append(f"The average systolic blood pressure during the sampling time is {Avg_BP} + - {SD_BP} mmHg")
+        #     summary.append(f"{len(windowed_data['bp_systolic'])} pressure waves are included in the analysis")
+        #     summary.append("")
+        
+        # # Frequency domain 
+        # if 'frequency_domain' in self.results:
+        #     fd = self.results['frequency_domain']
+        #     if 'error' in fd:
+        #         summary.append("=== FREQUENCY DOMAIN ===")
+        #         summary.append(f"ERROR: {fd['error']}")
+        #         summary.append("")
+        #     else:
+        #         summary.append("=== FREQUENCY DOMAIN ===")
+        #         summary.append(f"LF Power: {fd['lf_power']:.2f} ms²")
+        #         summary.append(f"HF Power: {fd['hf_power']:.2f} ms²")
+        #         summary.append(f"Total Power: {fd['total_power']:.2f} ms²")
+        #         summary.append(f"LF/HF Ratio: {fd['lf_hf_ratio']:.2f}")
+        #         summary.append(f"LF Power: {fd['lf_nu']:.2f} n.u.")
+        #         summary.append(f"HF Power: {fd['hf_nu']:.2f} n.u.")
+        #         summary.append("")
+        
+        # # BRS sequence 
+        # if 'brs_sequence' in self.results:
+        #     brs = self.results['brs_sequence']
+        #     if 'error' in brs:
+        #         summary.append("=== BRS SEQUENCE METHOD ===")
+        #         summary.append(f"ERROR: {brs['error']}")
+        #         summary.append("")
+        #     else:
+        #         summary.append("=== BRS SEQUENCE METHOD ===")
+        #         summary.append(f"BRS (mean): {brs['BRS_mean']:.2f} ms/mmHg")
+        #         summary.append(f"BEI: {brs['BEI']:.2f}")
+        #         summary.append(f"Valid BRS sequences: {brs['num_sequences']}")
+        #         summary.append(f"Total SAP ramps: {brs['num_sbp_ramps']}")
+        #         summary.append(f"Up BRS sequences: {brs['n_up']}")
+        #         summary.append(f"Down BRS sequences: {brs['n_down']}")
+        #         summary.append(f"Best delay: {brs['best_delay']} beats")
+        #         summary.append("")
+        
+        # # BRS spectral (matching your original print format)
+        # if 'brs_spectral' in self.results:
+        #     brs_spec = self.results['brs_spectral']
+        #     if 'error' in brs_spec:
+        #         summary.append("=== BRS CROSS-SPECTRAL METHOD ===")
+        #         summary.append(f"ERROR: {brs_spec['error']}")
+        #         summary.append("")
+        #     else:
+        #         summary.append("=== BRS CROSS-SPECTRAL METHOD ===")
+        #         if brs_spec['valid_lf']:
+        #             summary.append(f"Spectral BRS (Transfer Function, LF): {brs_spec['brs_lf_tf']:.3f} ms/mmHg (LF coherence OK)")
+        #         else:
+        #             summary.append(f"Low coherence ({brs_spec['lf_coherence']:.3f}) – Spectral BRS not reliable")
+                
+        #         if brs_spec['valid_hf']:
+        #             summary.append(f"Spectral BRS (Transfer Function, HF): {brs_spec['brs_hf_tf']:.3f} ms/mmHg (HF coherence OK)")
+        #         else:
+        #             summary.append(f"Low HF coherence ({brs_spec['hf_coherence']:.3f}) – HF BRS not reliable")
+        
+        # return "\n".join(summary)
