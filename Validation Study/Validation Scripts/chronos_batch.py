@@ -49,16 +49,12 @@ def batch_process_hrv_metrics():
     edf_directory = r"C:\Users\Anthony\Desktop\peak_detector\data\validation_synthetic_ecg"
     output_file = "ChronOS_results.csv"
     
-    print("=" * 80)
-    print("ChronOS - HRV BATCH PROCESSOR")
-    print("=" * 80)
     print(f"Processing directory: {edf_directory}")
     print(f"Output file: {output_file}")
     print()
     
     # Check if directory exists
     if not os.path.exists(edf_directory):
-        print(f"ERROR: Directory {edf_directory} not found!")
         return None
     
     # Find all EDF files
@@ -91,7 +87,6 @@ def batch_process_hrv_metrics():
             channels_info = analyzer.load_file_and_detect_channels(file_path)
             
             if not channels_info:
-                print(f"  ERROR: Could not load file or detect channels")
                 failed += 1
                 results.append({
                     'filename': edf_file,
@@ -104,7 +99,6 @@ def batch_process_hrv_metrics():
             success_msgs = analyzer.configure_channels(ecg_channel_idx, None)
             
             if not success_msgs or not any('ECG' in str(msg) for msg in success_msgs):
-                print(f"  ERROR: Could not configure ECG channel")
                 failed += 1
                 results.append({
                     'filename': edf_file,
@@ -116,15 +110,10 @@ def batch_process_hrv_metrics():
             ecg_signal = analyzer.ecg_data['raw']
             sample_rate = analyzer.ecg_data['fs']
             
-            print(f"  Loaded: {len(ecg_signal)} samples at {sample_rate} Hz ({len(ecg_signal)/sample_rate:.1f}s)")
             
-            # Calculate adaptive parameters (replicating GUI logic)
+            # Adaptive parameters from gui 
             adaptive_params = calculate_adaptive_ecg_params(ecg_signal, sample_rate)
-            
-            print(f"  Adaptive params: height={adaptive_params['ecg_height']:.2f}, "
-                  f"prominence={adaptive_params['ecg_prominence']:.2f}, "
-                  f"distance={adaptive_params['ecg_distance']}")
-            
+  
             # Run peak detection 
             analyzer.find_peaks_with_params(
                 ecg_height=adaptive_params['ecg_height'],
@@ -137,7 +126,6 @@ def batch_process_hrv_metrics():
             
             # Check if peaks were detected
             if 'td_peaks' not in analyzer.ecg_data or len(analyzer.ecg_data['td_peaks']) == 0:
-                print(f"  WARNING: No R-peaks detected")
                 failed += 1
                 results.append({
                     'filename': edf_file,
@@ -146,7 +134,6 @@ def batch_process_hrv_metrics():
                 continue
             
             peak_count = len(analyzer.ecg_data['td_peaks'])
-            print(f"  Peak detection: {peak_count} R-peaks found")
             
             # Calculate HRV metrics 
             analyzer.calculate_time_domain()
@@ -171,8 +158,7 @@ def batch_process_hrv_metrics():
                         'sd1_sd2_ratio': td.get('sd1_sd2_ratio', np.nan)
                         
                     })
-                    print(f"  DEBUG: Time domain keys: {list(td.keys())}")
-                    print(f"  DEBUG: SD1={td.get('sd1', 'MISSING')}, SD2={td.get('sd2', 'MISSING')}, Ratio={td.get('sd1_sd2_ratio', 'MISSING')}")
+
                 # Frequency domain results  
                 if 'frequency_domain' in results_data and 'error' not in results_data['frequency_domain']:
                     fd = results_data['frequency_domain']
@@ -218,12 +204,6 @@ def batch_process_hrv_metrics():
                         'status': 'success'
                     }
 
-                    print(f"  SUCCESS: RMSSD={result['rmssd_ms']:.1f}ms, "
-                          f"SDNN={result['sdnn_ms']:.1f}ms, "
-                          f"SD1={result['sd1_ms']:.1f}ms, "
-                          f"SD2={result['sd2_ms']:.1f}ms, "
-                          f"LF={result['lf_power_ms2']:.1f}ms², "
-                          f"HF={result['hf_power_ms2']:.1f}ms²")
                     successful += 1
                     
                 else:
@@ -234,7 +214,6 @@ def batch_process_hrv_metrics():
                         'total_peaks': peak_count,
                         'status': 'no_hrv_calculated'
                     }
-                    print(f"  WARNING: No HRV metrics calculated")
                     failed += 1
             else:
                 result = {
@@ -244,7 +223,6 @@ def batch_process_hrv_metrics():
                     'total_peaks': peak_count,
                     'status': 'no_results_structure'
                 }
-                print(f"  WARNING: No results structure found in analyzer")
                 failed += 1
                 
         except Exception as e:
@@ -252,7 +230,6 @@ def batch_process_hrv_metrics():
                 'filename': edf_file,
                 'status': f'error: {str(e)}'
             }
-            print(f"  ERROR: {str(e)}")
             failed += 1
         
         results.append(result)
@@ -262,32 +239,9 @@ def batch_process_hrv_metrics():
     if results:
         df = pd.DataFrame(results)
         df.to_csv(output_file, index=False)
-        print(f"Results saved to: {output_file}")
     
     # Summary
-    print("=" * 80)
-    print("ChronOS Batch Processing Summary")
-    print("=" * 80)
-    print(f"Total files found: {len(edf_files)}")
-    print(f"Successfully processed: {successful}")
-    print(f"Failed: {failed}")
-    print(f"Success rate: {successful/len(edf_files)*100:.1f}%")
     
-    # Calculate summary statistics for successful files
-    successful_files = df[df['status'] == 'success'] if results else pd.DataFrame()
-    if len(successful_files) > 0:
-        print(f"\nHRV METRICS SUMMARY ({len(successful_files)} files):")
-        print(f"Mean RMSSD: {successful_files['rmssd_ms'].mean():.1f} ± {successful_files['rmssd_ms'].std():.1f} ms")
-        print(f"Mean SDNN: {successful_files['sdnn_ms'].mean():.1f} ± {successful_files['sdnn_ms'].std():.1f} ms")
-        print(f"Mean SD1: {successful_files['sd1_ms'].mean():.1f} ± {successful_files['sd1_ms'].std():.1f} ms")
-        print(f"Mean SD2: {successful_files['sd2_ms'].mean():.1f} ± {successful_files['sd2_ms'].std():.1f} ms")
-        print(f"Mean SD1/SD2: {successful_files['sd1_sd2_ratio'].mean():.3f} ± {successful_files['sd1_sd2_ratio'].std():.3f}")
-        print(f"Mean HR: {60000/successful_files['mean_rr_ms'].mean():.1f} BPM")
-        print(f"Mean VLF Power: {successful_files['vlf_power_ms2'].mean():.1f} ± {successful_files['vlf_power_ms2'].std():.1f} ms²")
-        print(f"Mean LF Power: {successful_files['lf_power_ms2'].mean():.1f} ± {successful_files['lf_power_ms2'].std():.1f} ms²")
-        print(f"Mean HF Power: {successful_files['hf_power_ms2'].mean():.1f} ± {successful_files['hf_power_ms2'].std():.1f} ms²")
-        print(f"Mean Total Power: {successful_files['total_power_ms2'].mean():.1f} ± {successful_files['total_power_ms2'].std():.1f} ms²")
-        print(f"Mean LF/HF Ratio: {successful_files['lf_hf_ratio'].mean():.2f} ± {successful_files['lf_hf_ratio'].std():.2f}")
     
     return df if results else None
 

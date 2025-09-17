@@ -1,8 +1,4 @@
-# synthetic_ecg_generator.py
-# Generate synthetic ECG signals using NeuroKit for HRV validation studies
-
 import numpy as np
-import neurokit2 as nk
 import pyedflib
 import os
 from datetime import datetime
@@ -11,7 +7,7 @@ import matplotlib.pyplot as plt
 
 class SyntheticECGGenerator:
     """
-    Generate synthetic ECG signals for HRV validation using NeuroKit2
+    Generate synthetic ECG signals for HRV validation
     Based on ECGSYN methodology with controlled HRV parameters
     """
     
@@ -93,7 +89,7 @@ class SyntheticECGGenerator:
     
     def rr_to_ecg_signal(self, rr_intervals_ms):
         """
-        Convert RR intervals to synthetic ECG signal using NeuroKit
+        Convert RR intervals to synthetic ECG signal
         
         Parameters:
         rr_intervals_ms: RR intervals in milliseconds
@@ -113,8 +109,7 @@ class SyntheticECGGenerator:
         r_peak_indices = np.round(r_peak_times * self.sampling_rate).astype(int)
         r_peak_indices = r_peak_indices[r_peak_indices < len(time_vector)]
         
-        # Generate synthetic ECG using NeuroKit
-        # Create clean ECG based on R-peak locations
+        # Generate synthetic ECG based on R-peak locations
         ecg_signal = np.zeros(len(time_vector))
         
         # Add R-peaks and surrounding ECG morphology
@@ -182,7 +177,7 @@ class SyntheticECGGenerator:
                 writer.setPatientCode(subject_id)
                 writer.setPatientName(f"Synthetic_{subject_id}")
                 writer.setTechnician("SyntheticECGGenerator")
-                writer.setEquipment("Python_NeuroKit2")
+                writer.setEquipment("Python_Validation")
                 
                 # Set header info
                 writer.setDatarecordDuration(1000000)  # 1 second in microseconds
@@ -191,7 +186,7 @@ class SyntheticECGGenerator:
                 signal_headers = {
                     'label': 'ECG',
                     'dimension': 'mV',
-                    'sample_frequency': self.sampling_rate,  # Changed from sample_rate
+                    'sample_frequency': self.sampling_rate,
                     'physical_min': float(np.min(ecg_signal)) - 0.1,
                     'physical_max': float(np.max(ecg_signal)) + 0.1,
                     'digital_min': -32768,
@@ -209,10 +204,7 @@ class SyntheticECGGenerator:
                     data_chunk = ecg_signal[start_idx:end_idx]
                     writer.writeSamples([data_chunk])
                 
-            print(f"Saved synthetic ECG to {filename}")
-            
         except Exception as e:
-            print(f"Error saving EDF file {filename}: {e}")
             # Try alternative approach with simpler EDF format
             self._save_simple_edf(ecg_signal, filename, subject_id)
     
@@ -237,11 +229,8 @@ class SyntheticECGGenerator:
                 writer.setSignalHeaders(signal_headers)
                 writer.writeSamples([ecg_signal])
                 
-            print(f"Saved synthetic ECG to {filename} (simple format)")
-            
         except Exception as e:
             print(f"Failed to save EDF file {filename}: {e}")
-            print("Consider using a different file format or checking pyedflib installation")
     
     def generate_validation_dataset(self, n_datasets=100, output_dir="synthetic_ecg"):
         """
@@ -252,7 +241,7 @@ class SyntheticECGGenerator:
         output_dir: Directory to save EDF files
         
         Returns:
-        validation_info: Dictionary with ground truth parameters
+        dataset_info: Dictionary with generation parameters
         """
         # Create output directory
         os.makedirs(output_dir, exist_ok=True)
@@ -261,9 +250,9 @@ class SyntheticECGGenerator:
         print(f"Generating {n_datasets} synthetic ECG datasets...")
         rr_datasets = self.generate_synthetic_rr_intervals(n_datasets)
         
-        validation_info = {
+        dataset_info = {
             'files': [],
-            'ground_truth': {
+            'generation_parameters': {
                 'target_hr_bpm': self.mean_hr,
                 'hr_range_bpm': '55-65 (varied per file)',
                 'target_mean_rr_ms': 60000 / self.mean_hr,
@@ -272,11 +261,11 @@ class SyntheticECGGenerator:
                 'hf_freq_hz': self.hf_freq,
                 'target_lf_hf_ratio': self.lf_hf_ratio,
                 'expected_rmssd_range_ms': '15-35 (varied per file)',
-                'expected_hrv_variation': 'Each file has different HRV parameters',
+                'hrv_variation': 'Each file has different HRV parameters',
                 'duration_sec': self.duration,
                 'sampling_rate_hz': self.sampling_rate
             },
-            'actual_parameters': []
+            'file_parameters': []
         }
         
         for i, rr_intervals in enumerate(rr_datasets):
@@ -292,62 +281,41 @@ class SyntheticECGGenerator:
             actual_rr_std = np.std(rr_intervals)
             actual_hr = 60000 / actual_rr_mean
             
-            # Calculate basic HRV metrics for validation
+            # Calculate basic HRV metrics
             rr_diffs = np.diff(rr_intervals)
             actual_rmssd = np.sqrt(np.mean(rr_diffs**2))
             actual_sdnn = np.std(rr_intervals)
             
-            validation_info['files'].append(filename)
-            validation_info['actual_parameters'].append({
+            dataset_info['files'].append(filename)
+            dataset_info['file_parameters'].append({
                 'file': filename,
                 'mean_rr_ms': actual_rr_mean,
                 'rr_std_ms': actual_rr_std,
                 'mean_hr_bpm': actual_hr,
                 'n_beats': len(rr_intervals),
                 'expected_rmssd_ms': actual_rmssd,
-                'expected_sdnn_ms': actual_sdnn,
-                'hrv_variation_level': 'varied'  # Indicates this has unique HRV
+                'expected_sdnn_ms': actual_sdnn
             })
             
             if (i + 1) % 10 == 0:
                 print(f"Generated {i + 1}/{n_datasets} datasets")
         
-        # Save validation info
-        info_file = os.path.join(output_dir, "validation_info.txt")
+        # Save dataset info
+        info_file = os.path.join(output_dir, "dataset_info.txt")
         with open(info_file, 'w') as f:
             f.write("SYNTHETIC ECG VALIDATION DATASET\n")
             f.write("=" * 40 + "\n\n")
-            f.write("Ground Truth Parameters:\n")
-            for key, value in validation_info['ground_truth'].items():
+            f.write("Generation Parameters:\n")
+            for key, value in dataset_info['generation_parameters'].items():
                 f.write(f"  {key}: {value}\n")
-            f.write(f"\nGenerated {len(validation_info['files'])} synthetic ECG files\n")
+            f.write(f"\nGenerated {len(dataset_info['files'])} synthetic ECG files\n")
             f.write(f"Files saved to: {output_dir}\n")
             
-        print(f"\nValidation dataset complete!")
+        print(f"Validation dataset complete!")
         print(f"Files saved to: {output_dir}")
-        print(f"Ground truth parameters saved to: {info_file}")
+        print(f"Parameters saved to: {info_file}")
         
-        return validation_info
-    
-    def plot_sample_ecg(self, ecg_signal, r_peaks=None, title="Synthetic ECG Sample"):
-        """
-        Plot a sample of the generated ECG for quality check
-        """
-        time_vector = np.arange(len(ecg_signal)) / self.sampling_rate
-        
-        plt.figure(figsize=(12, 6))
-        plt.plot(time_vector[:2560], ecg_signal[:2560])  # First 10 seconds
-        
-        if r_peaks is not None:
-            r_peaks_time = r_peaks[r_peaks < 2560] / self.sampling_rate
-            plt.plot(r_peaks_time, ecg_signal[r_peaks[r_peaks < 2560]], 'ro', markersize=8)
-        
-        plt.xlabel('Time (s)')
-        plt.ylabel('ECG (mV)')
-        plt.title(title)
-        plt.grid(True, alpha=0.3)
-        plt.tight_layout()
-        plt.show()
+        return dataset_info
 
 def main():
     """
@@ -356,24 +324,12 @@ def main():
     # Initialize generator
     generator = SyntheticECGGenerator()
     
-    # Generate small test dataset first
-    print("Generating test dataset (5 files)...")
-    test_info = generator.generate_validation_dataset(n_datasets=5, output_dir="test_synthetic_ecg")
+    # Generate full validation dataset
+    print("Generating validation dataset...")
+    dataset_info = generator.generate_validation_dataset(n_datasets=100, output_dir="validation_synthetic_ecg")
     
-    # Generate sample ECG for visualization
-    test_rr = generator.generate_synthetic_rr_intervals(1)[0]
-    test_ecg, test_r_peaks = generator.rr_to_ecg_signal(test_rr)
-    generator.plot_sample_ecg(test_ecg, test_r_peaks, "Sample Synthetic ECG (10 seconds)")
-    
-    # Ask user if they want to generate full dataset
-    response = input("\nGenerate full dataset (100 files)? [y/n]: ")
-    if response.lower() == 'y':
-        print("Generating full validation dataset...")
-        full_info = generator.generate_validation_dataset(n_datasets=100, output_dir="validation_synthetic_ecg")
-        print("Full dataset generation complete!")
-    
-    return test_info
+    return dataset_info
 
 if __name__ == "__main__":
-    # Example usage
+    # Generate validation dataset
     validation_info = main()
