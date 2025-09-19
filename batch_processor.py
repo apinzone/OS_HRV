@@ -97,7 +97,12 @@ def analyze_with_chronos(file_path, edf_file):
             return None
         
         peak_count = len(analyzer.ecg_data['td_peaks'])
-        
+
+        # Extract R-peak timestamps and R-R intervals from ChronOS
+        r_peak_indices = analyzer.ecg_data['td_peaks']
+        r_peak_timestamps = r_peak_indices / sample_rate  # Convert to seconds
+        rr_intervals_ms = np.diff(r_peak_timestamps) * 1000  # Convert to milliseconds
+
         # Calculate HRV metrics 
         analyzer.calculate_time_domain()
         analyzer.calculate_frequency_domain()
@@ -111,7 +116,6 @@ def analyze_with_chronos(file_path, edf_file):
             if 'time_domain' in results_data and 'error' not in results_data['time_domain']:
                 td = results_data['time_domain']
                 hrv_data.update({
-                    'hr': td.get('hr', np.nan),
                     'mean_rr': td.get('mean_rr', np.nan),
                     'rmssd': td.get('rmssd', np.nan),
                     'sdnn': td.get('sdnn', np.nan),
@@ -139,7 +143,6 @@ def analyze_with_chronos(file_path, edf_file):
                 result = {
                     'filename': edf_file,
                     'num_peaks': peak_count,
-                    'heart_rate_bpm':  hrv_data.get('hr', np.nan),
                     'mean_rr_ms': hrv_data.get('mean_rr', np.nan),
                     'rmssd_ms': hrv_data.get('rmssd', np.nan),
                     'sdnn_ms': hrv_data.get('sdnn', np.nan),
@@ -152,6 +155,8 @@ def analyze_with_chronos(file_path, edf_file):
                     'hf_power_ms2': hrv_data.get('hf_power', np.nan),
                     'total_power_ms2': hrv_data.get('total_power', np.nan),
                     'lf_hf_ratio': hrv_data.get('lf_hf_ratio', np.nan),
+                    'r_peak_timestamps_sec': r_peak_timestamps.tolist(),
+                    'rr_intervals_ms': rr_intervals_ms.tolist(),
                     'status': 'success'
                 }
                 return result
@@ -172,6 +177,11 @@ def analyze_with_neurokit(ecg_signal, sampling_rate, edf_file):
             print(f"  WARNING: Only {len(r_peaks['ECG_R_Peaks'])} R-peaks detected")
             return None
         
+        # Extract R-peak timestamps and R-R intervals from NeuroKit2
+        r_peak_indices = r_peaks['ECG_R_Peaks']
+        r_peak_timestamps = r_peak_indices / sampling_rate  # Convert to seconds
+        rr_intervals_ms = np.diff(r_peak_timestamps) * 1000  # Convert to milliseconds
+
         time_domain = nk.hrv_time(r_peaks, sampling_rate=sampling_rate, show=False)
         nonlinear = nk.hrv_nonlinear(r_peaks, sampling_rate=sampling_rate, show=False)
         frequency_domain = nk.hrv_frequency(
@@ -214,7 +224,6 @@ def analyze_with_neurokit(ecg_signal, sampling_rate, edf_file):
         result = {
             'filename': edf_file,
             'num_peaks': num_beats,
-            'heart_rate_bpm': avg_hr,
             'mean_rr_ms': mean_rr_ms,
             'rmssd_ms': rmssd,
             'sdnn_ms': sdnn,
@@ -227,6 +236,8 @@ def analyze_with_neurokit(ecg_signal, sampling_rate, edf_file):
             'hf_power_ms2': hf_power,
             'total_power_ms2': total_power,
             'lf_hf_ratio': lf_hf_ratio,
+            'r_peak_timestamps_sec': r_peak_timestamps.tolist(),
+            'rr_intervals_ms': rr_intervals_ms.tolist(),
             'status': 'success'
         }
         

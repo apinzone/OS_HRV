@@ -1,0 +1,19 @@
+name: peak_env
+channels:
+  - defaults
+  - https://repo.anaconda.com/pkgs/main
+  - https://repo.anaconda.com/pkgs/r
+  - https://repo.anaconda.com/pkgs/msys2
+dependencies:
+  - matplotlib
+  - python=3.11
+  - scipy
+  - seaborn
+  - streamlit
+  - pip
+  - pip:
+    - plotly>=5.0.0
+    - bioread>=3.0.0
+    - pyedflib>=0.1.30
+    - tqdm>=4.60.0
+prefix: C:\Users\Anthony\anaconda3\envs\peak_env

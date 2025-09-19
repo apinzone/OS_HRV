@@ -29,7 +29,6 @@ data <- merge(chronos_data, neurokit_data, by = "filename", all = TRUE)
 metrics <- list(
   "Number of R-peaks" = c("total_peaks", "nk_num_beats"),
   "Mean RR (ms)" = c("chronos_mean_rr_ms", "nk_mean_rr_ms"),
-  "Heart Rate (BPM)" = c("chronos_HR", "nk_avg_hr_bpm"),
   "RMSSD (ms)" = c("chronos_rmssd_ms", "nk_rmssd_ms"),
   "pNN50 (%)" = c("chronos_pnn50_percent", "nk_pnn50_percent"),
   "SDNN (ms)" = c("chronos_sdnn_ms", "nk_sdnn_ms"),
