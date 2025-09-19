@@ -857,11 +857,11 @@ class CardiovascularAnalyzer:
             
         Num_Beats = len(RRDistance_ms)
         total_peaks = len(td_peaks)
-        HR = np.round(Num_Beats/(Sampling_Time/60),2) if Sampling_Time > 0 else 0
+        HR = Num_Beats/(Sampling_Time/60) if Sampling_Time > 0 else 0
         
         # Sample entropy 
         m = 2
-        r = 0.2 * np.std(RRDistance_ms)
+        r = 0.2 * np.std(RRDistance_ms, ddof = 1)
         sampen = SampEn(RRDistance_ms, m, r) if len(RRDistance_ms) > m else 0 
         
         self.results['time_domain'] = {

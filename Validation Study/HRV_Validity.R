@@ -36,6 +36,7 @@ metrics <- list(
   "SD1 (ms)" = c("chronos_sd1_ms", "nk_sd1_ms"),
   "SD2 (ms)" = c("chronos_sd2_ms", "nk_sd2_ms"),
   "SD1/SD2 Ratio" = c("chronos_sd1_sd2_ratio", "nk_sd1_sd2_ratio"),
+  "Sample Entropy" = c("chronos_sampen", "nk_sampen"),
   "VLF (ms²)" = c("chronos_vlf_power_ms2", "nk_vlf_power_ms2"),
   "LF (ms²)" = c("chronos_lf_power_ms2", "nk_lf_power_ms2"),
   "HF (ms²)" = c("chronos_hf_power_ms2", "nk_hf_power_ms2"),
@@ -129,7 +130,7 @@ plot1_metrics <- list(
   "Mean RR (ms)" = c("chronos_mean_rr_ms", "nk_mean_rr_ms"),
   "RMSSD (ms)" = c("chronos_rmssd_ms", "nk_rmssd_ms"),
   "SDNN (ms)" = c("chronos_sdnn_ms", "nk_sdnn_ms"),
-  "SD1/SD2 Ratio" = c("chronos_sd1_sd2_ratio", "nk_sd1_sd2_ratio")
+  "Sample Entropy" = c("chronos_sampen", "nk_sampen")
 )
 
 ba_plots_1 <- list()
