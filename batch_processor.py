@@ -17,8 +17,7 @@ from analyzer import CardiovascularAnalyzer
 
 def calculate_adaptive_ecg_params(ecg_signal, sample_rate):
     """
-    Calculate adaptive ECG parameters exactly like your GUI
-    This replicates the logic from your simple_gui.py calculate_adaptive_ecg_params function
+    Calculate adaptive ECG parameters for each signal mirroring ChronOS dataflow
     """
     #Match Exact ChronOS ECG Peak detection
     ecg_baseline = np.median(ecg_signal)
