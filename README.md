@@ -200,7 +200,6 @@ pip install bioread
 ## Contributing
 
 **Future Goals:**
-- Including support for .csv files 
 - Batch processing mode to analyze all files in a given directory, or multiple files simultaneously
 - Intake of an R-R interval array, bypassing default peak detection and immmediately initiating HRV analysis 
 - Validation of BRS functionality using laboratory-collected PPG and ECG data
