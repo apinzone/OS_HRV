@@ -34,7 +34,7 @@ ChronOS has been rigorously validated through multiple approaches (complete vali
 - **Preprocessing:** Optional ECG bandpass filtering (0.5-40 Hz) for noise reduction
 
 ### Interface Options
-- **Web GUI:** Streamlit-based interface with real-time parameter adjustment and visualization
+- **Web GUI:** Streamlit-based interface with real-time parameter adjustment and interactive visualization
 - **Programmatic API:** Direct Python access for batch processing and custom workflows
 - **Interactive Analysis:** Time window selection, peak detection preview, and manual parameter optimization
 
