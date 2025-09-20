@@ -235,10 +235,10 @@ We welcome contributions from the cardiovascular research community:
 **Anthony G. Pinzone, Ph.D., CSCS*D**  
 Department of Kinesiology  
 California State University of San Marcos  
-Email: apinzone@csusm.edu or apinzone10@gmail.com
+Email: apinzone@csusm.edu or apinzone10@gmail.com  
 GitHub: https://github.com/apinzone  
-Website: https://apinzone.github.io/
-LinkedIn: https://www.linkedin.com/in/apinzone/
+Website: https://apinzone.github.io/  
+LinkedIn: https://www.linkedin.com/in/apinzone/  
 
 ## License
 ChronOS and all source code are open-soruce and freely accessible under the MIT License - Free for academic, research, educational, and commercial use.

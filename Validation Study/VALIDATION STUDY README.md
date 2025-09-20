@@ -162,7 +162,7 @@ The validation study demonstrates:
 
 All necessary files are included in this directory /validation_synthetic_ecg/:
 - 100 synthetic ECG files (referenced by batch processor) 
-- Synthetic ECG batch generation script for based on parameters from [Ramshur, 2010][https://digitalcommons.memphis.edu/etd/83/]
+- Synthetic ECG batch generation script for based on parameters from [Ramshur, 2010](https://digitalcommons.memphis.edu/etd/83/)
 - Complete analysis scripts with documented methodology
 - Validation data files for immediate statistical analysis
 - R script with all required statistical packages
