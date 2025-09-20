@@ -52,7 +52,7 @@ Validation Study/
 
 **`fantasia_validation/`**
 - Contains all scripts for ground truth validation analysis using Fantasia database record f1y01
-- Independent validation against expert-annotated R-peak locations (8,709 beats)
+- Independent validation against expert-annotated R-peak locations 
 - Demonstrates ChronOS accuracy on real physiological data with known ground truth
 
 ## Reproducing Manuscript Results
@@ -106,11 +106,6 @@ The validation study demonstrates:
 - ChronOS detected correct R-peaks in all test cases
 - NeuroKit2 detected spurious peaks in baseline regions (10/100 files) -> can be investigated using peak_diff script. 
 
-**Algorithmic Validation:**
-- ChronOS's adaptive thresholding (0.55 × signal range) demonstrated superior specificity
-- NeuroKit2's fixed gradient thresholds susceptible to false positives in noise regions
-- Peak detection differences directly explain moderate sample entropy agreement
-
 ## Validation Protocol
 
 ### ChronOS Configuration
@@ -136,13 +131,13 @@ The validation study demonstrates:
 - **Format:** European Data Format (.edf) for cross-platform compatibility
 
 ### Validated HRV Metrics
-**Time Domain (4 metrics):**
+**Time Domain:**
 - Mean R-R interval, RMSSD, SDNN, pNN50
 
-**Nonlinear (4 metrics):**
+**Nonlinear:**
 - SD1, SD2, SD1/SD2 ratio, sample entropy
 
-**Frequency Domain (5 metrics):**
+**Frequency Domain:**
 - VLF, LF, HF, LF/HF ratio, total power
 
 ## Statistical Methods
@@ -165,8 +160,9 @@ The validation study demonstrates:
 
 ## Files Required for Reproduction
 
-All necessary files are included in this directory:
-- 100 synthetic ECG files (referenced by batch processor)
+All necessary files are included in this directory /validation_synthetic_ecg/:
+- 100 synthetic ECG files (referenced by batch processor) 
+- Synthetic ECG batch generation script for based on parameters from [Ramshur, 2010][https://digitalcommons.memphis.edu/etd/83/]
 - Complete analysis scripts with documented methodology
 - Validation data files for immediate statistical analysis
 - R script with all required statistical packages
@@ -177,7 +173,7 @@ The entire validation study can be reproduced by running the three core scripts 
 
 **Peak Detection Differences:**
 - Located at specific timestamps identified by `peak_diff.py`
-- Manifested as abnormally short R-R intervals (445-660ms) when NeuroKit2 split normal intervals  
+- Manifested as abnormally short R-R intervals (445-660ms) when NeuroKit2 split normal intervals (detected one additional R-peak)  
 - Visual inspection confirmed ChronOS correctly avoided baseline artifacts where NeuroKit2's gradient thresholds incorrectly classified noise fluctuations as QRS complexes
 
 **VLF Power Agreement:**
@@ -187,8 +183,3 @@ The entire validation study can be reproduced by running the three core scripts 
 **Sample Entropy Discrepancies:**
 - Directly attributable to peak detection sensitivity differences
 - Bland-Altman revealed bimodal pattern: excellent agreement when peak counts matched, substantial differences when detection algorithms disagreed
-
-**Reproducibility:**
-- All random seeds fixed for synthetic ECG generation (can find the ECG generator script under /Validation_Data/validation_synthetic_ecg)
-- Identical file processing order maintained across platforms
-- Complete methodology transparency for independent verification
