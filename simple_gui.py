@@ -716,10 +716,10 @@ with st.sidebar:
     
     # Enhanced file upload with EDF support (CHANGE 2)
     if EDF_AVAILABLE:
-        file_types = ["acq", "edf"]
+        file_types = ["acq", "edf", "csv"]
         help_text = "Upload your ACQ file (AcqKnowledge) or EDF file (European Data Format) containing ECG and blood pressure data"
     else:
-        file_types = ["acq"]
+        file_types = ["acq", "csv"]
         help_text = "Upload your ACQ file containing ECG and blood pressure data. For EDF support, install pyedflib: pip install pyedflib"
     
     uploaded_file = st.file_uploader(
@@ -885,7 +885,94 @@ with st.sidebar:
     
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # Time Window Selection (only if file is loaded)
+    # CSV Sampling Rate Verification (only for CSV files)
+    if (st.session_state.file_loaded and 
+        st.session_state.channels_configured and 
+        getattr(st.session_state.analyzer, 'file_type', '') == 'csv'):
+        
+        st.markdown("## 📊 Sampling Rate Verification")
+        st.markdown("CSV files require sampling rate confirmation for accurate timing.")
+        
+        # Get current sampling rate from configured channels
+        current_fs = None
+        data_points = None
+        
+        if st.session_state.analyzer.ecg_data and 'fs' in st.session_state.analyzer.ecg_data:
+            current_fs = st.session_state.analyzer.ecg_data['fs']
+            data_points = len(st.session_state.analyzer.ecg_data['raw'])
+        elif st.session_state.analyzer.bp_data and 'fs' in st.session_state.analyzer.bp_data:
+            current_fs = st.session_state.analyzer.bp_data['fs']
+            data_points = len(st.session_state.analyzer.bp_data['raw'])
+        
+        if current_fs and data_points:
+            estimated_duration = data_points / current_fs
+            
+            # Show current estimates
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.info(f"**Samples:** {data_points}")
+            with col2:
+                st.info(f"**Current FS:** {current_fs:.0f} Hz")
+            with col3:
+                st.info(f"**Duration:** {estimated_duration:.1f}s")
+            
+            # Method selection
+            method = st.radio(
+                "Choose verification method:",
+                ["Adjust Sampling Rate", "Enter Recording Duration"],
+                help="Either specify the sampling rate directly or enter the known recording duration"
+            )
+            
+            if method == "Adjust Sampling Rate":
+                confirmed_fs = st.number_input(
+                    "Sampling Rate (Hz):",
+                    value=int(current_fs),
+                    min_value=50,
+                    max_value=2000,
+                    step=1,
+                    help="Enter the known sampling rate"
+                )
+                calculated_duration = data_points / confirmed_fs
+                st.write(f"→ Calculated duration: {calculated_duration:.2f} seconds")
+                
+            else:  # Enter Recording Duration
+                known_duration = st.number_input(
+                    "Recording Duration (seconds):",
+                    value=float(estimated_duration),
+                    min_value=1.0,
+                    max_value=3600.0,
+                    step=0.1,
+                    help="Enter the actual recording duration"
+                )
+                confirmed_fs = data_points / known_duration
+                st.write(f"→ Calculated sampling rate: {confirmed_fs:.1f} Hz")
+            
+            # Update if changed
+            if abs(confirmed_fs - current_fs) > 0.1:  # Allow for small floating point differences
+                if st.button("Update Timing", type="secondary"):
+                    # Update ECG data
+                    if st.session_state.analyzer.ecg_data:
+                        new_time = np.arange(len(st.session_state.analyzer.ecg_data['raw'])) / confirmed_fs
+                        st.session_state.analyzer.ecg_data['fs'] = confirmed_fs
+                        if 'time_index' in st.session_state.analyzer.ecg_data:
+                            st.session_state.analyzer.ecg_data['time_index'] = new_time
+                        if 'time' in st.session_state.analyzer.ecg_data:
+                            st.session_state.analyzer.ecg_data['time'] = new_time
+                    
+                    # Update BP data if exists
+                    if st.session_state.analyzer.bp_data:
+                        new_bp_time = np.arange(len(st.session_state.analyzer.bp_data['raw'])) / confirmed_fs
+                        st.session_state.analyzer.bp_data['fs'] = confirmed_fs
+                        if 'time_index' in st.session_state.analyzer.bp_data:
+                            st.session_state.analyzer.bp_data['time_index'] = new_bp_time
+                        if 'time' in st.session_state.analyzer.bp_data:
+                            st.session_state.analyzer.bp_data['time'] = new_bp_time
+                    
+                    st.success(f"Updated: {confirmed_fs:.1f} Hz, {data_points/confirmed_fs:.1f}s duration")
+                    st.rerun()
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+    
     # Time Window Selection and Peak Detection Parameters (only if channels are configured)
     if st.session_state.file_loaded and st.session_state.channels_configured:
         
@@ -903,47 +990,60 @@ with st.sidebar:
 
         st.markdown(config_info)
         st.markdown('</div>', unsafe_allow_html=True)
-    
+
         # Time Window Selection (only if file is loaded)
         if not st.session_state.analyzed:
             st.markdown("## ⏱️ Analysis Window")
             
-            if hasattr(st.session_state.analyzer, 'ecg_data') and 'time' in st.session_state.analyzer.ecg_data:
-                max_time = max(st.session_state.analyzer.ecg_data['time'])
+            # Get time data safely for different file types
+            time_data = None
+            if hasattr(st.session_state.analyzer, 'ecg_data') and st.session_state.analyzer.ecg_data:
+                if 'time' in st.session_state.analyzer.ecg_data:
+                    time_data = st.session_state.analyzer.ecg_data['time']
+                elif 'time_index' in st.session_state.analyzer.ecg_data:
+                    time_data = st.session_state.analyzer.ecg_data['time_index']
+            
+            if time_data is not None and len(time_data) > 0:
+                max_time = max(time_data)
                 max_time_min = max_time / 60
                 
                 st.info(f"**Recording:** {max_time:.1f}s ({max_time_min:.1f} min)")
                 
-                # Time window sliders with better styling
-                start_time = st.slider(
-                    "🎯 Start Time (seconds)", 
-                    min_value=0.0, 
-                    max_value=max_time-10, 
-                    value=0.0, 
-                    step=1.0,
-                    help="Start of analysis window"
-                )
-                
-                end_time = st.slider(
-                    "🏁 End Time (seconds)", 
-                    min_value=start_time+10, 
-                    max_value=max_time, 
-                    value=max_time, 
-                    step=1.0,
-                    help="End of analysis window"
-                )
-                
-                # Window duration display
-                window_duration = end_time - start_time
-                window_duration_min = window_duration / 60
-                
-                st.success(f"**Window:** {window_duration:.0f}s ({window_duration_min:.1f} min)")
-                
-                st.session_state.time_window = {
-                    'start_time': start_time,
-                    'end_time': end_time,
-                    'duration': window_duration
-                }
+                # Ensure we have valid time bounds
+                if max_time > 10:
+                    start_time = st.slider(
+                        "🎯 Start Time (seconds)", 
+                        min_value=0.0, 
+                        max_value=max(0.0, max_time-10), 
+                        value=0.0, 
+                        step=1.0,
+                        help="Start of analysis window"
+                    )
+                    
+                    end_time = st.slider(
+                        "🏁 End Time (seconds)", 
+                        min_value=start_time+10, 
+                        max_value=max_time, 
+                        value=max_time, 
+                        step=1.0,
+                        help="End of analysis window"
+                    )
+                    
+                    # Window duration display
+                    window_duration = end_time - start_time
+                    window_duration_min = window_duration / 60
+                    
+                    st.success(f"**Window:** {window_duration:.0f}s ({window_duration_min:.1f} min)")
+                    
+                    st.session_state.time_window = {
+                        'start_time': start_time,
+                        'end_time': end_time,
+                        'duration': window_duration
+                    }
+                else:
+                    st.warning(f"Recording too short ({max_time:.1f}s) for time window selection")
+            else:
+                st.info("Load and configure channels to enable time window selection")
         
         st.markdown('</div>', unsafe_allow_html=True)
         # ECG Preprocessing Section

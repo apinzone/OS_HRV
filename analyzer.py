@@ -1,6 +1,7 @@
 # analyzer.py - Enhanced with ECG scale detection, flexible channel selection, and EDF support
 import numpy as np
 import math
+import pandas as pd
 from scipy.signal import find_peaks, welch, coherence, csd, butter, filtfilt
 from scipy.interpolate import interp1d
 import bioread
@@ -364,6 +365,110 @@ class CardiovascularAnalyzer:
             
         except Exception as e:
             raise Exception(f"Failed to load ACQ file: {str(e)}")
+        
+    def _load_csv_file(self, filepath):
+        """Load CSV file and extract channel information"""
+
+        
+        try:
+            df = pd.read_csv(filepath)
+            
+            channels_info = []
+            
+            for i, col in enumerate(df.columns):
+                # Skip obvious non-signal columns
+                if col.lower() in ['index', 'id', 'filename', 'label', 'patient_id', 'unnamed']:
+                    continue
+                
+                # Get column data
+                data = df[col].values
+                
+                # Skip columns with non-numeric data
+                if not pd.api.types.is_numeric_dtype(df[col]):
+                    continue
+                
+                # Estimate sampling rate
+                sample_rate = self._estimate_csv_sampling_rate(df, col)
+                
+                # Create time index
+                time_index = np.arange(len(data)) / sample_rate
+                
+                # Guess channel type
+                likely_type = self._guess_csv_channel_type(col, data)
+                
+                channel_info = {
+                    'index': i,
+                    'name': col,
+                    'units': 'Unknown',
+                    'samples': len(data),
+                    'duration': len(data) / sample_rate,
+                    'sample_rate': sample_rate,
+                    'data_range': f"{np.min(data):.3f} to {np.max(data):.3f}",
+                    'likely_type': likely_type,
+                    'data': data,
+                    'time_index': time_index
+                }
+                
+                channels_info.append(channel_info)
+            
+            return channels_info
+            
+        except Exception as e:
+            raise Exception(f"Failed to load CSV file: {str(e)}")
+
+    def _guess_csv_channel_type(self, column_name, data):
+        """Guess what type of signal this column contains"""
+        col_lower = column_name.lower()
+        
+        # ECG lead patterns (Chapman dataset)
+        ecg_leads = ['i', 'ii', 'iii', 'avr', 'avl', 'avf', 'v1', 'v2', 'v3', 'v4', 'v5', 'v6']
+        if any(lead == col_lower for lead in ecg_leads):
+            highlight = " (recommended)" if col_lower == 'v5' else ""
+            return f'ECG Lead {column_name.upper()}{highlight}'
+        
+        # Other ECG patterns
+        elif any(keyword in col_lower for keyword in ['ecg', 'ekg', 'heart']):
+            return 'ECG (likely)'
+        elif any(keyword in col_lower for keyword in ['bp', 'pressure']):
+            return 'Blood Pressure (likely)'
+        elif 'time' in col_lower:
+            return 'Time (likely)'
+        else:
+            # Analyze data characteristics
+            data_range = np.ptp(data)
+            data_mean = np.mean(np.abs(data))
+            
+            if 0.1 < data_range < 20 and data_mean < 10:
+                return 'Possible ECG'
+            elif data_mean > 50:
+                return 'Possible BP'
+            else:
+                return 'Unknown Signal'
+
+    def _estimate_csv_sampling_rate(self, df, column_name):
+        """Estimate sampling rate from data or use reasonable defaults"""
+        
+        # Check for time column
+        time_cols = [col for col in df.columns if 'time' in col.lower()]
+        if time_cols:
+            time_data = df[time_cols[0]]
+            if len(time_data) > 1:
+                dt = np.median(np.diff(time_data))
+                if dt > 0:
+                    return 1 / dt
+        
+        # Use heuristics based on data length
+        num_samples = len(df[column_name])
+        
+        # Chapman dataset: 5000 samples = 10s at 500Hz
+        if 4800 <= num_samples <= 5200:
+            return 500
+        # Your synthetic data: ~2560 samples = 10s at 256Hz
+        elif 2400 <= num_samples <= 2700:
+            return 256
+        # Longer recordings - assume 256Hz for HRV
+        else:
+            return 256  # Conservative default for HRV analysis
 
     def load_file_and_detect_channels(self, filepath):
         """Load file and return available channel information for user selection"""
@@ -379,6 +484,9 @@ class CardiovascularAnalyzer:
                 channels_info = self._load_edf_file(filepath)
                 # For EDF files, we store the channel info directly since we don't have a file object
                 self.file_object = None
+            elif file_ext == '.csv':  # ADD THIS
+                self.file_type = 'csv'
+                channels_info = self._load_csv_file(filepath)
             else:
                 raise Exception(f"Unsupported file format: {file_ext}")
             
@@ -427,7 +535,15 @@ class CardiovascularAnalyzer:
                     Time = ecg_channel_info['time_index']
                     ECG_fs = ecg_channel_info['sample_rate']
                     channel_name = ecg_channel_info['name']
-                
+                    
+                elif self.file_type == 'csv': 
+                # CSV file handling
+                    ecg_channel_info = self.file_channels[ecg_channel_idx]
+                    ECG_Data = ecg_channel_info['data']
+                    Time = ecg_channel_info['time_index']
+                    ECG_fs = ecg_channel_info['sample_rate']
+                    channel_name = ecg_channel_info['name']
+                    
                 # Scale detection (same for both file types)
                 self.ecg_scale, self.ecg_scale_factor = self.detect_ecg_scale(ECG_Data)
                 ECG_Data_mV = ECG_Data * self.ecg_scale_factor
