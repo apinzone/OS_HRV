@@ -33,7 +33,7 @@ Validation Study/
 
 **`HRV_validity.R`**
 - Complete statistical analysis script that reproduces all validation results from the manuscript
-- Computes ICC(3,1) values, Lin's Concordance Correlation Coefficients (CCC), and Bland-Altman plots
+- Computes ICC₃,₁ values, Lin's Concordance Correlation Coefficients (CCC), and Bland-Altman plots
 - Generates publication-ready figures and validation statistics
 
 ### Data Files
@@ -78,7 +78,7 @@ Validation Study/
    ```R
    source("HRV_validity.R")
    ```
-   - Generates all ICC(3,1) calculations and Bland-Altman plots from manuscript
+   - Generates all ICC₃,₁ calculations and Bland-Altman plots from manuscript
    - Uses data from `all_validity_data.xlsx`
    - Produces Figures 2 and 3 and statistics that were used to create Table 1
 
@@ -148,7 +148,7 @@ The validation study demonstrates:
 - Clopper-Pearson exact binomial 95% confidence intervals
 
 **Agreement Assessment:**
-- ICC(3,1): Two-way mixed effects model for absolute agreement with single measures
+- ICC₃,₁: Two-way mixed effects model for absolute agreement with single measures
 - Lin's Concordance Correlation Coefficient (CCC) with z-transform 95% CIs
 - Bland-Altman analysis for systematic bias and limits of agreement
 
