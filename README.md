@@ -286,4 +286,5 @@ GitHub: https://github.com/apinzone
 Website: https://apinzone.github.io/
 
 ## License
-MIT License - Free for academic, research, educational, and commercial use.
+ChronOS and all source code are open-soruce and freely accessible under the MIT License - Free for academic, research, educational, and commercial use.
+The full license can be viewed in our LICENSE.txt file.
