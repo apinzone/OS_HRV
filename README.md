@@ -1,8 +1,8 @@
 # ChronOS - Open Source HRV Analysis Platform
 
-A validated heart rate variability analysis toolkit for cardiovascular research and clinical applications.
+A validated, web-accessible, peak detection and heart rate variability toolkit for cardiovascular research.
 
-ChronOS was designed as a free, open-source research tool for physiological signals. This project began during my Ph.D. at Kent State University in an effort to overcome lack of user control in WinCPRS, a previously discontinued HRV and BRS analysis pipeline. Today, ChronOS has grown to include all commonly-implement time domain, frequency domain, and non-linear HRV metrics and includes scaffolding for BRS analysis. Our goal is to provide a web-accessible, validated, signal processing tool for researchers of any discipline. 
+ChronOS was designed as a free, open-source research tool for physiological signals. This project began during my Ph.D. at Kent State University in an effort to overcome lack of user control in WinCPRS, a previously discontinued HRV and BRS analysis pipeline. Today, ChronOS has grown to include all commonly-implement time domain, frequency domain, and non-linear HRV metrics and includes scaffolding for BRS analysis. 
 
 ## Validation Status - Manuscript in Review
 
@@ -49,9 +49,6 @@ pip install streamlit matplotlib plotly numpy pandas scipy bioread
 ```bash
 # For EDF file support
 pip install pyedflib
-
-# For enhanced signal processing (if needed)
-pip install pywavelets
 ```
 
 ### Quick Setup
