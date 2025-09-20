@@ -2,7 +2,7 @@
 
 A validated heart rate variability analysis toolkit for cardiovascular research and clinical applications.
 
-ChronOS provides accessible, research-grade HRV analysis for investigators, clinicians, and educators. Developed as a free alternative to commercial software, it delivers validated cardiovascular analysis with transparent, literature-based methodology and comprehensive validation against established tools.
+ChronOS was designed as a free, open-source research tool for physiological signals. This project began during my Ph.D. at Kent State University in an effort to overcome lack of user control in WinCPRS, a previously discontinued HRV and BRS analysis pipeline. Today, ChronOS has grown to include all commonly-implement time domain, frequency domain, and non-linear HRV metrics and includes scaffolding for BRS analysis. Our goal is to provide a web-accessible, validated, signal processing tool for researchers of any discipline. 
 
 ## Validation Status - Manuscript in Review
 
@@ -13,9 +13,8 @@ ChronOS has been rigorously validated through multiple approaches (complete vali
 **Criterion Validation:** Strong agreement with NeuroKit2 across 100 synthetic ECG recordings:
 - Excellent agreement (ICC ≥ 0.90): Peak detection, mean RR, RMSSD, pNN50, SD1, HF power
 - Good agreement (ICC 0.75-0.89): SDNN, SD2, LF power, LF/HF ratio, total power
-- Superior peak detection specificity: Avoids false positive detections in baseline noise regions
 
-**Methodological Compliance:** Follows 1996 Task Force guidelines for HRV frequency domain analysis with 4Hz interpolation and absolute power units (ms²)
+**Methodological Compliance:** Follows 1996 Task Force guidelines for time domain, frequency domain, and nonlinear HRV metrics HRV
 
 *Complete validation methodology and statistical results available in `/Validation Study/`*
 
@@ -23,7 +22,7 @@ ChronOS has been rigorously validated through multiple approaches (complete vali
 
 ### Core Analysis Capabilities
 - **Time Domain:** RMSSD, SDNN, pNN50, mean RR, heart rate metrics
-- **Frequency Domain:** VLF/LF/HF power analysis with Task Force compliance (4Hz interpolation, Welch method)
+- **Frequency Domain:** VLF/LF/HF power analysis (4Hz interpolation, Welch method)
 - **Nonlinear Metrics:** Poincaré plot analysis (SD1, SD2), sample entropy calculation
 - **Baroreflex Sensitivity:** Sequence method and spectral transfer function analysis
 
@@ -103,20 +102,6 @@ print(f"SDNN: {results['sdnn_ms']:.1f} ms")
 print(f"LF/HF Ratio: {results['lf_hf_ratio']:.2f}")
 ```
     
-## File Format Support
-
-### ACQ Files (AcqKnowledge/BIOPAC)
-- Native support via bioread library
-- Automatic channel detection and naming
-- Preserves original sampling rates and channel characteristics
-- Compatible with all BIOPAC acquisition systems
-
-### EDF Files (European Data Format)
-- Medical standard format widely used in clinical settings
-- Robust timestamp handling for multi-hour recordings
-- Automatic signal scaling and unit detection
-- Compatible with most physiological recording systems
-
 ### Data Requirements
 - **Minimum:** One ECG channel for HRV analysis
 - **Recommended:** ECG + Blood Pressure channels for comprehensive BRS analysis
@@ -128,10 +113,9 @@ print(f"LF/HF Ratio: {results['lf_hf_ratio']:.2f}")
 ### Adaptive Peak Detection Algorithm
 ChronOS employs signal-specific parameter calculation rather than fixed thresholds:
 
-- **Height Threshold:** 0.55 × (signal maximum - baseline) scales to actual R-wave amplitudes
-- **Prominence Threshold:** 0.6 × height threshold ensures peaks stand out from background
-- **Distance Constraint:** 250ms minimum prevents false detections within QRS complexes
-- **Scale Adaptation:** Automatic detection and conversion between mV, μV, and V scales
+- **Height Threshold:** 0.55 × (signal maximum - baseline) 
+- **Prominence Threshold:** 0.6 × height threshold 
+- **Distance Constraint:** 250ms minimum 
 
 ### Quality Assurance Framework
 - **Pan-Tompkins Validation:** Parallel QRS detection algorithm identifies potential missed peaks
@@ -142,23 +126,22 @@ ChronOS employs signal-specific parameter calculation rather than fixed threshol
 ### Analysis Window Selection
 - **Time Domain Windowing:** Focus analysis on specific recording segments
 - **Interactive Selection:** Visual time window adjustment with immediate feedback
-- **Artifact Avoidance:** Exclude noisy regions or non-steady state periods
-- **Multiple Window Analysis:** Process different segments with identical parameters
+- **Artifact Avoidance:** Optional 5.0-40.0 Hz bandpass filter with real-time visualization of signal correction
 
 ## Repository Structure
 
 ```
-├── analyzer.py             # Core cardiovascular analysis engine
-├── simple_gui.py           # Streamlit web interface with real-time visualization
-├── functions.py            # Signal processing utilities and HRV calculations
-├── Validation Study/       # Complete validation analysis and results
-│   ├── README.md           # Validation methodology and reproduction instructions
-│   ├── batch_processor.py  # ChronOS vs NeuroKit2 validation script
-│   ├── peak_diff.py       # Peak detection difference analyzer
-│   ├── HRV_validity.R     # Statistical analysis and plot generation
+├── analyzer.py              # Core cardiovascular analysis engine
+├── simple_gui.py            # Streamlit web interface with real-time visualization
+├── functions.py             # Signal processing utilities and HRV calculations
+├── Validation Study/        # Complete validation analysis and results
+│   ├── README.md            # Validation methodology and reproduction instructions
+│   ├── batch_processor.py   # ChronOS vs NeuroKit2 validation script
+│   ├── peak_diff.py         # Peak detection difference analyzer
+│   ├── HRV_validity.R       # Statistical analysis and plot generation
 │   └── fantasia_validation/ # Ground truth validation scripts
-├── test_data/             # Sample physiological data files (including test files with noise and ectopics)
-└── requirements.txt       # Python dependencies
+├── test_data/               # Sample physiological data files (including test files with noise and ectopics)
+└── requirements.txt         # Python dependencies
 ```
 
 ## Validation Study
@@ -179,36 +162,6 @@ Rscript HRV_validity.R      # Statistical analysis and plots
 - **HRV Metric Agreement:** Strong correlation across time, frequency, and nonlinear domains
 - **Method Transparency:** All validation code and data publicly available for independent verification
 
-## Scientific Applications
-
-### Research Use Cases
-- Cardiovascular research laboratories requiring validated HRV analysis
-- Clinical studies investigating autonomic function
-- Exercise physiology and stress response research
-- Longitudinal health monitoring studies
-
-### Educational Applications
-- Cardiovascular physiology instruction with hands-on signal analysis
-- Biomedical engineering coursework on signal processing
-- Research methods training with real physiological data
-- Graduate student research projects requiring HRV analysis
-
-### Clinical Applications
-- Autonomic function assessment in clinical settings
-- Cardiovascular risk stratification research
-- Treatment response monitoring in research protocols
-- Quality assurance for HRV measurement protocols
-
-## Methodological Approach
-
-ChronOS implements established cardiovascular analysis standards:
-
-- **1996 Task Force Guidelines:** Frequency domain analysis with 4Hz interpolation and standard band definitions
-- **Validated Algorithms:** Literature-based parameter selection with published methodology
-- **Open Source Transparency:** Complete algorithm implementation available for review and modification
-- **Reproducible Research:** All analysis parameters and methods documented for replication
-
-The platform addresses cost barriers in cardiovascular research by providing free, validated analysis tools that match commercial software performance while maintaining complete methodological transparency.
 
 ## Troubleshooting
 
@@ -229,6 +182,7 @@ pip install bioread
 **Too few peaks detected:**
 - Use Preview function to visualize current detection
 - Lower height threshold (try 0.3-0.4 × signal range)
+- Try enabling sensitive detection settings (parameters will utilize a more permissive height and higher prominence; 250ms distance minimum remains)
 - Check ECG scale detection (should show mV conversion)
 - Consider enabling bandpass filter for noisy signals
 
@@ -237,11 +191,6 @@ pip install bioread
 - Increase prominence requirement
 - Check for baseline drift or movement artifacts
 - Use ectopic beat detection to identify false positives
-
-**Analysis window too short errors:**
-- Minimum 2 minutes required for reliable frequency domain analysis
-- Use longer recording segments or focus on time domain metrics
-- Check that selected window contains sufficient R-peaks
 
 ### File Format Issues
 
@@ -252,6 +201,12 @@ pip install bioread
 - Ensure file is not corrupted or truncated
 
 ## Contributing
+
+**Future Goals:**
+- Including support for .csv files 
+- Batch processing mode to analyze all files in a given directory, or multiple files simultaneously
+- Intake of an R-R interval array, bypassing default peak detection and immmediately initiating HRV analysis 
+- Validation of BRS functionality using laboratory-collected PPG and ECG data
 
 We welcome contributions from the cardiovascular research community:
 
@@ -275,15 +230,15 @@ We welcome contributions from the cardiovascular research community:
 - Consider computational feasibility for real-time analysis
 - Ensure compatibility with existing validation framework
 
-
 ## Contact
 
 **Anthony G. Pinzone, Ph.D., CSCS*D**  
 Department of Kinesiology  
 California State University of San Marcos  
-Email: apinzone@csusm.edu  
+Email: apinzone@csusm.edu or apinzone10@gmail.com
 GitHub: https://github.com/apinzone  
 Website: https://apinzone.github.io/
+LinkedIn: https://www.linkedin.com/in/apinzone/
 
 ## License
 ChronOS and all source code are open-soruce and freely accessible under the MIT License - Free for academic, research, educational, and commercial use.
