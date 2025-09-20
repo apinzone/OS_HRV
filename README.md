@@ -6,7 +6,7 @@ ChronOS provides accessible, research-grade HRV analysis for investigators, clin
 
 ## Validation Status - Manuscript in Review
 
-ChronOS has been rigorously validated through multiple approaches:
+ChronOS has been rigorously validated through multiple approaches (complete validation methodology detailed in `/Validation Study/VALIDATION STUDY README`):
 
 **Ground Truth Validation:** 99.99% sensitivity and positive predictive value on expert-annotated Fantasia database ECG data with F1 score of 1.000
 
