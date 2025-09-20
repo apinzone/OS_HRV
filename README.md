@@ -27,7 +27,7 @@ ChronOS has been rigorously validated through multiple approaches (complete vali
 - **Baroreflex Sensitivity:** Sequence method and spectral transfer function analysis
 
 ### Technical Architecture
-- **File Format Support:** Native ACQ (BIOPAC) and EDF (European Data Format) compatibility
+- **File Format Support:** Native ACQ (BIOPAC), EDF (European Data Format), and CSV compatibility
 - **Adaptive Peak Detection:** Signal-specific threshold calculation with physiological constraints
 - **Scale Detection:** Automatic ECG amplitude detection (mV/μV/V) with conversion
 - **Quality Assurance:** Pan-Tompkins validation and ectopic beat detection with manual review
@@ -211,7 +211,7 @@ We welcome contributions from the cardiovascular research community:
 1. Fork the repository and create a feature branch
 2. Follow existing code style and documentation patterns
 3. Add comprehensive docstrings to new functions
-4. Test with both ACQ and EDF file formats
+4. Test with ACQ, EDF, and CSV file formats
 5. Validate results against NeuroKit2 when implementing new features
 6. Update validation tests for significant algorithm changes
 
