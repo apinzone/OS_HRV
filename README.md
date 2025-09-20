@@ -286,7 +286,4 @@ GitHub: https://github.com/apinzone
 Website: https://apinzone.github.io/
 
 ## License
-
 MIT License - Free for academic, research, educational, and commercial use.
-
-See LICENSE file for complete terms and conditions.
