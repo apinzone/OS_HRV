@@ -63,6 +63,11 @@ pip install -r requirements.txt
 streamlit run simple_gui.py
 ```
 
+### Cloud Access
+```bash
+ChronOS is available online through the Streamlit Community Cloud at chronoshrv.streamlit.app - no installation required. Access the full analysis platform directly in your browser.
+```
+
 ## Usage
 
 ### Web Interface
