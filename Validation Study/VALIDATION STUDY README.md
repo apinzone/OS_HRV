@@ -12,7 +12,7 @@ Validation Study/
 ├── HRV_validity.R            # Statistical analysis and plot generation
 ├── validation_results.xlsx   # Raw validation results (generated)
 ├── all_validity_data.xlsx    # Complete validation dataset that R scripts analyzed
-└── validation_synthetic_ecg/ # Synthetic ECG data files and generation script
+├── validation_synthetic_ecg/ # Synthetic ECG data files and generation script
 └── fantasia_validation/      # Ground truth validation scripts and Fantasia data
 ```
 
