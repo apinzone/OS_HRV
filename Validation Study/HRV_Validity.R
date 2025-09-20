@@ -1,7 +1,3 @@
-# =============================================================================
-# HRV Pipeline Validation Analysis - Original Styling with Larger Fonts
-# ICC and Lin's CCC Analysis for ChronOS vs NeuroKit2
-# =============================================================================
 
 # Install required packages
 packages <- c("readxl", "irr", "BlandAltmanLeh", "ggplot2", "dplyr", "gridExtra", "DescTools", "extrafont")
@@ -121,7 +117,7 @@ for(metric_name in names(metrics)) {
 
 cat("\n")
 
-# Bland-Altman Analysis with Larger Fonts
+# Bland-Altman Analysis 
 cat("=== BLAND-ALTMAN ANALYSIS ===\n\n")
 
 # Plot 1 metrics (Time Domain)
@@ -185,10 +181,10 @@ for(i in 1:length(plot1_metrics)) {
         scale_y_continuous(expand = expansion(mult = c(0.05, 0.05))) +
         theme_classic() +
         theme(
-          plot.title = element_text(size = 18, face = "bold", family = "serif"),      # Increased from 14
-          plot.subtitle = element_text(size = 16, family = "serif"),                 # Increased from 12
-          axis.title = element_text(size = 16, family = "serif"),                    # Increased from 12
-          axis.text = element_text(size = 14, family = "serif"),                     # Increased from 12
+          plot.title = element_text(size = 18, face = "bold", family = "serif"),     
+          plot.subtitle = element_text(size = 16, family = "serif"),                 
+          axis.title = element_text(size = 16, family = "serif"),                    
+          axis.text = element_text(size = 14, family = "serif"),                    
           text = element_text(family = "serif")
         ) 
       
@@ -241,7 +237,6 @@ for(i in 1:length(plot2_metrics)) {
       
       ba_data <- data.frame(Mean = mean_vals, Difference = diff_vals)
       
-      # Original styling with LARGER FONTS
       p <- ggplot(ba_data, aes(x = Mean, y = Difference)) +
         geom_point(alpha = 0.9, size = 2.2, color = "black", shape = 1, stroke = 0.8) +
         geom_hline(yintercept = 0, color = "gray60", linetype = "dotted", size = 0.8) +
@@ -258,10 +253,10 @@ for(i in 1:length(plot2_metrics)) {
         scale_y_continuous(expand = expansion(mult = c(0.05, 0.05))) +
         theme_classic() +
         theme(
-          plot.title = element_text(size = 18, face = "bold", family = "serif"),      # Increased from 14
-          plot.subtitle = element_text(size = 16, family = "serif"),                 # Increased from 12
-          axis.title = element_text(size = 16, family = "serif"),                    # Increased from 12
-          axis.text = element_text(size = 14, family = "serif"),                     # Increased from 12
+          plot.title = element_text(size = 18, face = "bold", family = "serif"),      
+          plot.subtitle = element_text(size = 16, family = "serif"),             
+          axis.title = element_text(size = 16, family = "serif"),                    
+          axis.text = element_text(size = 14, family = "serif"),                   
           text = element_text(family = "serif")
         ) 
       
@@ -275,14 +270,14 @@ for(i in 1:length(plot2_metrics)) {
 
 cat("\n")
 
-# Optimized export for Word (PNG format for best compatibility)
+
 ggsave("Bland_Altman_Plot1_Word.png", 
        arrangeGrob(grobs = ba_plots_1, ncol = 2), 
        width = 12, height = 10, 
-       dpi = 300,           # 300 DPI for crisp Word display
+       dpi = 300,          
        bg = "white",
        units = "in",
-       type = "cairo")      # Cairo for crisp text rendering
+       type = "cairo")      
 
 ggsave("Bland_Altman_Plot2_Word.png", 
        arrangeGrob(grobs = ba_plots_2, ncol = 2), 
