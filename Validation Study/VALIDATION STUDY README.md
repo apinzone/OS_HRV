@@ -6,13 +6,13 @@ This directory contains all materials for the ChronOS validation study described
 
 ```
 Validation Study/
-├── README.md                  # This file
-├── batch_processor.py         # Combined ChronOS + NeuroKit2 validation
+├── README.md                 # This file
+├── batch_processor.py        # Combined ChronOS + NeuroKit2 validation
 ├── peak_diff.py              # Peak detection difference analyzer
 ├── HRV_validity.R            # Statistical analysis and plot generation
 ├── validation_results.xlsx   # Raw validation results (generated)
 ├── all_validity_data.xlsx    # Complete validation dataset that R scripts analyzed
-└── validation_synthetic_ecg/  # Synthetic ECG data files and generation script
+└── validation_synthetic_ecg/ # Synthetic ECG data files and generation script
 └── fantasia_validation/      # Ground truth validation scripts and Fantasia data
 ```
 
@@ -27,8 +27,9 @@ Validation Study/
 
 **`peak_diff.py`**
 - Peak difference analyzer that identifies physiologically implausible R-R intervals
-- Locates specific timestamps where peak detection algorithms disagree
-- Provides objective evidence of ChronOS's superior peak detection specificity
+- Locates specific timestamps where ChronOS' and NeuroKit2's peak detection algorithms diverge 
+- NeuroKit2 identified one additional R-peak in 10 synthethic ecg recordings (#s: 015, 041, 053, 055, 068, 073, 078, 082, 092, and 095)
+- Enabled visual inspection of ECG signals at these timestamps to confirm that NeuroKit2 mis-identified the R-peak in these recordings    due to its adaptive gradient-based approach to peak detection
 
 **`HRV_validity.R`**
 - Complete statistical analysis script that reproduces all validation results from the manuscript
