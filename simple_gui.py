@@ -215,11 +215,11 @@ st.markdown("""
 
     /* Professional glassmorphism header */
     .main-header {
-        background: linear-gradient(135deg, rgba(37, 99, 235, 0.95) 0%, rgba(79, 70, 229, 0.95) 100%) !important;
+        background: linear-gradient(135deg, rgba(209, 213, 219, 0.95) 0%, rgba(156, 163, 175, 0.95) 100%) !important;
         backdrop-filter: blur(20px);
         border: 1px solid var(--border);
         color: white !important;
-        padding: 2.5rem;
+        padding: 1rem;
         border-radius: 16px;
         margin-bottom: 2rem;
         box-shadow: var(--shadow-lg);
@@ -227,7 +227,7 @@ st.markdown("""
     }
     
     .main-header h1 {
-        color: white !important;
+        color: black !important;
         margin: 0;
         font-size: 2.5rem;
         font-weight: 700;
@@ -235,24 +235,24 @@ st.markdown("""
     }
     
     .main-header p {
-        color: rgba(255, 255, 255, 0.9) !important;
+        color: b !important;
         margin: 0.5rem 0 0 0;
         font-size: 1.2rem;
     }
     
     .version-info {
-        color: rgba(255, 255, 255, 0.8) !important;
-        font-size: 1.1rem;
-        margin-top: 0.5rem;
-    }
+            color: black !important;
+            font-size: 1.1rem;
+            margin-top: 0.5rem;
+        }
     
     /* Footer Rules */
     .footer-section {
-        color: white !important;
+        color: black !important;
     }
 
     .footer-section * {
-        color: white !important;
+        color: black !important;
     }
     
     /* Clean status container */
@@ -513,17 +513,16 @@ def show_professional_header():
     st.markdown("""
     <div class="main-header">
         <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
-            <div style="width: 115px; height: 115px; margin-right: 10px;">
+            <div style="width: 200px; height: 200px; margin-right: 10px;">
                 <img src="data:image/png;base64,{}" 
                      style="width: 100%; height: 100%; object-fit: contain;" 
                      alt="ChronOS Logo"/>
             </div>
-            <h1 style="margin: 0; font-size: 48px;">ChronOS</h1>
         </div>
-        <p>Professional HRV & Baroreflex Sensitivity Analysis Platform</p>
-        <div class="version-info">Version 1.4 | Advanced Peak Detection | HRV and BRS Analysis</div>
+        <p style="color: black;">Professional HRV & Baroreflex Sensitivity Analysis Platform</p>
+        <div class="version-info" style="color: black;">Version 1.4 | Advanced Peak Detection | HRV and BRS Analysis</div>
     </div>
-    """.format(get_base64_of_image("logo.png")), unsafe_allow_html=True)
+    """.format(get_base64_of_image("logo_1.png")), unsafe_allow_html=True)
 
 def get_base64_of_image(path):
     """Convert image to base64 string for embedding in HTML"""
@@ -3057,14 +3056,14 @@ else:
 # Professional footer
 st.markdown("---")
 st.markdown(f"""
-<div class="footer-section" style="text-align: center; padding: 2rem; background: linear-gradient(135deg, rgba(37, 99, 235, 0.95) 0%, rgba(79, 70, 229, 0.95) 100%); 
+<div class="footer-section" style="text-align: center; padding: 2rem; background: linear-gradient(135deg, rgba(209, 213, 219, 0.95) 0%, rgba(156, 163, 175, 0.95) 100%); 
            border: 1px solid rgba(0, 0, 0, 0.7); border-radius: 10px; margin-top: 2rem; display: flex; align-items: center; justify-content: center;">
     <div style="display: flex; align-items: center; gap: 15px;">
-        <img src="data:image/png;base64,{get_base64_of_image("logo.png")}" 
-             style="width: 55px; height: 55px; object-fit: contain;" 
+        <img src="data:image/png;base64,{get_base64_of_image("logo_1.png")}" 
+             style="width: 100px; height: 100px; object-fit: contain;" 
              alt="ChronOS Logo"/>
         <div>
-            <p style="margin: 0; font-size: 0.9rem;">
+            <p style="margin: 0; font-size: 0.9rem; color: black !important;">
                 <strong>ChronOS v1.4</strong> | Professional HRV & BRS Analysis Platform<br>
                 Built with Streamlit • Enhanced User Experience • Advanced Peak Detection • Time Window Selection
             </p>
