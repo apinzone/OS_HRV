@@ -219,7 +219,6 @@ st.markdown("""
         backdrop-filter: blur(20px);
         border: 1px solid var(--border);
         color: white !important;
-        padding: 1rem;
         border-radius: 16px;
         margin-bottom: 2rem;
         box-shadow: var(--shadow-lg);
@@ -227,7 +226,7 @@ st.markdown("""
     }
     
     .main-header h1 {
-        color: black !important;
+        color: white !important;
         margin: 0;
         font-size: 2.5rem;
         font-weight: 700;
@@ -414,9 +413,52 @@ st.markdown("""
     footer {visibility: hidden;}
     header {visibility: hidden;}
     
-    /* Force all text to use our color scheme */
-    h1, h2, h3, h4, h5, h6 { color: var(--text) !important; }
-    p, span, div, label { color: var(--text) !important; }
+    /* Force all text to use our color scheme - except welcome panel, header, and quickstart */
+    h1:not(.welcome-panel h1):not(.welcome-panel h2):not(.chronos-header h1):not(.quickstart-panel h1):not(.quickstart-panel h2), 
+    h2:not(.welcome-panel h2):not(.chronos-header h2):not(.quickstart-panel h2), 
+    h3, h4, h5, h6 { color: var(--text) !important; }
+
+    p:not(.welcome-panel p):not(.chronos-header p):not(.quickstart-panel p), 
+    span:not(.welcome-panel span):not(.chronos-header span):not(.quickstart-panel span), 
+    div:not(.welcome-panel div):not(.chronos-header div):not(.quickstart-panel div), 
+    label { color: var(--text) !important; }
+            
+    /* Header text must be white - override all other rules */
+    .chronos-header, 
+    .chronos-header * {
+        color: white !important;
+    }
+
+    .chronos-header h1 {
+        color: white !important;
+        text-align: right !important;
+        width: 100% !important;
+    }
+
+    .chronos-header p {
+        color: white !important;
+        text-align: right !important;
+        max-width: 80% !important;
+    }
+            
+    /* Welcome panel text override - force header blue */
+    .welcome-panel h2,
+    .welcome-panel h2 sup {
+        color: rgb(18, 48, 117) !important;
+    }
+
+    .welcome-panel p {
+        color: rgb(31, 31, 31) !important;
+    }
+
+    /* Quick Start panel text override - force red title and white numbers */
+    .quickstart-panel h2 {
+        color: rgb(220, 28, 28) !important;
+    }
+
+    .quickstart-panel span {
+        color: rgb(255, 255, 255) !important;
+    }           
 </style>
 """, unsafe_allow_html=True)
 
@@ -509,20 +551,38 @@ def _band_fill(ax, f, y, lo, hi, *, scale=1.0, facecolor="#cccccc", alpha=0.4, l
     return legend_patch
 
 def show_professional_header():
-    """Display header with PNG logo"""
+    """Display header with PNG logo - Designer's exact specifications"""
+    # Import DM Sans font
     st.markdown("""
-    <div class="main-header">
-        <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
-            <div style="width: 200px; height: 200px; margin-right: 10px;">
-                <img src="data:image/png;base64,{}" 
-                     style="width: 100%; height: 100%; object-fit: contain;" 
-                     alt="ChronOS Logo"/>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;700&display=swap" rel="stylesheet">
+    """, unsafe_allow_html=True)
+    
+    st.markdown(f"""
+    <div class="chronos-header" style="background: linear-gradient(90deg, rgb(18,48,117) 0%, rgb(9,32,86) 100%); 
+                padding: 1.5rem 3rem; 
+                margin: -5rem -5rem 2rem -5rem;
+                box-shadow: 0px 4px 20px 0px rgba(0, 0, 0, 0.1);
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                min-height: 180px;
+                width: 100vw;
+                position: relative;
+                left: 50%;
+                right: 50%;
+                margin-left: -50vw;
+                margin-right: -50vw;">
+        <div style="display: flex; align-items: center; gap: 30px; flex: 1; max-width: 1400px; margin: 0 auto;">
+            <img src="data:image/png;base64,{get_base64_of_image("logo_1.png")}" 
+                 style="width: 250px; height: 225px; object-fit: contain;" 
+                 alt="ChronOS Logo"/>
+            <div style="flex: 1; display: flex; flex-direction: column; align-items: flex-end;">
+                <h1 style="margin: 0; font-size: 28px; font-family: 'DM Sans', sans-serif; font-weight: normal; text-transform: uppercase; line-height: 1.2; text-align: right; width: 100%;">PROFESSIONAL HRV & BAROREFLEX SENSITIVITY ANALYSIS PLATFORM</h1>
+                <p style="margin: 0.5rem 0 0 0; font-size: 20px; font-family: 'DM Sans', sans-serif; line-height: 1.9; text-align: right; max-width: 85%;">Version 1.4 | Advanced Peak Detection | HRV and BRS Analysis</p>
             </div>
         </div>
-        <p style="color: black;">Professional HRV & Baroreflex Sensitivity Analysis Platform</p>
-        <div class="version-info" style="color: black;">Version 1.4 | Advanced Peak Detection | HRV and BRS Analysis</div>
     </div>
-    """.format(get_base64_of_image("logo_1.png")), unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
 def get_base64_of_image(path):
     """Convert image to base64 string for embedding in HTML"""
@@ -3000,74 +3060,191 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
                     st.session_state.analysis_started = False
                     st.error(f"❌ Analysis failed: {str(e)}")
 
-# Case 3: No file loaded - Enhanced welcome screen
+# Case 3: No file loaded - Enhanced welcome screen with designer's exact specifications
 else:
-    # Professional welcome message
-    st.markdown("""
-    <div class="window-info">
-        <h3 style="margin: 0;">⌚ Welcome to ChronOS</h3>
-        <p style="margin: 0.5rem 0 0 0;">Upload an ACQ or EDF file using the sidebar to begin analysis of physiological signals</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Enhanced feature showcase
-    col1, col2 = st.columns([1, 1])
-
-    with col1:
-        st.markdown("""
-        <div class="metric-card">
-            <h3>Platform Capabilities</h3>
-            <ul style="margin: 0; padding-left: 1.2rem; line-height: 1.6;">
-                <li><strong>File Format Support:</strong> ACQ (AcqKnowledge) and EDF files</li>
-                <li><strong>Channel Configuration:</strong> Flexible channel selection</li>
-                <li><strong>Analysis Window:</strong> Customizable time segments for focused analysis</li>
-                <li><strong>Peak Detection:</strong> Adaptive parameter scaling with options for manual user adjustment</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
+    # Create the layout: Left column (2x2 grid) and Right column (full height Quick Start)
+    col_left, col_right = st.columns([1.4, 1])
+    
+    with col_left:
+        # Panel 1: Welcome to ChronOS - full width at top with background image
+        st.markdown(f"""
+            <div class="welcome-panel" style="background-image: url('data:image/png;base64,{get_base64_of_image("Background.png")}');
+                        background-size: cover;
+                        background-position: center;
+                        background-repeat: no-repeat;
+                        border: 1px solid rgb(255, 255, 255);
+                        border-radius: 10px;
+                        padding: 2rem; 
+                        margin-bottom: 1.5rem;">
+                <h2 style="color: rgb(18, 48, 117) !important;
+                        margin-top: 0; 
+                        font-size: 30px;
+                        font-family: 'DM Sans', sans-serif;
+                        font-weight: bold;
+                        text-transform: uppercase;
+                        line-height: 1.6;
+                        text-shadow: 19.799px 19.799px 40px rgba(0, 0, 0, 0.1);">
+                    WELCOME TO CHRON<sup>OS</sup>
+                </h2>
+                <p style="color: rgb(18, 48, 117) !important;
+                        font-size: 24px;
+                        font-family: 'DM Sans', sans-serif;
+                        line-height: 1.25; 
+                        margin-bottom: 0;">
+                    Upload an ACQ, EDF, or CSV file using the sidebar to begin analysis of physiological signals
+                </p>
+            </div>
+""", unsafe_allow_html=True)
         
+        # Create two columns for Platform Capabilities and Analysis Methods
+        subcol1, subcol2 = st.columns(2)
+        
+        with subcol1:
+            # Panel 2: Platform Capabilities
+            st.markdown("""
+            <div style="background-color: rgb(255, 255, 255);
+                        border: 1px solid rgb(221, 223, 231);
+                        border-radius: 10px;
+                        padding: 1.5rem; 
+                        min-height: 586px;">
+                <h3 style="color: rgb(61, 61, 61); 
+                           margin-top: 0; 
+                           font-size: 20px;
+                           font-family: 'DM Sans', sans-serif;
+                           font-weight: bold;
+                           text-transform: uppercase;
+                           line-height: 1.4;
+                           margin-bottom: 1rem;">
+                    PLATFORM CAPABILITIES
+                </h3>
+                <ul style="margin: 0; 
+                           padding-left: 1.5rem; 
+                           line-height: 1.6; 
+                           color: rgb(31, 31, 31);
+                           font-size: 14px;
+                           font-family: 'DM Sans', sans-serif;
+                           font-weight: bold;">
+                    <li style="margin-bottom: 0.5rem;"><strong>File Format Support:</strong> ACQ, EDF, and CSV Files</li>
+                    <li style="margin-bottom: 0.5rem;"><strong>Channel Configuration:</strong> Flexible selection</li>
+                    <li style="margin-bottom: 0.5rem;"><strong>Analysis Window:</strong> Customizable time segments</li>
+                    <li><strong>Peak Detection:</strong> Adaptive parameters</li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with subcol2:
+            # Panel 3: Analysis Methods
+            st.markdown(f"""
+            <div style="background-color: rgb(255, 255, 255);
+                        border: 1px solid rgb(221, 223, 231);
+                        border-radius: 10px;
+                        padding: 1.5rem;
+                        min-height: 586px;
+                        position: relative;">
+                <img src="data:image/png;base64,{get_base64_of_image("ecg_clip.png")}" 
+                    style="position: absolute; 
+                            left: 0; 
+                            top: 60px; 
+                            width: 60px; 
+                            height: auto; 
+                            opacity: 0.3;
+                            z-index: 0;" 
+                    alt="ECG Clip"/>
+                <div style="position: relative; z-index: 1;">
+                    <h3 style="color: rgb(61, 61, 61); 
+                            margin-top: 0; 
+                            font-size: 20px;
+                            font-family: 'DM Sans', sans-serif;
+                            font-weight: bold;
+                            text-transform: uppercase;
+                            line-height: 1.4;
+                            margin-bottom: 1rem;">
+                        ANALYSIS METHODS
+                    </h3>
+                    <ul style="margin: 0; 
+                            padding-left: 1.5rem; 
+                            line-height: 1.6; 
+                            color: rgb(31, 31, 31);
+                            font-size: 14px;
+                            font-family: 'DM Sans', sans-serif;
+                            font-weight: bold;">
+                        <li style="margin-bottom: 0.5rem;"><strong>Time Domain:</strong> RMSSD, SDNN, pNN50</li>
+                        <li style="margin-bottom: 0.5rem;"><strong>Nonlinear:</strong> Poincaré, Sample Entropy</li>
+                        <li style="margin-bottom: 0.5rem;"><strong>Frequency Domain:</strong> VLF, LF, HF</li>
+                        <li><strong>Baroreflex:</strong> Sequence and spectral</li>
+                    </ul>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    with col_right:
+        # Panel 4: Quick Start
         st.markdown("""
-        <div class="metric-card">
-            <h3>Analysis Methods</h3>
-            <ul style="margin: 0; padding-left: 1.2rem; line-height: 1.6;">
-                <li><strong>Time Domain:</strong> RMSSD, SDNN, pNN50</li>
-                <li><strong>Nonlinear:</strong> Poincaré analysis (SD1 and SD2), Sample Entropy</li>
-                <li><strong>Frequency Domain:</strong> VLF, LF, HF power spectral analysis</li>
-                <li><strong>Baroreflex Sensitivity:</strong> Sequence and spectral methods</li>
-            </ul>
+<div class="quickstart-panel" style="background-color: white; border: 1px solid #ddd; border-radius: 10px; padding: 2rem; min-height: 550px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+    <div style="width: 167px; height: 6px; background-color: black; margin: 0 auto 1.5rem;"></div>
+    <h2 style="text-align: center; font-family: 'DM Sans', sans-serif; font-size: 30px; margin-bottom: 2rem; text-transform: uppercase; font-weight: bold;">QUICK START</h2>
+    <div style="text-align: center;">
+        <div style="margin-bottom: 2.5rem;">
+            <div style="background: linear-gradient(135deg, rgb(220,28,28), rgb(180,18,18)); border-radius: 18px; width: 37px; height: 37px; margin: 0 auto 0.5rem; line-height: 37px;">
+                <span style="font-size: 24px; font-weight: bold;">1</span>
+            </div>
+            <p style="color: rgb(31, 31, 31); font-size: 16px; margin: 0; font-family: 'DM Sans', sans-serif;">Upload ACQ, EDF, or CSV file</p>
         </div>
-        """, unsafe_allow_html=True)
-
-    with col2:
-        st.markdown("""
-        <div class="metric-card">
-            <h3>Quick Start</h3>
-            <ol style="margin: 0; padding-left: 1.2rem; line-height: 1.6;">
-                <li>Upload ACQ or EDF file</li>
-                <li>Select ECG and BP channels</li>
-                <li>Configure analysis parameters</li>
-                <li>Preview peak detection</li>
-                <li>Run comprehensive analysis</li>
-                <li>Generate visualizations and export results</li>
-            </ol>
+        <div style="margin-bottom: 2.5rem;">
+            <div style="background: linear-gradient(135deg, rgb(220,28,28), rgb(180,18,18)); border-radius: 18px; width: 37px; height: 37px; margin: 0 auto 0.5rem; line-height: 37px;">
+                <span style="font-size: 24px; font-weight: bold;">2</span>
+            </div>
+            <p style="color: rgb(31, 31, 31); font-size: 16px; margin: 0; font-family: 'DM Sans', sans-serif;">Select ECG and BP channels</p>
         </div>
+        <div style="margin-bottom: 2.5rem;">
+            <div style="background: linear-gradient(135deg, rgb(220,28,28), rgb(180,18,18)); border-radius: 18px; width: 37px; height: 37px; margin: 0 auto 0.5rem; line-height: 37px;">
+                <span style="font-size: 24px; font-weight: bold;">3</span>
+            </div>
+            <p style="color: rgb(31, 31, 31); font-size: 16px; margin: 0; font-family: 'DM Sans', sans-serif;">Configure analysis parameters</p>
+        </div>
+        <div style="margin-bottom: 2.5rem;">
+            <div style="background: linear-gradient(135deg, rgb(220,28,28), rgb(180,18,18)); border-radius: 18px; width: 37px; height: 37px; margin: 0 auto 0.5rem; line-height: 37px;">
+                <span style="font-size: 24px; font-weight: bold;">4</span>
+            </div>
+            <p style="color: rgb(31, 31, 31); font-size: 16px; margin: 0; font-family: 'DM Sans', sans-serif;">Preview peak detection</p>
+        </div>
+        <div style="margin-bottom: 2.5rem;">
+            <div style="background: linear-gradient(135deg, rgb(220,28,28), rgb(180,18,18)); border-radius: 18px; width: 37px; height: 37px; margin: 0 auto 0.5rem; line-height: 37px;">
+                <span style="font-size: 24px; font-weight: bold;">5</span>
+            </div>
+            <p style="color: rgb(31, 31, 31); font-size: 16px; margin: 0; font-family: 'DM Sans', sans-serif;">Run comprehensive analysis</p>
+        </div>
+        <div>
+            <div style="background: linear-gradient(135deg, rgb(220,28,28), rgb(180,18,18)); border-radius: 18px; width: 37px; height: 37px; margin: 0 auto 0.5rem; line-height: 37px;">
+                <span style="font-size: 24px; font-weight: bold;">6</span>
+            </div>
+            <p style="color: rgb(31, 31, 31); font-size: 16px; margin: 0; font-family: 'DM Sans', sans-serif;">Generate visualizations and export result</p>
+        </div>
+    </div>
+</div>
         """, unsafe_allow_html=True)
 
 # Professional footer
-st.markdown("---")
-st.markdown(f"""
-<div class="footer-section" style="text-align: center; padding: 2rem; background: linear-gradient(135deg, rgba(209, 213, 219, 0.95) 0%, rgba(156, 163, 175, 0.95) 100%); 
-           border: 1px solid rgba(0, 0, 0, 0.7); border-radius: 10px; margin-top: 2rem; display: flex; align-items: center; justify-content: center;">
-    <div style="display: flex; align-items: center; gap: 15px;">
-        <img src="data:image/png;base64,{get_base64_of_image("logo_1.png")}" 
-             style="width: 100px; height: 100px; object-fit: contain;" 
-             alt="ChronOS Logo"/>
-        <div>
-            <p style="margin: 0; font-size: 0.9rem; color: black !important;">
-                <strong>ChronOS v1.4</strong> | Professional HRV & BRS Analysis Platform<br>
-                Built with Streamlit • Enhanced User Experience • Advanced Peak Detection • Time Window Selection
-            </p>
-        </div>
-    </div>
+st.markdown("""
+<hr style="border: none; 
+           border-top: 2px solid rgb(18, 48, 117); 
+           margin: 2rem 0 1rem 0; 
+           width: 100%;">
+<div class="footer-section" style="text-align: center; 
+                                   padding: 0; 
+                                   margin-top: 0;">
+    <div style="background-color: rgb(255, 255, 255);
+                width: 50%;
+                height: 14px;
+                margin: 0 auto 1rem auto;"></div>
+    <p style="margin: 0; 
+              font-size: 16px; 
+              font-family: 'DM Sans', sans-serif;
+              color: rgb(37, 37, 37) !important;
+              line-height: 1.875;
+              text-align: center;">
+        <strong>ChronOS v1.4</strong> | Professional HRV & BRS Analysis Platform<br>
+        Built with Streamlit • Enhanced User Experience • Advanced Peak Detection • Time Window Selection
+    </p>
 </div>
 """, unsafe_allow_html=True)
