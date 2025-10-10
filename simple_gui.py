@@ -587,7 +587,14 @@ def show_professional_header():
 def get_base64_of_image(path):
     """Convert image to base64 string for embedding in HTML"""
     import base64
-    with open(path, "rb") as img_file:
+    # Look in assets folder
+    filepath = os.path.join("assets", path)
+    
+    # Fallback to current directory if not in assets
+    if not os.path.exists(filepath):
+        filepath = path
+    
+    with open(filepath, "rb") as img_file:
         return base64.b64encode(img_file.read()).decode()
     
 def show_analysis_status():
