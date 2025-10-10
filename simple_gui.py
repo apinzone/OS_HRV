@@ -576,9 +576,9 @@ def show_professional_header():
             <img src="data:image/png;base64,{get_base64_of_image("logo_1.png")}" 
                  style="width: 250px; height: 225px; object-fit: contain;" 
                  alt="ChronOS Logo"/>
-            <div style="flex: 1; display: flex; flex-direction: column; align-items: flex-end;">
-                <h1 style="margin: 0; font-size: 28px; font-family: 'DM Sans', sans-serif; font-weight: normal; text-transform: uppercase; line-height: 1.2; text-align: right; width: 100%;">PROFESSIONAL HRV & BAROREFLEX SENSITIVITY ANALYSIS PLATFORM</h1>
-                <p style="margin: 0.5rem 0 0 0; font-size: 20px; font-family: 'DM Sans', sans-serif; line-height: 1.9; text-align: right; max-width: 85%;">Version 1.4 | Advanced Peak Detection | HRV and BRS Analysis</p>
+            <div style="flex: 1; text-align: right;">
+                <h1 style="margin: 0; font-size: 28px; font-family: 'DM Sans', sans-serif; font-weight: normal; text-transform: uppercase; line-height: 1.2;">PROFESSIONAL HRV & BAROREFLEX SENSITIVITY ANALYSIS PLATFORM</h1>
+                <p style="margin: 0.5rem 0 0 0; font-size: 20px; font-family: 'DM Sans', sans-serif; line-height: 1.9;">Version 1.4 | Advanced Peak Detection | HRV and BRS Analysis</p>
             </div>
         </div>
     </div>
@@ -3060,7 +3060,7 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
                     st.session_state.analysis_started = False
                     st.error(f"❌ Analysis failed: {str(e)}")
 
-# Case 3: No file loaded - Enhanced welcome screen with designer's exact specifications
+# Case 3: No file loaded 
 else:
     # Create the layout: Left column (2x2 grid) and Right column (full height Quick Start)
     col_left, col_right = st.columns([1.4, 1])
