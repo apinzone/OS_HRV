@@ -137,6 +137,7 @@ ChronOS employs signal-specific parameter calculation rather than fixed threshol
 │   ├── peak_diff.py         # Peak detection difference analyzer
 │   ├── HRV_validity.R       # Statistical analysis and plot generation
 │   └── fantasia_validation/ # Ground truth validation scripts
+├── asssets/                 # Cosmetic images employed in the gui 
 ├── test_data/               # Sample physiological data files (including test files with noise and ectopics)
 └── requirements.txt         # Python dependencies
 ```
