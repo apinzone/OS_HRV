@@ -95,7 +95,14 @@ except ImportError:
 import base64
 def get_page_icon():
     try:
-        with open("logo.png", "rb") as f:
+        import os
+        filepath = os.path.join("assets", "logo.png")
+        
+        # Fallback to current directory if not in assets
+        if not os.path.exists(filepath):
+            filepath = "logo.png"
+            
+        with open(filepath, "rb") as f:
             data = base64.b64encode(f.read()).decode()
         return f"data:image/png;base64,{data}"
     except:
