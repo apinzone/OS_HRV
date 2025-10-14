@@ -790,7 +790,7 @@ with st.sidebar:
     # Enhanced file upload with EDF support (CHANGE 2)
     if EDF_AVAILABLE:
         file_types = ["acq", "edf", "csv"]
-        help_text = "Upload your ACQ file (AcqKnowledge) or EDF file (European Data Format) containing ECG and blood pressure data"
+        help_text = "Upload your ACQ (AcqKnowledge), EDF (European Data Format), or CSV file containing ECG and blood pressure data"
     else:
         file_types = ["acq", "csv"]
         help_text = "Upload your ACQ file containing ECG and blood pressure data. For EDF support, install pyedflib: pip install pyedflib"
@@ -810,7 +810,7 @@ with st.sidebar:
             file_info = f"**File:** {uploaded_file.name}\n\n**Size:** {uploaded_file.size / 1024:.1f} KB\n\n**Type:** {file_ext.upper()}"  # CHANGE 3
             st.info(file_info)
             
-            if st.button("🔄 Load File", type="primary", use_container_width=True):
+            if st.button("Load File", type="primary", use_container_width=True):
                 with st.spinner(f"Loading {file_ext.upper()} file and detecting channels..."):  # CHANGE 3
                     try:
                         # Save uploaded file temporarily (CHANGE 4)
@@ -1238,7 +1238,7 @@ with st.sidebar:
                 st.session_state.ecg_reset_counter = 0
 
             # Restore Defaults Button
-            if st.button("🔄 Restore ECG Defaults", help="Reset sliders to calculated optimal values", key="restore_ecg"):
+            if st.button("Restore ECG Defaults", help="Reset sliders to calculated optimal values", key="restore_ecg"):
                 # Clear sensitive parameters
                 for key in ['apply_sensitive', 'sensitive_height', 'sensitive_distance_ms', 'sensitive_prominence']:
                     if key in st.session_state:
@@ -1373,7 +1373,7 @@ with st.sidebar:
         }
 
         # Enhanced preview button
-        if st.button("🔍 Preview Detection", use_container_width=True, type="secondary"):
+        if st.button("Preview Detection", use_container_width=True, type="secondary"):
             with st.spinner("Updating preprocessing and peak detection..."):
                 try:
                     # First, reapply current preprocessing settings to configured channels
@@ -1433,7 +1433,18 @@ with st.sidebar:
 
         st.markdown('</div>', unsafe_allow_html=True)
         
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("## 🔄 Session")
 
+    if st.session_state.get('analyzed', False) or st.session_state.get('file_loaded', False):
+        if st.sidebar.button("📁 Start New Analysis", 
+                            type="primary",
+                            use_container_width=True,
+                            help="Clear current file and begin fresh"):
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            st.session_state.analyzer = CardiovascularAnalyzer()
+            st.rerun()
 # ============================================================================
 # MAIN CONTENT AREA
 # ============================================================================
