@@ -2711,89 +2711,77 @@ elif st.session_state.file_loaded and st.session_state.channels_configured and s
     bp_peaks = st.session_state.analyzer.bp_data.get('peaks', [])
     bp_time_data = st.session_state.analyzer.bp_data.get('time', [])
 
-    if (len(bp_peaks) > 1) or (len(bp_time_data) > 0):
-        create_professional_plot_header("🩸 BP Peak Detection Preview")
-        
-        if len(bp_peaks) > 1:
-            systolic_values = st.session_state.analyzer.bp_data.get('systolic', [])
-            
-            if len(systolic_values) > 0:
-                metric_col1, metric_col2 = st.columns(2)
-                with metric_col1:
-                    st.metric("📈 Systolic Peaks", len(bp_peaks))
-                with metric_col2:
-                    st.metric("🩸 Mean Systolic", f"{np.mean(systolic_values):.1f} mmHg")
-        
+
         # Enhanced BP preview plot
-        if len(bp_time_data) > 0:
-            fig = go.Figure()
-            
-            fig.add_trace(go.Scatter(
-                x=bp_time_data,
-                y=st.session_state.analyzer.bp_data['raw'],
-                mode='lines',
-                name='Blood Pressure',
-                line=dict(color='#e74c3c', width=1),
-                opacity=0.8
-            ))
-            
-            # Add detected peaks
-            if len(bp_peaks) > 0:
-                valid_peaks = [p for p in bp_peaks if p < len(bp_time_data)]
-                if len(valid_peaks) > 0:
-                    fig.add_trace(go.Scatter(
-                        x=[bp_time_data[p] for p in valid_peaks],
-                        y=[st.session_state.analyzer.bp_data['raw'][p] for p in valid_peaks],
-                        mode='markers',
-                        name=f'Systolic Peaks (n={len(valid_peaks)})',
-                        marker=dict(color='#27ae60', size=6, symbol='circle')
-                    ))
-            
-            # Highlight analysis window
-            if 'time_window' in st.session_state:
-                tw = st.session_state.time_window
-                fig.add_vrect(
-                    x0=tw['start_time'], x1=tw['end_time'],
-                    fillcolor="rgba(255, 193, 7, 0.3)", opacity=0.3,
-                    annotation_text=f"Analysis Window ({tw['duration']:.0f}s)", 
-                    annotation_position="top left"
-                )
-            
-            duration_min = bp_time_data[-1] / 60 if len(bp_time_data) > 0 else 0
-            
-            fig.update_layout(
-                title=dict(
-                    text=f'BP Peak Detection - Full Recording ({duration_min:.1f} min) - {len(bp_peaks)} systolic peaks detected',
-                    font=dict(size=18, color='black', family='Inter'),
-                    x=0.5,
-                    xanchor='center'
-                ),
-                xaxis=dict(
-                    title=dict(text='Time (s)', font=dict(size=14, color='black', family='Inter')),
-                    tickfont=dict(size=12, color='black', family='Inter'),
-                    gridcolor='rgba(0,0,0,0.1)',
-                    showgrid=True,
-                    zeroline=False
-                ),
-                yaxis=dict(
-                    title=dict(text='Blood Pressure (mmHg)', font=dict(size=14, color='black', family='Inter')),
-                    tickfont=dict(size=12, color='black', family='Inter'),
-                    gridcolor='rgba(0,0,0,0.1)',
-                    showgrid=True,
-                    zeroline=False
-                ),
-                height=400,
-                showlegend=False,
-                hovermode='x unified',
-                plot_bgcolor='white',
-                paper_bgcolor='white',
-                margin=dict(l=10, r=10, t=50, b=10),
-                font=dict(family='Inter', size=12, color='black')
-            )
-            
-            st.plotly_chart(fig, use_container_width=True)
+    if len(bp_time_data) > 0:
+        fig = go.Figure()
         
-        close_plot_section()
+        fig.add_trace(go.Scatter(
+            x=bp_time_data,
+            y=st.session_state.analyzer.bp_data['raw'],
+            mode='lines',
+            name='Blood Pressure',
+            line=dict(color='#e74c3c', width=1),
+            opacity=0.8
+        ))
+        
+        # Add detected peaks
+        if len(bp_peaks) > 0:
+            valid_peaks = [p for p in bp_peaks if p < len(bp_time_data)]
+            if len(valid_peaks) > 0:
+                fig.add_trace(go.Scatter(
+                    x=[bp_time_data[p] for p in valid_peaks],
+                    y=[st.session_state.analyzer.bp_data['raw'][p] for p in valid_peaks],
+                    mode='markers',
+                    name=f'Systolic Peaks (n={len(valid_peaks)})',
+                    marker=dict(color='#27ae60', size=6, symbol='circle')
+                ))
+        
+        # Highlight analysis window
+        if 'time_window' in st.session_state:
+            tw = st.session_state.time_window
+            fig.add_vrect(
+                x0=tw['start_time'], x1=tw['end_time'],
+                fillcolor="rgba(255, 193, 7, 0.3)", opacity=0.3,
+                annotation_text=f"Analysis Window ({tw['duration']:.0f}s)", 
+                annotation_position="top left"
+            )
+        
+        duration_min = bp_time_data[-1] / 60 if len(bp_time_data) > 0 else 0
+        
+        fig.update_layout(
+            title=dict(
+                text=f'BP Peak Detection - Full Recording ({duration_min:.1f} min) - {len(bp_peaks)} systolic peaks detected',
+                font=dict(size=18, color='black', family='Inter'),
+                x=0.5,
+                xanchor='center'
+            ),
+            xaxis=dict(
+                title=dict(text='Time (s)', font=dict(size=14, color='black', family='Inter')),
+                tickfont=dict(size=12, color='black', family='Inter'),
+                gridcolor='rgba(0,0,0,0.1)',
+                showgrid=True,
+                zeroline=False
+            ),
+            yaxis=dict(
+                title=dict(text='Blood Pressure (mmHg)', font=dict(size=14, color='black', family='Inter')),
+                tickfont=dict(size=12, color='black', family='Inter'),
+                gridcolor='rgba(0,0,0,0.1)',
+                showgrid=True,
+                zeroline=False
+            ),
+            height=400,
+            showlegend=False,
+            hovermode='x unified',
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            margin=dict(l=10, r=10, t=50, b=10),
+            font=dict(family='Inter', size=12, color='black')
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+    
+    close_plot_section()
 
     # Enhanced RR Interval Tachogram Preview
     if len(peaks) > 1 and 'rr_intervals' in st.session_state.analyzer.ecg_data:
