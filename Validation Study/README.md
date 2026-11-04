@@ -1,185 +1,79 @@
 # ChronOS Validation Study
 
-This directory contains all materials for the ChronOS validation study described in "Validation of ChronOS: A Free, Open-Source Python Tool for Physiological Peak Detection and Heart Rate Variability Analysis." The validation employs both ground truth validation against expert-annotated ECG data and criterion validation comparing ChronOS HRV analysis against NeuroKit2.
+Data, scripts, and results for the validation reported in the manuscript "A Proof-of-Concept Validation of ChronOS: A Free, Open-Source Python Tool for Physiological Peak Detection and Heart Rate Variability Analysis."
 
-## Directory Structure
+Three analyses are included:
 
-```
-Validation Study/
-├── README.md                 # This file
-├── batch_processor.py        # Combined ChronOS + NeuroKit2 validation
-├── peak_diff.py              # Peak detection difference analyzer
-├── HRV_validity.R            # Statistical analysis and plot generation
-├── validation_results.xlsx   # Raw validation results (generated)
-├── all_validity_data.xlsx    # Complete validation dataset that R scripts analyzed
-├── validation_synthetic_ecg/ # Synthetic ECG data files and generation script
-└── fantasia_validation/      # Ground truth validation scripts and Fantasia data
-```
+1. R-peak detection accuracy against expert annotations (Fantasia database, record f1y01).
+2. Agreement of ChronOS HRV metrics with NeuroKit2 on 100 synthetic ECG recordings.
+3. Agreement of ChronOS HRV metrics with Kubios HRV Scientific Lite (v4.3) on the same synthetic recordings and on 10 Fantasia segments.
 
-## Files and Purpose
+## Layout
 
-### Core Analysis Scripts
+### `Data_and_Results/`
 
-**`batch_processor.py`**
-- Combined validation processor that runs both ChronOS and NeuroKit2 analysis on identical synthetic ECG files
-- Outputs results to separate Excel tabs for direct comparison
-- Uses ChronOS adaptive peak detection vs NeuroKit2 default algorithms
+| Folder | Contents |
+|---|---|
+| `validation_synthetic_ecg/` | 100 synthetic ECG recordings (`.edf`, 300 s, 256 Hz). |
+| `fantasia_validation/` | Fantasia records f1y01-f1y05 (`.dat`, `.hea`, `.ecg`) and the f1y01 ground-truth annotations. |
+| `fantasia_segments/` | Ten EDF segments cut from f1y01-f1y05 (two per record), segment summary and truth files, and R-peak detection scores for height factors 0.55 and 0.60. |
+| `fantasia_segments/chronos_export/` | ChronOS output for the segments at the default settings (R-R series, peak times, metrics). |
+| `fantasia_segments/chronos_export_60/` | Same, with the adjusted height factor (0.60). |
+| `Kubios Validation/` | Synthetic data: ChronOS R-R series (`Inputs/`), Kubios output (`Outputs/`), and the collated Kubios results. |
+| `Kubios Fantasia/` | Fantasia segments: ChronOS R-R series (`Input/`) and Kubios output (`Output/`). |
+| `Results/Collated/` | ChronOS, NeuroKit2, and Kubios metrics merged into workbooks for statistical analysis. `all_validity_data.xlsx` is the synthetic-data workbook read by the R scripts. |
+| `Results/Raw/` | Fantasia metric workbooks and Kubios results before collation. |
+| `Results/ICC_CCC_Bland_Altman/` | ICC, CCC, and Bland-Altman statistics (CSV) behind the manuscript tables. |
 
-**`peak_diff.py`**
-- Peak difference analyzer that identifies physiologically implausible R-R intervals
-- Locates specific timestamps where ChronOS' and NeuroKit2's peak detection algorithms diverge 
-- NeuroKit2 identified one additional R-peak in 10 synthethic ecg recordings (#s: 015, 041, 053, 055, 068, 073, 078, 082, 092, and 095)
-- Enabled visual inspection of ECG signals at these timestamps to confirm that NeuroKit2 mis-identified the R-peak in these recordings    due to its adaptive gradient-based approach to peak detection
+### `Scripts/`
 
-**`HRV_validity.R`**
-- Complete statistical analysis script that reproduces all validation results from the manuscript
-- Computes ICC₃,₁ values, Lin's Concordance Correlation Coefficients (CCC), and Bland-Altman plots
-- Generates publication-ready figures and validation statistics
+| Script | Purpose |
+|---|---|
+| `batch_processor.py` | Runs ChronOS and NeuroKit2 on the synthetic recordings and writes metrics to Excel. |
+| `peak_diff.py` | Lists R-peaks detected by one method and not the other, with timestamps. |
+| `export_RRI.py` | Exports ChronOS R-R series as text files for Kubios input. |
+| `kubios_parser.py` | Reads Kubios output files into a single table. |
+| `fantasia_segment.py` | Cuts the Fantasia records into the analysis segments. |
+| `fantasia_peak_score.py` | Scores detected R-peaks against annotations (TP, FP, FN, sensitivity, PPV, F1). |
+| `fantasia_score_workbook.py` | Compiles the peak-scoring output into a workbook. |
+| `ECG_generator/` | Synthetic ECG generator and its parameter file. |
+| `fy01_annotation/` | Scripts that build the f1y01 ground-truth annotations and annotate the record with ChronOS. |
+| `R_Analysis/` | Statistical analysis and Bland-Altman figures (see below). |
 
-### Data Files
+### `Manuscript Figures/`
 
-**`validation_results.xlsx`**
-- Raw validation results with ChronOS and NeuroKit2 metrics for 100 synthetic ECG files
-- Generated by `batch_processor.py`
-- Contains 13 core HRV validation metrics in separate tabs
+Figures 2-5 as generated by the R scripts.
 
-**`all_validity_data.xlsx`**
-- Comprehensive validation dataset integrating multiple validation approaches
-- Includes Fantasia ground truth analysis and NeuroKit2 comparisons
-- Used by `HRV_validity.R` for complete statistical analysis
+## Statistical analysis (`Scripts/R_Analysis/`)
 
-### Ground Truth Validation
+| Script | Comparison | Manuscript output |
+|---|---|---|
+| `HRV_Validity_NK2.R` | ChronOS vs NeuroKit2 | Table 1, Figures 2-3 |
+| `HRV_validity_Kubios.R` | ChronOS vs Kubios | Table 2, Figures 4-5, Table 4 (Kubios columns) |
+| `HRV_Validity.R` | Original combined script | Superseded by the two above |
 
-**`fantasia_validation/`**
-- Contains all scripts for ground truth validation analysis using Fantasia database record f1y01
-- Independent validation against expert-annotated R-peak locations 
-- Demonstrates ChronOS accuracy on real physiological data with known ground truth
+Methods:
 
-## Reproducing Manuscript Results
+- ICC: two-way, absolute agreement, single measures, ICC(2,1) (`irr`).
+- Lin's concordance correlation coefficient with z-transform 95% CI (`DescTools`).
+- Bland-Altman bias and 95% limits of agreement; difference = ChronOS minus comparator.
+- Agreement categories by ICC: excellent >= 0.90, good 0.75-0.89, moderate 0.50-0.74, poor < 0.50.
 
-### Complete Workflow
+Required R packages: `readxl`, `irr`, `ggplot2`, `gridExtra`, `DescTools`, `here`.
 
-1. **Generate Core Validation Data**
-   ```bash
-   python batch_processor.py
-   ```
-   - Runs both ChronOS and NeuroKit2 on 100 synthetic ECG files (300s, 256 Hz)
-   - Produces `validation_results.xlsx` with side-by-side comparison
+## Reproducing the results
 
-2. **Analyze Peak Detection Differences**
-   ```bash
-   python peak_diff.py
-   ```
-   - Identifies files with peak detection discrepancies (10/100 files)
-   - Reports physiologically implausible R-R intervals indicating spurious detections
-   - Provides timestamps for visual inspection of baseline artifacts
+1. Python: `pip install -r requirements.txt` (repo root). Also requires `neurokit2` and `pyedflib`.
+2. Run `Scripts/batch_processor.py` on `validation_synthetic_ecg/` to produce the ChronOS and NeuroKit2 metrics.
+3. Run `Scripts/export_RRI.py`, process the R-R files in Kubios HRV Scientific Lite, and collate with `Scripts/kubios_parser.py`.
+4. Run the scripts in `Scripts/R_Analysis/`.
 
-3. **Statistical Analysis and Figure Generation**
-   ```R
-   source("HRV_validity.R")
-   ```
-   - Generates all ICC₃,₁ calculations and Bland-Altman plots from manuscript
-   - Uses data from `all_validity_data.xlsx`
-   - Produces Figures 2 and 3 and statistics that were used to create Table 1
+Kubios settings: no artifact correction, 4 Hz resampling, 64 s window, 50% overlap, applied to the same R-R series used for ChronOS.
 
-4. **Ground Truth Validation** (Optional)
-   ```bash
-   cd fantasia_validation/
-   # Run ground truth validation scripts
-   ```
+## ChronOS settings used
 
-## Key Validation Findings
-
-The validation study demonstrates:
-
-**Exceptional Ground Truth Performance:**
-- Sensitivity and PPV: 99.99% (8,708/8,709 R-peaks detected)
-- F1 score: 1.000 with ±50ms tolerance window
-- Timing precision: -4 to +8ms from expert annotations
-
-**Strong Criterion Agreement:**
-- Excellent agreement (ICC ≥ 0.90): Number of peaks, mean R-R, RMSSD, pNN50, SD1, HF power
-- Good agreement (ICC 0.75-0.89): SDNN, SD2, SD1/SD2, LF power, LF/HF ratio, total power
-- Moderate agreement: VLF power (ICC = 0.61), sample entropy (ICC = 0.67)
-
-**Peak Detection Discrepancies:**
-- ChronOS detected correct R-peaks in all test cases
-- NeuroKit2 detected spurious peaks in baseline regions (10/100 files) -> can be investigated using peak_diff script. 
-
-## Validation Protocol
-
-### ChronOS Configuration
-- **Peak Detection:** Adaptive thresholding based on signal characteristics
-  - Height: 0.55 × (max amplitude - baseline)
-  - Prominence: 0.60 × height threshold  
-  - Distance: 250ms minimum between peaks
-- **Frequency Domain:** 4Hz cubic spline interpolation, Welch method with 256-sample Hann windows
-- **Units:** Absolute power values in ms² following Task Force guidelines
-
-### NeuroKit2 Configuration  
-- **Peak Detection:** Default gradient-based algorithm with fixed thresholds
-- **Frequency Domain:** 4Hz interpolation rate (interpolation_rate=4), normalize=False for absolute units
-- **Preprocessing:** ECG cleaning disabled for direct algorithm comparison
-- **Parameters:** All other settings at NeuroKit2 defaults
-
-### Synthetic ECG Dataset Specifications
-- **Files:** 100 recordings, 300 seconds duration each
-- **Sampling Rate:** 256 Hz  
-- **Heart Rate:** 60 bpm mean with systematic variation (55-65 bpm)
-- **HRV Components:** Low-frequency (0.1 Hz) and high-frequency (0.25 Hz) modulation
-- **Noise:** Low-amplitude Gaussian noise (0.02 mV) for realistic morphology
-- **Format:** European Data Format (.edf) for cross-platform compatibility
-
-### Validated HRV Metrics
-**Time Domain:**
-- Mean R-R interval, RMSSD, SDNN, pNN50
-
-**Nonlinear:**
-- SD1, SD2, SD1/SD2 ratio, sample entropy
-
-**Frequency Domain:**
-- VLF, LF, HF, LF/HF ratio, total power
-
-## Statistical Methods
-
-**Peak Detection Validation:**
-- Sensitivity, positive predictive value (PPV), F1 score
-- ±50ms tolerance window for R-peak matching
-- Clopper-Pearson exact binomial 95% confidence intervals
-
-**Agreement Assessment:**
-- ICC₃,₁: Two-way mixed effects model for absolute agreement with single measures
-- Lin's Concordance Correlation Coefficient (CCC) with z-transform 95% CIs
-- Bland-Altman analysis for systematic bias and limits of agreement
-
-**Agreement Interpretation:**
-- Excellent: ICC/CCC ≥ 0.90
-- Good: ICC/CCC 0.75-0.89  
-- Moderate: ICC/CCC 0.50-0.74
-- Poor: ICC/CCC < 0.50
-
-## Files Required for Reproduction
-
-All necessary files are included in this directory /validation_synthetic_ecg/:
-- 100 synthetic ECG files (referenced by batch processor) 
-- Synthetic ECG batch generation script for based on parameters from [Ramshur, 2010](https://digitalcommons.memphis.edu/etd/83/)
-- Complete analysis scripts with documented methodology
-- Validation data files for immediate statistical analysis
-- R script with all required statistical packages
-
-The entire validation study can be reproduced by running the three core scripts in sequence. No additional configuration files, manual data preparation, or external dependencies required beyond standard Python/R scientific computing libraries.
-
-## Technical Notes
-
-**Peak Detection Differences:**
-- Located at specific timestamps identified by `peak_diff.py`
-- Manifested as abnormally short R-R intervals (445-660ms) when NeuroKit2 split normal intervals (detected one additional R-peak)  
-- Visual inspection confirmed ChronOS correctly avoided baseline artifacts where NeuroKit2's gradient thresholds incorrectly classified noise fluctuations as QRS complexes
-
-**VLF Power Agreement:**
-- Moderate agreement (ICC = 0.61) consistent with established challenges in VLF estimation from 5-minute recordings
-- Task Force guidelines recommend longer recordings when VLF analysis is prioritized
-
-**Sample Entropy Discrepancies:**
-- Directly attributable to peak detection sensitivity differences
-- Bland-Altman revealed bimodal pattern: excellent agreement when peak counts matched, substantial differences when detection algorithms disagreed
+- R-peak height: 0.55 x (maximum - median); adjusted analysis: 0.60.
+- Prominence: 0.6 x height.
+- Minimum peak distance: 250 ms.
+- Frequency domain: 4 Hz cubic-spline resampling, Welch PSD, 256-sample Hann window.
+- Bandpass filter: off.

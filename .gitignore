@@ -135,3 +135,7 @@ dmypy.json
 "data/f1y01_from_csv/*.csv" 
 data/kaggle_fantasia/*.csv 
 data/f1y01_from_csv/*.csv 
+Validation Study/.RData
+Validation Study/.Rhistory
+Validation Study/validation_tree.txt
+__pycache__/
